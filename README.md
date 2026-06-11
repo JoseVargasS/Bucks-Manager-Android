@@ -1,56 +1,44 @@
 # Bucks Manager Android
 
-React Native/Expo Android migration of the original Bucks Manager Google Apps Script app.
+Android migration of the Bucks Manager Google Apps Script app.
 
-Bucks Manager is a personal finance app where each user's private Google Sheet works as the database. The Android app is designed to let a user sign in with Google, find or create a compatible spreadsheet, and manage income/expense data without a custom backend.
+The app has no custom backend. Each user signs in with Google and uses a private Google Sheet as the database.
 
-## Current Status
+## Current Flow
 
-- Expo SDK 56 / React Native 0.85 / TypeScript.
-- Android-first app shell with Bucks Manager visual parity.
-- Demo mode works without Google credentials.
-- Google Drive + Google Sheets API service layer is implemented and ready for OAuth client IDs.
-- Local skills are installed under `.agents/skills` for Expo, Android CLI, Android edge-to-edge, R8 analysis, frontend design, and accessibility.
+1. Open the app.
+2. If there is no Google session, show only the Bucks Manager login screen.
+3. Sign in with Google.
+4. Scan Google Drive for compatible spreadsheets.
+5. Prefer an existing spreadsheet named `INGRESOS Y GASTOS`.
+6. If multiple compatible sheets exist, show a selector.
+7. If none exists, create a new spreadsheet named `INGRESOS Y GASTOS`.
+8. Load transactions and summaries from Google Sheets.
 
-## Features
-
-- Monthly transaction list with KPIs.
-- Add/edit/delete transactions.
-- Undo delete in demo mode.
-- Frequent income editor.
-- Advanced search filters.
-- Analysis screen with KPI cards and lightweight native charts.
-- CSV/PDF export through Android sharing.
-- Light/dark theme.
-- Google Sheets repository layer for:
-  - scanning compatible Sheets in Drive
-  - creating a new Bucks Manager spreadsheet
-  - initializing required tabs and headers
-  - reading/writing transactions
-  - creating monthly summary rows with formulas
+No demo finance data is shown during startup. While the app checks the session or loads Google Sheets, it shows a skeleton screen.
 
 ## Google Sheet Contract
 
-The app expects two tabs:
+The spreadsheet must contain these tabs:
 
 - `INGRESOS Y GASTOS`
 - `RESUMEN POR MES`
 
-`INGRESOS Y GASTOS` columns:
+`INGRESOS Y GASTOS` accepted headers:
 
 | Column | Header |
 | --- | --- |
 | A | Fecha |
 | B | Monto |
 | C | Detalle |
-| D | Tipo |
-| E | HORA DE CREACIÓN |
+| D | Tipo or Tipo de gasto |
+| E | HORA DE CREACION or HORA DE CREACIÓN |
 
-`RESUMEN POR MES` columns:
+`RESUMEN POR MES` accepted headers:
 
 | Column | Header |
 | --- | --- |
-| A | MES |
+| A | MES or MES Y AÑO |
 | B | INGRESO FRECUENTE |
 | C | INGRESO NO FRECUENTE |
 | D | TOTAL INGRESOS |
@@ -58,7 +46,7 @@ The app expects two tabs:
 | F | GASTO NO FRECUENTE |
 | G | TOTAL GASTOS |
 | H | NETO MENSUAL |
-| I | NETO SIN ING FRECUENTE |
+| I | NETO SIN ING FRECUENTE or TOTAL SIN INGRESO FRECUENTE |
 
 Supported transaction types:
 
@@ -67,7 +55,7 @@ Supported transaction types:
 - `GASTO FRECUENTE`
 - `GASTO NO FRECUENTE`
 
-## Setup
+## Commands
 
 Install dependencies:
 
@@ -75,60 +63,47 @@ Install dependencies:
 npm install
 ```
 
-Start Expo:
-
-```powershell
-npm run android
-```
-
-If Node is not on `PATH` in the current shell, a portable Node runtime was used during setup:
-
-```powershell
-$env:Path='C:\tmp\node-v24.16.0-win-x64;' + $env:Path
-npx expo start --localhost --port 8081
-```
-
-## Google OAuth
-
-The app runs in demo mode until OAuth IDs are configured.
-
-1. Create a Google Cloud project.
-2. Enable Google Drive API and Google Sheets API.
-3. Configure OAuth consent.
-4. Create an Android OAuth client for package:
-   - `com.josev.bucksmanager`
-5. Add the SHA-1 for the debug/release keystore.
-6. Optionally create a web OAuth client for Expo Go testing.
-7. Set these constants in `App.tsx`:
-   - `GOOGLE_ANDROID_CLIENT_ID`
-   - `GOOGLE_WEB_CLIENT_ID`
-
-Scopes used:
-
-- `https://www.googleapis.com/auth/drive.metadata.readonly`
-- `https://www.googleapis.com/auth/spreadsheets`
-
-Drive scanning can require Google OAuth verification before Play Store release. If verification becomes a blocker, switch onboarding to user-selected spreadsheet access instead of scanning all spreadsheets.
-
-## Useful Commands
-
 Type-check:
 
 ```powershell
 npx tsc --noEmit
 ```
 
-Check Expo dependency compatibility:
+Install/run on a physical Android phone:
 
 ```powershell
-npx expo install --check
+npm run android
 ```
 
-Start Metro on localhost:
+`npm run android` sets `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and Android platform-tools for that command. It targets a physical ADB-authorized phone and avoids a broken emulator being selected accidentally.
+
+Start Metro for an already installed development build:
 
 ```powershell
-npx expo start --localhost --port 8081
+npx expo start
 ```
+
+The QR flow only works after the phone already has a compatible dev build installed. It opens the JavaScript bundle in the installed app. It does not compile or install the native Android app.
+
+## Google OAuth
+
+Environment variables are loaded from `.env`:
+
+- `GOOGLE_ANDROID_CLIENT_ID`
+- `GOOGLE_WEB_CLIENT_ID`
+
+Required scopes:
+
+- `https://www.googleapis.com/auth/drive.metadata.readonly`
+- `https://www.googleapis.com/auth/spreadsheets`
+
+The Android OAuth client must use package:
+
+```text
+com.josev.bucksmanager
+```
+
+The debug/release SHA-1 in Google Cloud must match the keystore used to build the installed app.
 
 ## Project Structure
 
@@ -136,13 +111,14 @@ npx expo start --localhost --port 8081
 App.tsx
 src/
   api/googleWorkspace.ts
-  data/demoData.ts
   domain/bucksLogic.ts
   types.ts
+scripts/
+  run-android.ps1
 ```
 
 ## Notes
 
-- Do not commit OAuth client secrets, user spreadsheet IDs, Expo logs, `.expo/`, or `node_modules/`.
-- Keep UI changes aligned with the original Bucks Manager GAS interface.
-- Use `GOOGLE-SETUP.md` for a shorter OAuth checklist.
+- Do not commit `.env`, OAuth secrets, user spreadsheet IDs, `.expo/`, or `node_modules/`.
+- Keep Android UI aligned with the mobile Google Apps Script version.
+- Google Drive inspection from Codex should be read-only unless the user explicitly asks to modify a Drive file.
