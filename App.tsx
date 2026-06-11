@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,8 +18,8 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
+  StatusBar as NativeStatusBar,
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Circle, G, Rect } from "react-native-svg";
 import {
@@ -68,14 +69,6 @@ function getBlankDraft(type: TransactionType = "GASTO NO FRECUENTE"): Transactio
 }
 
 export default function App() {
-  return (
-    <SafeAreaProvider>
-      <BucksManagerApp />
-    </SafeAreaProvider>
-  );
-}
-
-function BucksManagerApp() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const colors = theme === "dark" ? dark : light;
   const [tab, setTab] = useState<Tab>("expenses");
@@ -107,7 +100,7 @@ function BucksManagerApp() {
   const [freqInput, setFreqInput] = useState("");
   const { width } = useWindowDimensions();
   const compact = width < 820;
-  const insets = useSafeAreaInsets();
+  const statusBarInset = NativeStatusBar.currentHeight || 0;
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -445,7 +438,7 @@ function BucksManagerApp() {
 
   if (bootstrapping) {
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
         <StatusBar style={theme === "dark" ? "light" : "dark"} />
         <SkeletonScreen colors={colors} />
       </SafeAreaView>
@@ -455,7 +448,7 @@ function BucksManagerApp() {
   if (!accessToken) {
     const canConnect = Boolean(GOOGLE_ANDROID_CLIENT_ID || GOOGLE_WEB_CLIENT_ID);
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
         <StatusBar style={theme === "dark" ? "light" : "dark"} />
         <View style={styles.loginScreen}>
           <View style={[styles.loginMark, { backgroundColor: colors.green, borderColor: colors.green }]}>
@@ -483,9 +476,9 @@ function BucksManagerApp() {
   }
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={[styles.safe, { backgroundColor: colors.bg }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
-      <View style={[styles.shell, compact && styles.shellCompact, { backgroundColor: colors.bg, paddingTop: compact ? Math.max(6, insets.top * 0.12) : 12 }]}>
+      <View style={[styles.shell, compact && styles.shellCompact, { backgroundColor: colors.bg, paddingTop: compact ? statusBarInset + 6 : 12 }]}>
         <View style={[styles.sidebar, compact && styles.sidebarCompact, { backgroundColor: colors.sidebar, borderColor: colors.border }]}>
           <View style={styles.brandRow}>
             <View style={[styles.logo, { backgroundColor: colors.green }]}>
