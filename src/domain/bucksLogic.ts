@@ -1,0 +1,213 @@
+import { SearchFilters, SummaryRow, Transaction, TransactionDraft, TransactionType } from "../types";
+
+export const SHEET_NAMES = {
+  transactions: "INGRESOS Y GASTOS",
+  summary: "RESUMEN POR MES",
+};
+
+export const TRANSACTION_TYPES: TransactionType[] = [
+  "INGRESO FRECUENTE",
+  "INGRESO NO FRECUENTE",
+  "GASTO FRECUENTE",
+  "GASTO NO FRECUENTE",
+];
+
+export const MONTH_NAMES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+export const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+export const SUMMARY_HEADERS = [
+  "MES",
+  "INGRESO FRECUENTE",
+  "INGRESO NO FRECUENTE",
+  "TOTAL INGRESOS",
+  "GASTO FRECUENTE",
+  "GASTO NO FRECUENTE",
+  "TOTAL GASTOS",
+  "NETO MENSUAL",
+  "NETO SIN ING FRECUENTE",
+];
+
+export const TRANSACTION_HEADERS = ["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACIÓN"];
+
+export function formatMoney(value: number) {
+  const n = Number(value) || 0;
+  const sign = n >= 0 ? "+ " : "- ";
+  return `${sign}S/ ${Math.abs(n).toFixed(2)}`;
+}
+
+export function formatDateToISO(date: Date | string) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function formatDateForSheet(date: Date) {
+  return `${String(date.getDate()).padStart(2, "0")}-${SHORT_MONTHS[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
+}
+
+export function parseSpanishDate(value: string) {
+  const parts = value.split("-");
+  if (parts.length !== 3) return null;
+  const month = SHORT_MONTHS.indexOf(parts[1].toLowerCase());
+  if (month < 0) return null;
+  let year = Number(parts[2]);
+  if (year < 100) year += 2000;
+  const date = new Date(year, month, Number(parts[0]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function getMonthYear(date: Date) {
+  return `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+export function calculateExpression(expression: string) {
+  const clean = expression.replace(/[^0-9+\-*/().\s]/g, "");
+  if (!clean.trim()) return 0;
+  try {
+    // Mirrors the existing calculator field but only after stripping unsafe characters.
+    const result = Function(`"use strict"; return (${clean})`)();
+    return Number.isFinite(Number(result)) ? Number(result) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function normalizeDraftAmount(draft: TransactionDraft) {
+  const calculated = draft.amount.trim().startsWith("=")
+    ? Number(calculateExpression(draft.amount.slice(1)))
+    : Number(calculateExpression(draft.amount));
+  if (draft.type.startsWith("GASTO")) return -Math.abs(calculated);
+  return Math.abs(calculated);
+}
+
+export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number): Transaction {
+  const date = new Date(`${draft.date}T00:00:00`);
+  const amount = normalizeDraftAmount(draft);
+  return {
+    rowId,
+    date: formatDateForSheet(date),
+    rawDate: date.toISOString(),
+    amount,
+    formula: draft.amount.trim().startsWith("=") ? draft.amount : "",
+    detail: draft.detail.trim(),
+    type: draft.type,
+    createdAt: draft.createdAt || new Date().toISOString(),
+  };
+}
+
+export function filterTransactionsByPeriod(transactions: Transaction[], month: number, year: number) {
+  return transactions
+    .filter((tx) => {
+      const date = tx.rawDate ? new Date(tx.rawDate) : parseSpanishDate(tx.date);
+      return date && date.getMonth() === month && date.getFullYear() === year;
+    })
+    .sort((a, b) => b.rowId - a.rowId);
+}
+
+export function insertChronologically(transactions: Transaction[], tx: Transaction) {
+  const next = [...transactions];
+  const target = new Date(tx.rawDate).setHours(0, 0, 0, 0);
+  const index = next.findIndex((item) => new Date(item.rawDate).setHours(0, 0, 0, 0) > target);
+  if (index === -1) next.push(tx);
+  else next.splice(index, 0, tx);
+  return next.map((item, idx) => ({ ...item, rowId: idx + 2 }));
+}
+
+export function applySearch(transactions: Transaction[], filters: SearchFilters) {
+  const text = filters.text.toLowerCase().trim();
+  const min = filters.minAmount ? Number(filters.minAmount) : null;
+  const max = filters.maxAmount ? Number(filters.maxAmount) : null;
+  const start = filters.startDate ? new Date(`${filters.startDate}T00:00:00`) : null;
+  const end = filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null;
+
+  return transactions
+    .filter((tx) => {
+      const abs = Math.abs(Number(tx.amount) || 0);
+      const date = new Date(tx.rawDate);
+      const haystack = `${tx.detail} ${tx.type}`.toLowerCase();
+      if (text && !haystack.includes(text)) return false;
+      if (min !== null && abs < min) return false;
+      if (max !== null && abs > max) return false;
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime() || b.rowId - a.rowId)
+    .slice(0, 150);
+}
+
+export function calculateSummaries(transactions: Transaction[], freqIncomeByMonth: Record<string, number>) {
+  const byMonth = new Map<string, SummaryRow>();
+  transactions.forEach((tx) => {
+    const date = new Date(tx.rawDate);
+    const key = getMonthYear(date);
+    const current =
+      byMonth.get(key) ||
+      {
+        monthYear: key,
+        freqIncome: freqIncomeByMonth[key] || 0,
+        nonFreqIncome: 0,
+        totalIncome: 0,
+        freqExpense: 0,
+        nonFreqExpense: 0,
+        totalExpense: 0,
+        netMonthly: 0,
+        netNoFreq: 0,
+      };
+
+    if (tx.type === "INGRESO NO FRECUENTE") current.nonFreqIncome += Number(tx.amount) || 0;
+    if (tx.type === "GASTO FRECUENTE") current.freqExpense += Number(tx.amount) || 0;
+    if (tx.type === "GASTO NO FRECUENTE") current.nonFreqExpense += Number(tx.amount) || 0;
+    byMonth.set(key, current);
+  });
+
+  Object.keys(freqIncomeByMonth).forEach((key) => {
+    if (!byMonth.has(key)) {
+      byMonth.set(key, {
+        monthYear: key,
+        freqIncome: freqIncomeByMonth[key],
+        nonFreqIncome: 0,
+        totalIncome: 0,
+        freqExpense: 0,
+        nonFreqExpense: 0,
+        totalExpense: 0,
+        netMonthly: 0,
+        netNoFreq: 0,
+      });
+    }
+  });
+
+  return Array.from(byMonth.values())
+    .map((row) => {
+      const totalIncome = row.freqIncome + row.nonFreqIncome;
+      const totalExpense = row.freqExpense + row.nonFreqExpense;
+      return {
+        ...row,
+        totalIncome,
+        totalExpense,
+        netMonthly: totalIncome + totalExpense,
+        netNoFreq: totalIncome + totalExpense - row.freqIncome,
+      };
+    })
+    .sort((a, b) => monthYearToDate(a.monthYear).getTime() - monthYearToDate(b.monthYear).getTime());
+}
+
+export function monthYearToDate(monthYear: string) {
+  const [monthName, year] = monthYear.split(" ");
+  const month = MONTH_NAMES.findIndex((name) => name.toLowerCase() === monthName.toLowerCase());
+  return new Date(Number(year), Math.max(0, month), 1);
+}
