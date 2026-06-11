@@ -35,7 +35,13 @@ Usa estos valores:
 | Package name | `com.josev.bucksmanager` |
 | SHA-1 fingerprint | El SHA-1 real de tu keystore debug o release |
 
-Para ver el SHA-1 debug en esta maquina:
+Para esta build debug local, el SHA-1 actual es:
+
+```text
+5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25
+```
+
+Para volver a verificarlo en esta maquina:
 
 ```powershell
 cd "C:\Users\JoseV\Desktop\Bucks Manager Android"
@@ -45,6 +51,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 ```
 
 Copia el SHA-1 que aparece para `Variant: debug`.
+
+Si Google Sign-In muestra `DEVELOPER_ERROR`, casi siempre significa que el OAuth client Android no tiene exactamente este par:
+
+- Package name: `com.josev.bucksmanager`
+- SHA-1: `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`
+
+Tambien confirma que `GOOGLE_WEB_CLIENT_ID` sea un OAuth client tipo `Web application`, no Android.
 
 ## 4. Variables de entorno
 

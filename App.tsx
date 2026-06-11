@@ -171,7 +171,14 @@ export default function App() {
       if (!tokens.accessToken) throw new Error("Google no devolvió access token.");
       await connectGoogleWorkspace(tokens.accessToken);
     } catch (error) {
-      Alert.alert("Google", error instanceof Error ? error.message : "No se pudo iniciar sesión con Google.");
+      const message = error instanceof Error ? error.message : "No se pudo iniciar sesión con Google.";
+      const isDeveloperError = message.includes("DEVELOPER_ERROR") || message.includes("code: 10");
+      Alert.alert(
+        "Google",
+        isDeveloperError
+          ? "Google rechazó la configuración OAuth. En Google Cloud revisa que el cliente Android use package com.josev.bucksmanager y el SHA-1 debug actual. También confirma que GOOGLE_WEB_CLIENT_ID sea tipo Web application."
+          : message,
+      );
       setSetupStatus("Listo para conectar");
       setLoading(false);
     }
