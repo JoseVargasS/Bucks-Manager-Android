@@ -4,8 +4,13 @@
     "slug": "bucks-manager-android",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/icon-bucks.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-bucks.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050E0B"
+    },
     "scheme": "com.josev.bucksmanager",
     "ios": {
       "supportsTablet": true,
@@ -14,10 +19,10 @@
     "android": {
       "package": "com.josev.bucksmanager",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#050E0B",
+        "foregroundImage": "./assets/android-icon-foreground-bucks.png",
+        "backgroundImage": "./assets/android-icon-background-bucks.png",
+        "monochromeImage": "./assets/android-icon-monochrome-bucks.png"
       },
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -35,7 +40,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon-bucks.png"
     },
     "plugins": [
       "@react-native-google-signin/google-signin",

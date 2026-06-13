@@ -624,7 +624,7 @@ export default function App() {
               onToggleRow={(rowId: number) => setExpandedRows((current) => ({ ...current, [rowId]: !current[rowId] }))}
             />
           ) : (
-            <SummaryView colors={colors} summaries={summaries} />
+            <SummaryView colors={colors} summaries={summaries} compact={compact} />
           )}
         </View>
 
@@ -726,7 +726,7 @@ function SkeletonScreen({ colors }: { colors: Palette }) {
 function MobileControls({ colors, year, month, availableYears, setYear, changeMonth, goToday }: any) {
   return (
     <View style={[styles.mobileControls, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mobileYearRail}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mobileYearScroll} contentContainerStyle={styles.mobileYearRail}>
         {availableYears.map((item: number) => (
           <TouchableOpacity
             key={item}
@@ -862,7 +862,7 @@ function ExpensesView({
   onToggleRow,
 }: any) {
   return (
-    <ScrollView showsVerticalScrollIndicator={false}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pageScroll}>
       <View style={[styles.statsGrid, compact && styles.statsGridMobile]}>
         <StatCard title="Ing. Frec." value={formatMoney(summary.freqIncome)} tone="income" icon="cash" colors={colors} action={onEditFreq} />
         <StatCard title="Ing. No Frec." value={formatMoney(summary.nonFreqIncome)} tone="income" icon="trending-up" colors={colors} />
@@ -873,7 +873,7 @@ function ExpensesView({
       </View>
 
       {searchActive && (
-        <View style={[styles.searchBanner, { backgroundColor: colors.greenSoft }]}>
+        <View style={[styles.searchBanner, compact && styles.searchBannerMobile, { backgroundColor: colors.greenSoft }]}>
           <Text style={{ color: colors.green, fontWeight: "800" }}>Mostrando resultados de búsqueda avanzada</Text>
           <TouchableOpacity onPress={onExitSearch}>
             <Text style={{ color: colors.green, fontWeight: "900" }}>Salir</Text>
@@ -881,9 +881,60 @@ function ExpensesView({
         </View>
       )}
 
-      <View style={[styles.tableCard, compact && styles.tableCardMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <ScrollView horizontal={compact} showsHorizontalScrollIndicator={compact}>
-          <View style={compact ? styles.mobileTableWide : styles.tableWide}>
+      {compact ? (
+        <View style={styles.mobileTxList}>
+          {transactions.map((tx: Transaction) => (
+            <TouchableOpacity
+              key={`${tx.rowId}-${tx.createdAt}`}
+              onPress={() => onOpenDetail(tx)}
+              style={[
+                styles.mobileTxCard,
+                expandedRows[tx.rowId] && { backgroundColor: colors.expandedRow },
+                tx.type === "GASTO FRECUENTE" && { backgroundColor: colors.freqExpenseRow },
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.mobileTxTop}>
+                <TouchableOpacity style={[styles.mobileGripBtn, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={() => onMove(tx)}>
+                  <MaterialCommunityIcons name="drag-horizontal-variant" size={20} color={colors.muted} />
+                </TouchableOpacity>
+                <View style={styles.mobileTxMain}>
+                  <Text style={[styles.mobileTxDate, { color: colors.muted }]}>{tx.date}</Text>
+                  <Text numberOfLines={1} style={[styles.mobileTxDetail, { color: colors.text }]}>{tx.detail}</Text>
+                </View>
+                <Text numberOfLines={1} style={[styles.mobileTxAmount, { color: tx.amount >= 0 ? colors.green : colors.red }]}>{formatMoney(tx.amount)}</Text>
+              </View>
+              {expandedRows[tx.rowId] && (
+                <Text style={[styles.mobileTxExpandedDetail, { color: colors.text }]}>{tx.detail}</Text>
+              )}
+              <View style={styles.mobileTxBottom}>
+                <View style={[styles.mobileTypePill, { borderColor: typeColor(tx.type, colors), backgroundColor: typeFill(tx.type, colors) }]}>
+                  <Text numberOfLines={1} style={[styles.typePillText, { color: typeTextColor(tx.type, colors) }]}>{abbrev(tx.type).toUpperCase()}</Text>
+                </View>
+                <View style={styles.mobileActionCluster}>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={() => onToggleRow(tx.rowId)}>
+                    <MaterialCommunityIcons name={expandedRows[tx.rowId] ? "chevron-up" : "chevron-down"} size={19} color={colors.blue} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.editBg, borderColor: colors.editBorder }]} onPress={() => onEdit(tx)}>
+                    <MaterialCommunityIcons name="pencil" size={18} color={colors.green} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.actionDark, borderColor: colors.border }]} onPress={() => onDelete(tx)}>
+                    <MaterialCommunityIcons name="trash-can" size={18} color={colors.red} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {!transactions.length && (
+            <View style={[styles.mobileEmptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.empty, { color: colors.muted }]}>No hay movimientos para mostrar.</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={[styles.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <ScrollView horizontal={false} showsHorizontalScrollIndicator={false}>
+            <View style={styles.tableWide}>
             <View style={[styles.tableHeader, { backgroundColor: colors.input, borderColor: colors.border }]}>
               <Text style={styles.rowGripHeader} />
               <Text style={[styles.th, { color: colors.text, flex: 0.78 }]}>FECHA</Text>
@@ -932,14 +983,15 @@ function ExpensesView({
               </TouchableOpacity>
             ))}
             {!transactions.length && <Text style={[styles.empty, { color: colors.muted }]}>No hay movimientos para mostrar.</Text>}
-          </View>
-        </ScrollView>
-      </View>
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
-function SummaryView({ colors, summaries }: { colors: Palette; summaries: SummaryRow[] }) {
+function SummaryView({ colors, summaries, compact }: { colors: Palette; summaries: SummaryRow[]; compact: boolean }) {
   const totals = summaries.reduce(
     (acc, row) => ({
       income: acc.income + row.totalIncome,
@@ -950,22 +1002,22 @@ function SummaryView({ colors, summaries }: { colors: Palette; summaries: Summar
   );
   const savings = totals.income > 0 ? Math.round((totals.net / totals.income) * 100) : 0;
   return (
-    <ScrollView showsVerticalScrollIndicator={false}>
-      <View style={styles.kpiGrid}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, compact && styles.pageScrollMobile]}>
+      <View style={[styles.kpiGrid, compact && styles.kpiGridMobile]}>
         <Kpi title="Ingresos Totales" value={`S/ ${totals.income.toFixed(2)}`} icon="trending-up" color={colors.green} colors={colors} />
         <Kpi title="Gastos Totales" value={`S/ ${totals.expense.toFixed(2)}`} icon="trending-down" color={colors.red} colors={colors} />
         <Kpi title="Balance Neto" value={`S/ ${totals.net.toFixed(2)}`} icon="wallet" color={totals.net >= 0 ? colors.blue : colors.red} colors={colors} />
         <Kpi title="Tasa de Ahorro" value={`${savings}%`} icon="piggy-bank" color={colors.yellow} colors={colors} />
       </View>
-      <View style={styles.chartRow}>
+      <View style={[styles.chartRow, compact && styles.chartRowMobile]}>
         <PieCard title="Ingresos" values={[totals.income, Math.max(0, totals.net)]} colors={colors} />
         <PieCard title="Gastos" values={[totals.expense, Math.max(0, totals.income - totals.expense)]} colors={colors} danger />
       </View>
-      <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.chartCard, compact && styles.chartCardMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Comparativa Interanual</Text>
         <BarChart rows={summaries} colors={colors} />
       </View>
-      <View style={[styles.tableCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.tableCard, compact && styles.summaryTableMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {summaries.map((row) => (
           <View key={row.monthYear} style={[styles.summaryRow, { borderColor: colors.border }]}>
             <Text style={[styles.summaryMonth, { color: colors.text }]}>{row.monthYear}</Text>
@@ -997,7 +1049,7 @@ function TransactionModal({ visible, colors, draft, setDraft, editing, onClose, 
               <MaterialCommunityIcons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <View style={styles.recordBody}>
+          <ScrollView style={styles.recordScroll} contentContainerStyle={styles.recordBody} showsVerticalScrollIndicator={false}>
             <Field label="Fecha" value={draft.date} onChangeText={(date: string) => setDraft({ ...draft, date })} colors={colors} placeholder="YYYY-MM-DD" rightIcon="calendar" />
             <Text style={[styles.label, { color: colors.text }]}>Tipo</Text>
             <TouchableOpacity style={[styles.selectInput, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={chooseType}>
@@ -1031,7 +1083,7 @@ function TransactionModal({ visible, colors, draft, setDraft, editing, onClose, 
                 <Text style={styles.recordSubmitText}>{editing ? "Guardar" : "Agregar"}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -1112,13 +1164,13 @@ function DetailModal({ tx, colors, onClose }: { tx: Transaction | null; colors: 
             </TouchableOpacity>
           </View>
           {tx && (
-            <View style={styles.detailStack}>
+            <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailStack} showsVerticalScrollIndicator={false}>
               <Detail label="Fecha" value={tx.date} tone={colors.blue} colors={colors} wide />
               <Detail label="Hora de creación" value={formatCreatedTime(tx.createdAt)} colors={colors} />
               <Detail label="Monto" value={formatMoney(tx.amount)} tone={colors.red} colors={colors} wide />
               <Detail label="Tipo" value={tx.type} tone={colors.yellow} colors={colors} wide />
               <Detail label="Detalle" value={tx.detail} tone={colors.yellow} colors={colors} wide />
-            </View>
+            </ScrollView>
           )}
         </View>
       </View>
@@ -1374,6 +1426,8 @@ const styles = StyleSheet.create({
   accountName: { fontSize: 13, fontWeight: "900" },
   accountEmail: { fontSize: 11, fontWeight: "700", marginTop: 2 },
   content: { flex: 1 },
+  pageScroll: { paddingBottom: 98 },
+  pageScrollMobile: { paddingHorizontal: 14 },
   loginScreen: { flex: 1, alignItems: "center", justifyContent: "center", padding: 26 },
   loginMark: { width: 78, height: 78, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center", marginBottom: 18 },
   loginTitle: { fontSize: 30, fontWeight: "900", textAlign: "center" },
@@ -1382,26 +1436,27 @@ const styles = StyleSheet.create({
   googleLoginText: { color: "#061108", fontSize: 15, fontWeight: "900" },
   loginStatus: { marginTop: 14, fontSize: 12, fontWeight: "700", textAlign: "center" },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  topBarMobile: { marginBottom: 0, paddingHorizontal: 14, paddingVertical: 16, borderBottomWidth: 1 },
+  topBarMobile: { marginBottom: 0, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
   headerLeft: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
   titleBlock: { flex: 1, minWidth: 0 },
   pageTitle: { fontSize: 28, fontWeight: "900" },
   pageTitleMobile: { fontSize: 20 },
   pageSub: { fontSize: 13, fontWeight: "700" },
   pageSubMobile: { fontSize: 14 },
-  topActions: { flexDirection: "row", gap: 8 },
-  headerBtn: { width: 42, height: 42, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  topActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  headerBtn: { width: 40, height: 40, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   headerBtnOutlined: { borderWidth: 1 },
-  themeToggle: { width: 65, height: 35, borderRadius: 999, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  themeToggle: { width: 58, height: 34, borderRadius: 999, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   themeThumb: { width: 29, height: 29, borderRadius: 15, backgroundColor: "#ffffff" },
-  mobileControls: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 16, borderBottomWidth: 1 },
+  mobileControls: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+  mobileYearScroll: { flex: 1, minWidth: 0 },
   mobileYearRail: { gap: 8, paddingRight: 2 },
-  mobileYearChip: { minWidth: 98, height: 47, borderWidth: 1, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
-  mobileYearText: { fontSize: 18, fontWeight: "900" },
-  monthNavMobile: { flex: 1, minWidth: 168, height: 47, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mobileYearChip: { minWidth: 76, height: 42, borderWidth: 1, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+  mobileYearText: { fontSize: 15, fontWeight: "900" },
+  monthNavMobile: { flexGrow: 1, flexBasis: 184, minWidth: 0, height: 42, borderWidth: 1, borderRadius: 10, paddingHorizontal: 6, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   monthArrowMobile: { width: 34, height: 34, borderRadius: 7, alignItems: "center", justifyContent: "center" },
-  monthNavTextMobile: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "900" },
-  todayBtnMobile: { width: 47, height: 47, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  monthNavTextMobile: { flex: 1, textAlign: "center", fontSize: 15, fontWeight: "900" },
+  todayBtnMobile: { width: 42, height: 42, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   connectCard: { borderWidth: 1, borderRadius: 8, padding: 14, flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 12 },
   connectTitle: { fontSize: 16, fontWeight: "900" },
   connectText: { fontSize: 12, fontWeight: "700", lineHeight: 18 },
@@ -1416,18 +1471,19 @@ const styles = StyleSheet.create({
   skeletonRow: { height: 42, borderRadius: 8 },
   skeletonBox: { borderRadius: 8, opacity: 0.92 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
-  statsGridMobile: { padding: 14, gap: 8, marginBottom: 0 },
-  statCard: { width: "48.5%", minWidth: 0, borderWidth: 1, borderRadius: 11, padding: 12, position: "relative", flexDirection: "row", alignItems: "center", gap: 10 },
+  statsGridMobile: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, gap: 8, marginBottom: 0 },
+  statCard: { flexGrow: 1, flexBasis: "48%", minWidth: 0, borderWidth: 1, borderRadius: 11, padding: 12, position: "relative", flexDirection: "row", alignItems: "center", gap: 10 },
   statIcon: { width: 34, height: 34, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   statContent: { flex: 1, minWidth: 0 },
   statLabel: { fontSize: 10, fontWeight: "900", textTransform: "uppercase" },
   statValue: { fontSize: 15, fontWeight: "900", marginTop: 4 },
   editStat: { position: "absolute", right: 10, top: 10 },
-  searchBanner: { borderRadius: 8, padding: 12, flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
+  searchBanner: { borderRadius: 8, padding: 12, flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, marginBottom: 10 },
+  searchBannerMobile: { marginHorizontal: 14 },
   tableCard: { borderWidth: 1, borderRadius: 8, overflow: "hidden", marginBottom: 18 },
   tableCardMobile: { marginHorizontal: 14, borderRadius: 18 },
+  summaryTableMobile: { borderRadius: 14 },
   tableWide: { width: "100%" },
-  mobileTableWide: { width: 760 },
   tableHeader: { flexDirection: "row", borderBottomWidth: 1, paddingVertical: 12, paddingHorizontal: 10 },
   th: { fontSize: 14, fontWeight: "900" },
   tr: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, paddingVertical: 13, paddingHorizontal: 10 },
@@ -1447,6 +1503,19 @@ const styles = StyleSheet.create({
   rowGripHeader: { width: 28 },
   rowGrip: { width: 28, alignItems: "flex-start", justifyContent: "center" },
   empty: { padding: 18, textAlign: "center", fontWeight: "700" },
+  mobileTxList: { paddingHorizontal: 14, gap: 10 },
+  mobileTxCard: { borderWidth: 1, borderRadius: 14, padding: 12, gap: 10 },
+  mobileTxTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  mobileGripBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  mobileTxMain: { flex: 1, minWidth: 0 },
+  mobileTxDate: { fontSize: 12, fontWeight: "900" },
+  mobileTxDetail: { fontSize: 15, fontWeight: "900", marginTop: 2 },
+  mobileTxAmount: { maxWidth: 112, fontSize: 15, fontWeight: "900", textAlign: "right" },
+  mobileTxExpandedDetail: { fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  mobileTxBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  mobileTypePill: { flex: 1, minHeight: 34, borderRadius: 999, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
+  mobileActionCluster: { flexDirection: "row", alignItems: "center", gap: 8 },
+  mobileEmptyCard: { borderWidth: 1, borderRadius: 14 },
   fab: { position: "absolute", right: 22, bottom: 22, width: 62, height: 62, borderRadius: 31, alignItems: "center", justifyContent: "center" },
   undoFab: { position: "absolute", left: 270, bottom: 22, borderRadius: 999, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 16, flexDirection: "row", gap: 8 },
   drawerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.58)" },
@@ -1463,29 +1532,33 @@ const styles = StyleSheet.create({
   accountAction: { borderTopWidth: 1, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   accountActionText: { fontSize: 15, fontWeight: "900" },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
-  kpi: { width: "24%", minWidth: 150, borderWidth: 1, borderRadius: 8, padding: 14 },
+  kpiGridMobile: { gap: 8, marginBottom: 10 },
+  kpi: { flexGrow: 1, flexBasis: "23%", minWidth: 150, borderWidth: 1, borderRadius: 8, padding: 14 },
   kpiValue: { fontSize: 20, fontWeight: "900", marginTop: 5 },
   chartRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  chartRowMobile: { flexDirection: "column", gap: 10 },
   chartCard: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 14, alignItems: "center", marginBottom: 12 },
+  chartCardMobile: { width: "100%" },
   sectionTitle: { alignSelf: "flex-start", fontSize: 16, fontWeight: "900", marginBottom: 10 },
   piePct: { position: "absolute", top: 82, fontSize: 18, fontWeight: "900" },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", padding: 14, borderBottomWidth: 1 },
   summaryMonth: { fontWeight: "900" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.62)", justifyContent: "center", padding: 16 },
-  modal: { borderRadius: 8, padding: 16, maxWidth: 620, width: "100%", alignSelf: "center" },
-  recordModal: { borderWidth: 1, borderRadius: 24, width: "100%", maxWidth: 390, alignSelf: "center", overflow: "hidden" },
-  recordHeader: { minHeight: 80, borderBottomWidth: 1, paddingHorizontal: 22, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  recordTitle: { fontSize: 21, fontWeight: "900" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.62)", justifyContent: "center", padding: 14 },
+  modal: { borderRadius: 8, padding: 16, maxWidth: 620, maxHeight: "90%", width: "100%", alignSelf: "center" },
+  recordModal: { borderWidth: 1, borderRadius: 20, width: "100%", maxWidth: 390, maxHeight: "90%", alignSelf: "center", overflow: "hidden" },
+  recordHeader: { minHeight: 68, borderBottomWidth: 1, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  recordTitle: { flex: 1, minWidth: 0, fontSize: 19, fontWeight: "900" },
   closeBtn: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  recordBody: { padding: 22 },
-  selectInput: { height: 60, borderWidth: 1, borderRadius: 12, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 22 },
-  selectTypeLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  recordScroll: { flexShrink: 1, maxHeight: "100%" },
+  recordBody: { padding: 18, paddingBottom: 20 },
+  selectInput: { minHeight: 56, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 18 },
+  selectTypeLeft: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
   typeDot: { width: 11, height: 11, borderRadius: 6 },
-  selectTypeText: { fontSize: 18, fontWeight: "900" },
-  moneyInputWrap: { height: 54, borderWidth: 1, borderRadius: 12, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", marginBottom: 22 },
+  selectTypeText: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: "900" },
+  moneyInputWrap: { height: 52, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", marginBottom: 18 },
   moneyPrefix: { fontSize: 18, fontWeight: "900", marginRight: 14 },
   moneyInput: { flex: 1, height: "100%", fontSize: 16, fontWeight: "800" },
-  recordActions: { flexDirection: "row", gap: 14, marginTop: 10 },
+  recordActions: { flexDirection: "row", gap: 10, marginTop: 8 },
   recordCancel: { flex: 1, height: 52, borderRadius: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   recordSubmit: { flex: 1, height: 52, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   recordCancelText: { fontSize: 15, fontWeight: "900" },
@@ -1499,18 +1572,19 @@ const styles = StyleSheet.create({
   typeChip: { borderWidth: 1, borderRadius: 8, paddingVertical: 9, paddingHorizontal: 10 },
   calcGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   calcKey: { width: "23%", borderRadius: 8, alignItems: "center", paddingVertical: 10 },
-  twoCols: { flexDirection: "row", gap: 10 },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 8 },
+  twoCols: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  modalActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 10, marginTop: 8 },
   cancelBtn: { borderRadius: 8, paddingVertical: 12, paddingHorizontal: 14 },
   saveBtn: { borderRadius: 8, paddingVertical: 12, paddingHorizontal: 18 },
   saveText: { color: "#061108", fontWeight: "900" },
-  exportChoice: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 18, alignItems: "center", gap: 8 },
+  exportChoice: { flex: 1, minWidth: 130, borderWidth: 1, borderRadius: 8, padding: 18, alignItems: "center", gap: 8 },
   exportLabel: { fontWeight: "900" },
-  detailModal: { borderRadius: 24, borderWidth: 1, width: "100%", maxWidth: 390, alignSelf: "center", overflow: "hidden" },
+  detailModal: { borderRadius: 20, borderWidth: 1, width: "100%", maxWidth: 390, maxHeight: "90%", alignSelf: "center", overflow: "hidden" },
   detailModalAccent: { position: "absolute", left: 0, top: 14, bottom: 0, width: 4 },
+  detailScroll: { flexShrink: 1 },
   detailStack: { gap: 16, padding: 22 },
   detailGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  detailItem: { width: "48%", borderRadius: 14, borderWidth: 1, padding: 17, minHeight: 84, justifyContent: "center" },
+  detailItem: { flexGrow: 1, flexBasis: "47%", minWidth: 0, borderRadius: 14, borderWidth: 1, padding: 15, minHeight: 82, justifyContent: "center" },
   detailLabel: { fontSize: 13, fontWeight: "900" },
   detailValue: { fontSize: 17, fontWeight: "900", marginTop: 10, lineHeight: 24 },
 });
