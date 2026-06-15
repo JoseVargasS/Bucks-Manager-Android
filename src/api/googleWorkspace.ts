@@ -105,6 +105,8 @@ function headerMatches(actual: string, expected: string) {
 
 function headerAliases(expected: string) {
   const base = normalizeHeader(expected);
+  const compactBase = compactHeader(base);
+  if (compactBase.startsWith("HORADECREACI")) return ["HORA DE CREACION", "HORA CREACION"];
   const aliases: Record<string, string[]> = {
     FECHA: ["FECHA"],
     MONTO: ["MONTO"],
@@ -399,10 +401,29 @@ function parseSheetDate(value: unknown) {
   const asString = String(value);
   const spanish = parseSpanishDate(asString);
   if (spanish) return spanish;
+  const numeric = parseNumericDate(asString);
+  if (numeric) return numeric;
   const monthYear = parseMonthYear(asString);
   if (monthYear) return monthYear;
   const date = new Date(`${asString}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseNumericDate(value: string) {
+  const match = value.trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+.*)?$/);
+  if (!match) return null;
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  let year = Number(match[3]);
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(year)) return null;
+  if (year < 100) year += 2000;
+
+  const day = first > 12 ? first : second > 12 ? second : first;
+  const month = first > 12 ? second : second > 12 ? first : second;
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
 }
 
 function parseMonthYear(value: string) {
@@ -429,12 +450,29 @@ function parseMonthYear(value: string) {
 
 function parseNumber(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const clean = String(value || "")
+  const raw = String(value || "")
     .replace(/\s/g, "")
     .replace(/S\/|\$/gi, "")
-    .replace(/,/g, "");
+    .trim();
+  const clean = normalizeNumberString(raw);
   const number = Number(clean);
   return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeNumberString(value: string) {
+  const hasComma = value.includes(",");
+  const hasDot = value.includes(".");
+  if (hasComma && hasDot) {
+    return value.lastIndexOf(",") > value.lastIndexOf(".")
+      ? value.replace(/\./g, "").replace(",", ".")
+      : value.replace(/,/g, "");
+  }
+  if (hasComma) {
+    const [integer = "", decimal = ""] = value.split(",");
+    if (decimal.length > 0 && decimal.length <= 2) return `${integer.replace(/\./g, "")}.${decimal}`;
+    return value.replace(/,/g, "");
+  }
+  return value;
 }
 
 function formatDateLabel(date: Date) {
