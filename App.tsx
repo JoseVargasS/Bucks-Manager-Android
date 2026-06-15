@@ -133,6 +133,17 @@ export default function App() {
   const [picker, setPicker] = useState<PickerConfig>(null);
   const [deletedTx, setDeletedTx] = useState<Transaction | null>(null);
   const [freqInput, setFreqInput] = useState("");
+  const [exportVisible, setExportVisible] = useState(false);
+  const [exportConfig, setExportConfig] = useState<{ format: ExportFormat; rangeMode: "dates" | "months"; startDate: string; endDate: string; startMonth: number; startYear: number; endMonth: number; endYear: number }>({
+    format: "xlsx",
+    rangeMode: "dates",
+    startDate: "",
+    endDate: "",
+    startMonth: new Date().getMonth(),
+    startYear: new Date().getFullYear(),
+    endMonth: new Date().getMonth(),
+    endYear: new Date().getFullYear(),
+  });
   const compact = true;
   const statusBarInset = NativeStatusBar.currentHeight || 0;
 
@@ -471,13 +482,26 @@ export default function App() {
     setFreqVisible(false);
   }
 
-  async function exportRows(format: ExportFormat) {
-    const rows = searchActive ? visibleTransactions : transactions.filter((tx) => new Date(tx.rawDate).getFullYear() === year);
+  async function exportRows(config: typeof exportConfig) {
+    let rows: Transaction[];
+    if (config.rangeMode === "dates") {
+      const from = config.startDate ? new Date(config.startDate + "T00:00:00").getTime() : 0;
+      const to = config.endDate ? new Date(config.endDate + "T23:59:59").getTime() : Infinity;
+      rows = transactions.filter((tx) => { const t = new Date(tx.rawDate).getTime(); return t >= from && t <= to; });
+    } else {
+      rows = transactions.filter((tx) => {
+        const d = new Date(tx.rawDate);
+        const txYM = d.getFullYear() * 12 + d.getMonth();
+        const fromYM = config.startDate ? (new Date(config.startDate + "-01").getFullYear() * 12 + new Date(config.startDate + "-01").getMonth()) : 0;
+        const toYM = config.endDate ? (new Date(config.endDate + "-01").getFullYear() * 12 + new Date(config.endDate + "-01").getMonth()) : Infinity;
+        return txYM >= fromYM && txYM <= toYM;
+      });
+    }
     if (!rows.length) {
       Alert.alert("Exportar", "No hay datos para exportar.");
       return;
     }
-    if (format === "xlsx") {
+    if (config.format === "xlsx") {
       const csv = ["Fecha,Monto,Detalle,Tipo,Hora de creacion"]
         .concat(rows.map((tx) => `${tx.date},${tx.amount},"${tx.detail.replace(/"/g, '""')}",${tx.type},${formatCreatedTime(tx.createdAt)}`))
         .join("\n");
@@ -549,96 +573,107 @@ export default function App() {
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
       <View style={[styles.shell, styles.shellCompact, { backgroundColor: colors.bg, paddingTop: statusBarInset + 6 }]}>
 
-        <View style={[styles.content, { width: "100%" }]}>
-          <View style={[styles.topBar, styles.topBarMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.headerLeft}>
-              <View style={[styles.headerLogo, { backgroundColor: colors.primary }]}>
-                <MaterialCommunityIcons name="sack" size={19} color={colors.onPrimary} />
+        <View style={[styles.content, { width: "100%", position: "relative" }]}>
+          <View style={{ paddingTop: tab === "expenses" ? 154 : 62, flex: 1 }}>
+            {loading && (
+              <View style={styles.loadingBar}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={{ color: colors.muted }}>Sincronizando...</Text>
               </View>
-              <View style={styles.titleBlock}>
-                <Text numberOfLines={1} style={[styles.pageTitle, styles.pageTitleMobile, { color: colors.text }]}>
-                  {pageTitle}
-                </Text>
-                {!!pageSubtitle && (
-                  <Text numberOfLines={1} style={[styles.pageSub, styles.pageSubMobile, { color: colors.muted }]}>
-                    {pageSubtitle}
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
+            )}
 
-          {tab === "expenses" && (
-            <PeriodControls
-              colors={colors}
-              year={year}
-              month={month}
-              availableYears={availableYears}
-              onSelectPeriod={selectPeriod}
-              openPicker={setPicker}
-              goToday={() => {
-                const today = new Date();
-                selectPeriod(today.getMonth(), today.getFullYear());
-              }}
-            />
-          )}
-
-          {loading && (
-            <View style={styles.loadingBar}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={{ color: colors.muted }}>Sincronizando...</Text>
-            </View>
-          )}
-
-          {tab === "expenses" ? (
-            <ExpensesView
-              colors={colors}
-              summary={currentSummary}
-              transactions={visibleTransactions}
-              searchActive={searchActive}
-              searchText={searchFilters.text}
-              selectedRows={selectedRows}
-              onEditFreq={() => {
-                setFreqInput(String(currentSummary.freqIncome || 0));
-                setFreqVisible(true);
-              }}
-              onExitSearch={() => setSearchActive(false)}
-              onOpenDetail={handleTransactionPress}
-              onEdit={openEdit}
-              onDeleteSelected={deleteSelectedRows}
-              onMove={openMoveMenu}
-              onToggleSelection={toggleSelection}
-              onLoadOlder={() => setLoadedMonthCount((current) => current + 1)}
-            />
-          ) : tab === "search" ? (
-            <SearchPage
-              colors={colors}
-              filters={searchFilters}
-              setFilters={setSearchFilters}
-              onSubmit={() => {
-                setSearchActive(true);
-                setTab("expenses");
-                setSelectedRows([]);
-              }}
-              onClear={() => {
-                setSearchFilters(emptySearch);
-                setSearchActive(false);
-              }}
-            />
-          ) : tab === "summary" ? (
-            <SummaryView colors={colors} summaries={summaries} compact={compact} />
-          ) : (
-            <SettingsView
-              colors={colors}
-              theme={theme}
-              setTheme={setTheme}
-              accountInfo={accountInfo}
-              onRescan={rescanDrive}
+            {tab === "expenses" ? (
+              <ExpensesView
+                colors={colors}
+                summary={currentSummary}
+                transactions={visibleTransactions}
+                searchActive={searchActive}
+                searchText={searchFilters.text}
+                selectedRows={selectedRows}
+                onEditFreq={() => {
+                  setFreqInput(String(currentSummary.freqIncome || 0));
+                  setFreqVisible(true);
+                }}
+                onExitSearch={() => setSearchActive(false)}
+                onOpenDetail={handleTransactionPress}
+                onEdit={openEdit}
+                onDeleteSelected={deleteSelectedRows}
+                onMove={openMoveMenu}
+                onToggleSelection={toggleSelection}
+                onLoadOlder={() => setLoadedMonthCount((current) => current + 1)}
+              />
+            ) : tab === "search" ? (
+              <SearchPage
+                colors={colors}
+                filters={searchFilters}
+                setFilters={setSearchFilters}
+                onSubmit={() => {
+                  setSearchActive(true);
+                  setTab("expenses");
+                  setSelectedRows([]);
+                }}
+                onClear={() => {
+                  setSearchFilters(emptySearch);
+                  setSearchActive(false);
+                }}
+              />
+            ) : tab === "summary" ? (
+              <SummaryView colors={colors} summaries={summaries} availableYears={availableYears} compact={compact} />
+            ) : (
+              <SettingsView
+                colors={colors}
+                theme={theme}
+                setTheme={setTheme}
+                accountInfo={accountInfo}
+                onRescan={rescanDrive}
               onSwitch={switchGoogleAccount}
               onDisconnect={disconnectGoogle}
-              onExport={exportRows}
+              onOpenExport={() => setExportVisible(true)}
             />
           )}
+          </View>
+
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}>
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: tab === "expenses" ? 154 : 62, backgroundColor: `${colors.bg}0a` }} />
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 28, pointerEvents: "none" }}>
+              {[0.45, 0.2, 0.06, 0].map((opacity, i) => (
+                <View key={i} style={{ flex: 1, backgroundColor: `${colors.bg}${Math.round(opacity * 255).toString(16).padStart(2, "0")}` }} />
+              ))}
+            </View>
+            <View>
+              <View style={[styles.topBar, styles.topBarMobile, { backgroundColor: "transparent" }]}>
+                <View style={styles.headerLeft}>
+                  <View style={[styles.headerLogo, { backgroundColor: colors.primary }]}>
+                    <MaterialCommunityIcons name="sack" size={19} color={colors.onPrimary} />
+                  </View>
+                  <View style={styles.titleBlock}>
+                    <Text numberOfLines={1} style={[styles.pageTitle, styles.pageTitleMobile, { color: colors.text }]}>
+                      {pageTitle}
+                    </Text>
+                    {!!pageSubtitle && (
+                      <Text numberOfLines={1} style={[styles.pageSub, styles.pageSubMobile, { color: colors.muted }]}>
+                        {pageSubtitle}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+              {tab === "expenses" && (
+                <PeriodControls
+                  colors={colors}
+                  year={year}
+                  month={month}
+                  availableYears={availableYears}
+                  onSelectPeriod={selectPeriod}
+                  openPicker={setPicker}
+                  goToday={() => {
+                    const today = new Date();
+                    selectPeriod(today.getMonth(), today.getFullYear());
+                  }}
+                />
+              )}
+            </View>
+          </View>
         </View>
 
         {deletedTx && (
@@ -675,6 +710,18 @@ export default function App() {
         onSelect={(candidate: SheetCandidate) => selectSpreadsheet(accessToken, candidate.id, candidate.name)}
       />
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
+      <ExportModal
+        visible={exportVisible}
+        colors={colors}
+        config={exportConfig}
+        setConfig={setExportConfig}
+        minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
+        onClose={() => setExportVisible(false)}
+        onExport={(cfg: typeof exportConfig) => {
+          setExportVisible(false);
+          exportRows(cfg);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -730,38 +777,28 @@ function BottomNavItem({ colors, active, icon, label, onPress }: any) {
   );
 }
 
-function PeriodControls({ colors, year, month, availableYears, onSelectPeriod, openPicker, goToday }: any) {
-  const chooseYear = () => {
-    openPicker({
-      title: "Año",
-      selectedValue: String(year),
-      options: availableYears.map((item: number) => ({ label: String(item), value: String(item), icon: "calendar-range", tone: colors.blue })),
-      onSelect: (value: string) => onSelectPeriod(month, Number(value)),
-    });
-  };
-  const chooseMonth = () => {
-    openPicker({
-      title: "Mes",
-      selectedValue: String(month),
-      options: MONTH_NAMES.map((name, index) => ({ label: name, value: String(index), icon: "calendar-month", tone: colors.yellow })),
-      onSelect: (value: string) => onSelectPeriod(Number(value), year),
-    });
-  };
+function PeriodControls({ colors, year, month, availableYears, onSelectPeriod, goToday }: any) {
   return (
-    <View style={[styles.periodControls, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={styles.periodControls}>
       <View style={styles.periodTitleBlock}>
         <Text style={[styles.periodEyebrow, { color: colors.muted }]}>PERIODO</Text>
         <Text numberOfLines={1} style={[styles.periodTitle, { color: colors.text }]}>{`${MONTH_NAMES[month]} ${year}`}</Text>
       </View>
       <View style={styles.periodActions}>
-        <TouchableOpacity style={[styles.periodSelect, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={chooseYear}>
-          <Text style={[styles.periodSelectText, { color: colors.text }]}>{year}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.periodSelect, styles.periodMonthSelect, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={chooseMonth}>
-          <Text numberOfLines={1} style={[styles.periodSelectText, { color: colors.text }]}>{MONTH_NAMES[month]}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
-        </TouchableOpacity>
+        <Select
+          value={String(year)}
+          options={availableYears.map((item: number) => ({ label: String(item), value: String(item) }))}
+          onSelect={(v: string) => onSelectPeriod(month, Number(v))}
+          colors={colors}
+          style={{ flex: 0, minWidth: 100 }}
+        />
+        <Select
+          value={String(month)}
+          options={MONTH_NAMES.map((name, index) => ({ label: name, value: String(index) }))}
+          onSelect={(v: string) => onSelectPeriod(Number(v), year)}
+          colors={colors}
+          style={{ flex: 1 }}
+        />
         <TouchableOpacity onPress={goToday} style={[styles.periodToday, { backgroundColor: colors.infoSoft, borderColor: colors.blue }]}>
           <MaterialCommunityIcons name="calendar-today" size={18} color={colors.blue} />
         </TouchableOpacity>
@@ -869,8 +906,8 @@ function ExpensesView({
                       selected && { backgroundColor: colors.primarySoft },
                     ]}
                   >
-                    <View style={[styles.txIcon, { backgroundColor: typeFill(tx.type, colors), borderColor: typeColor(tx.type, colors) }]}>
-                      <MaterialCommunityIcons name={selected ? "check" : icon} size={18} color={typeColor(tx.type, colors)} />
+                    <View style={[styles.txIcon, { backgroundColor: selected ? colors.infoSoft : typeFill(tx.type, colors), borderColor: selected ? colors.blue : typeColor(tx.type, colors) }]}>
+                      <MaterialCommunityIcons name={selected ? "check" : icon} size={18} color={selected ? colors.blue : typeColor(tx.type, colors)} />
                     </View>
                     <View style={styles.groupedTxMain}>
                       <HighlightedText
@@ -906,8 +943,10 @@ function ExpensesView({
   );
 }
 
-function SummaryView({ colors, summaries, compact }: { colors: Palette; summaries: SummaryRow[]; compact: boolean }) {
-  const totals = summaries.reduce(
+function SummaryView({ colors, summaries, compact, availableYears }: { colors: Palette; summaries: SummaryRow[]; compact: boolean; availableYears: number[] }) {
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+  const filtered = filterYear ? summaries.filter((r) => r.monthYear.endsWith(String(filterYear))) : summaries;
+  const totals = filtered.reduce(
     (acc, row) => ({
       income: acc.income + row.totalIncome,
       expense: acc.expense + Math.abs(row.totalExpense),
@@ -916,27 +955,60 @@ function SummaryView({ colors, summaries, compact }: { colors: Palette; summarie
     { income: 0, expense: 0, net: 0 },
   );
   const savings = totals.income > 0 ? Math.round((totals.net / totals.income) * 100) : 0;
+  const incomeTypes = [
+    { label: "Ing. Frecuente", value: summaries.reduce((a, r) => a + r.freqIncome, 0), color: colors.green },
+    { label: "Ing. No Frec.", value: summaries.reduce((a, r) => a + r.nonFreqIncome, 0), color: colors.blue },
+  ];
+  const expenseTypes = [
+    { label: "Gasto Frecuente", value: summaries.reduce((a, r) => a + Math.abs(r.freqExpense), 0), color: colors.red },
+    { label: "Gasto No Frec.", value: summaries.reduce((a, r) => a + Math.abs(r.nonFreqExpense), 0), color: colors.yellow },
+  ];
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, compact && styles.pageScrollMobile]}>
+      <View style={[{ flexDirection: "row", gap: 8, marginBottom: 10 }]}>
+        <Select
+          value={filterYear ? String(filterYear) : ""}
+          options={[{ label: "Todos los años", value: "" }, ...availableYears.map((y) => ({ label: String(y), value: String(y) }))]}
+          onSelect={(v: string) => { setFilterYear(v ? Number(v) : null); }}
+          colors={colors}
+          placeholder="Seleccionar año"
+          style={{ flex: 1 }}
+        />
+      </View>
       <View style={[styles.kpiGrid, compact && styles.kpiGridMobile]}>
         <Kpi title="Ingresos Totales" value={`S/ ${totals.income.toFixed(2)}`} icon="trending-up" color={colors.green} colors={colors} />
         <Kpi title="Gastos Totales" value={`S/ ${totals.expense.toFixed(2)}`} icon="trending-down" color={colors.red} colors={colors} />
         <Kpi title="Balance Neto" value={`S/ ${totals.net.toFixed(2)}`} icon="wallet" color={totals.net >= 0 ? colors.blue : colors.red} colors={colors} />
-        <Kpi title="Tasa de Ahorro" value={`${savings}%`} icon="piggy-bank" color={colors.yellow} colors={colors} />
+        <Kpi title="Sin Ing. Frec." value={`S/ ${filtered.reduce((a, r) => a + r.netNoFreq, 0).toFixed(2)}`} icon="cash-remove" color={colors.yellow} colors={colors} />
+        <Kpi title="Tasa de Ahorro" value={`${savings}%`} icon="piggy-bank" color={colors.blue} colors={colors} />
       </View>
       <View style={[styles.chartRow, compact && styles.chartRowMobile]}>
-        <PieCard title="Ingresos" values={[totals.income, Math.max(0, totals.net)]} colors={colors} />
-        <PieCard title="Gastos" values={[totals.expense, Math.max(0, totals.income - totals.expense)]} colors={colors} danger />
-      </View>
-      <View style={[styles.chartCard, compact && styles.chartCardMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Comparativa Interanual</Text>
-        <BarChart rows={summaries} colors={colors} />
+        <PieCard title="Ingresos" values={incomeTypes.map((t) => t.value)} colors={colors} labels={incomeTypes.map((t) => t.label)} tints={incomeTypes.map((t) => t.color)} />
+        <PieCard title="Gastos" values={expenseTypes.map((t) => t.value)} colors={colors} labels={expenseTypes.map((t) => t.label)} tints={expenseTypes.map((t) => t.color)} danger />
       </View>
       <View style={[styles.tableCard, compact && styles.summaryTableMobile, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {summaries.map((row) => (
-          <View key={row.monthYear} style={[styles.summaryRow, { borderColor: colors.border }]}>
-            <Text style={[styles.summaryMonth, { color: colors.text }]}>{row.monthYear}</Text>
-            <Text style={{ color: row.netMonthly >= 0 ? colors.green : colors.red, fontWeight: "900" }}>{formatMoney(row.netMonthly)}</Text>
+        <View style={[styles.gasTableHeader, { backgroundColor: colors.input, borderColor: colors.border }]}>
+          <Text style={[styles.gasTableHeadCell, { color: colors.muted, flex: 1.2 }]}>MES</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.muted }]}>ING. FREC.</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.muted }]}>ING. N/FREC</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.green }]}>TOT. ING</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.muted }]}>G. FREC.</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.muted }]}>G. N/FREC</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.red }]}>TOT. G.</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.blue }]}>NETO</Text>
+          <Text style={[styles.gasTableHeadCell, { color: colors.yellow }]}>NETO SIN IF</Text>
+        </View>
+        {filtered.map((row) => (
+          <View key={row.monthYear} style={[styles.gasTableRow, { borderColor: colors.border }]}>
+            <Text style={[styles.gasTableCell, { color: colors.text, flex: 1.2, fontWeight: "900" }]}>{row.monthYear}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.green }]}>{formatMoney(row.freqIncome)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.green }]}>{formatMoney(row.nonFreqIncome)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.green, fontWeight: "900" }]}>{formatMoney(row.totalIncome)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.red }]}>{formatMoney(row.freqExpense)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.red }]}>{formatMoney(row.nonFreqExpense)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.red, fontWeight: "900" }]}>{formatMoney(row.totalExpense)}</Text>
+            <Text style={[styles.gasTableCell, { color: row.netMonthly >= 0 ? colors.green : colors.red, fontWeight: "900" }]}>{formatMoney(row.netMonthly)}</Text>
+            <Text style={[styles.gasTableCell, { color: colors.yellow, fontWeight: "900" }]}>{formatMoney(row.netNoFreq)}</Text>
           </View>
         ))}
       </View>
@@ -945,19 +1017,7 @@ function SummaryView({ colors, summaries, compact }: { colors: Palette; summarie
 }
 
 function TransactionModal({ visible, colors, draft, setDraft, editing, openPicker, onClose, onSubmit }: any) {
-  const chooseType = () => {
-    openPicker({
-      title: "Tipo de movimiento",
-      selectedValue: draft.type,
-      options: TRANSACTION_TYPES.map((type) => ({
-        label: titleCaseType(type),
-        value: type,
-        icon: type.startsWith("INGRESO") ? "trending-up" : "trending-down",
-        tone: typeColor(type, colors),
-      })),
-      onSelect: (type: string) => setDraft({ ...draft, type: type as TransactionType }),
-    });
-  };
+  const [calVisible, setCalVisible] = useState(false);
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
@@ -971,15 +1031,24 @@ function TransactionModal({ visible, colors, draft, setDraft, editing, openPicke
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.recordScroll} contentContainerStyle={styles.recordBody} showsVerticalScrollIndicator={false}>
-            <Field label="Fecha" value={draft.date} onChangeText={(date: string) => setDraft({ ...draft, date })} colors={colors} placeholder="YYYY-MM-DD" rightIcon="calendar" />
-            <Text style={[styles.label, { color: colors.text }]}>Tipo</Text>
-            <TouchableOpacity style={[styles.selectInput, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={chooseType}>
-              <View style={styles.selectTypeLeft}>
-                <View style={[styles.typeDot, { backgroundColor: typeColor(draft.type, colors) }]} />
-                <Text style={[styles.selectTypeText, { color: colors.text }]}>{titleCaseType(draft.type)}</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-down" size={24} color={colors.blue} />
+            <Text style={[styles.label, { color: colors.text }]}>Fecha</Text>
+            <TouchableOpacity
+              style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, marginBottom: 12 }]}
+              onPress={() => setCalVisible(true)}
+            >
+              <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
+              <Text style={[{ color: colors.text, fontWeight: "900", flex: 1 }]}>{draft.date || "Seleccionar fecha"}</Text>
             </TouchableOpacity>
+            <CalendarPicker visible={calVisible} value={draft.date} onSelect={(v: string) => setDraft({ ...draft, date: v })} onClose={() => setCalVisible(false)} colors={colors} />
+            <Text style={[styles.label, { color: colors.text }]}>Tipo</Text>
+            <Select
+              value={draft.type}
+              options={TRANSACTION_TYPES.map((type) => ({ label: titleCaseType(type), value: type }))}
+              onSelect={(type: string) => setDraft({ ...draft, type: type as TransactionType })}
+              colors={colors}
+              placeholder="Seleccionar tipo"
+              style={{ marginBottom: 18 }}
+            />
             <Text style={[styles.label, { color: colors.text }]}>
               Monto <Text style={{ color: colors.muted, fontSize: 13 }}>(puedes hacer operaciones: + - * /)</Text>
             </Text>
@@ -1034,7 +1103,7 @@ function SearchPage({ colors, filters, setFilters, onSubmit, onClear }: any) {
   );
 }
 
-function SettingsView({ colors, theme, setTheme, accountInfo, onRescan, onSwitch, onDisconnect, onExport }: any) {
+function SettingsView({ colors, theme, setTheme, accountInfo, onRescan, onSwitch, onDisconnect, onOpenExport }: any) {
   const initial = (accountInfo?.email || accountInfo?.name || "B").slice(0, 1).toUpperCase();
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, styles.pageScrollMobile]}>
@@ -1072,8 +1141,7 @@ function SettingsView({ colors, theme, setTheme, accountInfo, onRescan, onSwitch
       <View style={styles.settingsSection}>
         <Text style={[styles.settingsLabel, { color: colors.muted }]}>EXPORTAR</Text>
         <View style={[styles.settingsGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingsRow colors={colors} icon="file-excel" label="Exportar CSV" onPress={() => onExport("xlsx")} />
-          <SettingsRow colors={colors} icon="file-pdf-box" label="Exportar PDF" onPress={() => onExport("pdf")} last />
+          <SettingsRow colors={colors} icon="file-export" label="Exportar movimientos" onPress={onOpenExport} last />
         </View>
       </View>
 
@@ -1157,18 +1225,18 @@ function DetailModal({ tx, colors, onClose, onEdit, onDelete }: { tx: Transactio
     <Modal visible={!!tx} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={[styles.detailModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.recordHeader, { borderColor: colors.border }]}>
+          <View style={[styles.recordHeader, { borderBottomWidth: 0 }]}>
             <Text style={[styles.recordTitle, { color: colors.text }]}>
               <MaterialCommunityIcons name="receipt-text" size={20} color={colors.yellow} /> Detalle del gasto
             </Text>
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={onClose}>
+            <TouchableOpacity style={[styles.closeBtn, { borderWidth: 0, backgroundColor: "transparent" }]} onPress={onClose}>
               <MaterialCommunityIcons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
           {tx && (
             <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailBody} showsVerticalScrollIndicator={false}>
-              <View style={[styles.detailHero, { backgroundColor: tx.amount >= 0 ? colors.incomeSoft : colors.expenseSoft, borderColor: tx.amount >= 0 ? colors.green : colors.red }]}>
-                <View style={[styles.detailHeroIcon, { backgroundColor: colors.card, borderColor: tx.amount >= 0 ? colors.green : colors.red }]}>
+              <View style={styles.detailHero}>
+                <View style={[styles.detailHeroIcon, { backgroundColor: tx.amount >= 0 ? colors.incomeSoft : colors.expenseSoft }]}>
                   <MaterialCommunityIcons name={tx.amount >= 0 ? "bank-transfer-in" : "receipt-text-outline"} size={24} color={tx.amount >= 0 ? colors.green : colors.red} />
                 </View>
                 <View style={styles.detailHeroText}>
@@ -1177,8 +1245,8 @@ function DetailModal({ tx, colors, onClose, onEdit, onDelete }: { tx: Transactio
                 </View>
               </View>
 
-              <View style={[styles.detailDescription, { backgroundColor: colors.input, borderColor: colors.border }]}>
-                <Text style={[styles.detailSectionLabel, { color: colors.yellow }]}>Detalle</Text>
+              <View style={styles.detailDescription}>
+                <Text style={[styles.detailSectionLabel, { color: colors.muted }]}>Detalle</Text>
                 <Text selectable style={[styles.detailDescriptionText, { color: colors.text }]}>{tx.detail}</Text>
               </View>
 
@@ -1188,11 +1256,11 @@ function DetailModal({ tx, colors, onClose, onEdit, onDelete }: { tx: Transactio
               </View>
 
               <View style={styles.detailActions}>
-                <TouchableOpacity style={[styles.detailActionBtn, { backgroundColor: colors.editBg, borderColor: colors.editBorder }]} onPress={() => onEdit(tx)}>
+                <TouchableOpacity style={[styles.detailActionBtn, { backgroundColor: colors.input }]} onPress={() => onEdit(tx)}>
                   <MaterialCommunityIcons name="pencil" size={18} color={colors.blue} />
                   <Text style={[styles.detailActionText, { color: colors.blue }]}>Editar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.detailActionBtn, { backgroundColor: colors.expenseSoft, borderColor: colors.red }]} onPress={() => onDelete(tx)}>
+                <TouchableOpacity style={[styles.detailActionBtn, { backgroundColor: colors.input }]} onPress={() => onDelete(tx)}>
                   <MaterialCommunityIcons name="trash-can" size={18} color={colors.red} />
                   <Text style={[styles.detailActionText, { color: colors.red }]}>Eliminar</Text>
                 </TouchableOpacity>
@@ -1273,18 +1341,48 @@ function Kpi({ title, value, icon, color, colors }: any) {
   );
 }
 
-function PieCard({ title, values, colors, danger = false }: any) {
+function PieCard({ title, values, colors, labels, tints, danger = false }: any) {
   const total = values.reduce((a: number, b: number) => a + b, 0) || 1;
-  const pct = values[0] / total;
+  let cumulative = 0;
+  const segments = values.map((v: number) => {
+    const start = cumulative;
+    cumulative += v;
+    return { value: v, pct: v / total, startAngle: (start / total) * 360 };
+  });
   const stroke = 2 * Math.PI * 38;
   return (
     <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title} — S/ {values.reduce((a: number, b: number) => a + b, 0).toFixed(2)}</Text>
       <Svg width={128} height={128}>
         <Circle cx={64} cy={64} r={38} stroke={colors.border} strokeWidth={18} fill="none" />
-        <Circle cx={64} cy={64} r={38} stroke={danger ? colors.red : colors.green} strokeWidth={18} fill="none" strokeDasharray={`${stroke * pct} ${stroke}`} strokeLinecap="round" rotation="-90" origin="64,64" />
+        {segments.map((seg: any, i: number) => {
+          const color = tints?.[i] || (danger ? colors.red : colors.green);
+          return (
+            <Circle
+              key={i}
+              cx={64} cy={64} r={38}
+              stroke={color}
+              strokeWidth={18} fill="none"
+              strokeDasharray={`${stroke * seg.pct} ${stroke}`}
+              strokeLinecap="butt"
+              rotation={seg.startAngle - 90}
+              origin="64,64"
+            />
+          );
+        })}
       </Svg>
-      <Text style={[styles.piePct, { color: danger ? colors.red : colors.green }]}>{Math.round(pct * 100)}%</Text>
+      {labels && <View style={{ width: "100%", marginTop: 8, gap: 4 }}>
+        {labels.map((label: string, i: number) => {
+          const color = tints?.[i] || (danger ? colors.red : colors.green);
+          return (
+            <View key={label} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color }} />
+              <Text style={{ flex: 1, fontSize: 11, fontWeight: "800", color: colors.text }}>{label}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "900", color }}>S/ {values[i].toFixed(2)}</Text>
+            </View>
+          );
+        })}
+      </View>}
     </View>
   );
 }
@@ -1310,7 +1408,7 @@ function BarChart({ rows, colors }: { rows: SummaryRow[]; colors: Palette }) {
 
 function DetailMeta({ icon, label, value, tone, colors }: any) {
   return (
-    <View style={[styles.detailMetaItem, { backgroundColor: colors.input, borderColor: colors.border }]}>
+    <View style={styles.detailMetaItem}>
       <MaterialCommunityIcons name={icon as any} size={18} color={tone} />
       <View style={styles.detailMetaText}>
         <Text style={[styles.detailMetaLabel, { color: colors.muted }]}>{label}</Text>
@@ -1344,6 +1442,287 @@ function HighlightedText({ text, query, style, highlightStyle }: any) {
         </Text>
       ))}
     </Text>
+  );
+}
+
+const MONTH_ABBR = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
+
+function CalendarPicker({ visible, value, onSelect, onClose, colors, mode = "date", minDate, maxDate }: { visible: boolean; value: string; onSelect: (v: string) => void; onClose: () => void; colors: Palette; mode?: "date" | "month"; minDate?: string; maxDate?: string }) {
+  const parsed = value ? new Date(value + (value.length <= 7 ? "-15T12:00:00" : "T12:00:00")) : new Date();
+  const [viewYear, setViewYear] = useState(parsed.getFullYear());
+  const [viewMonth, setViewMonth] = useState(parsed.getMonth());
+  const [selectedDay, setSelectedDay] = useState(parsed.getDate());
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const effectiveMax = maxDate || todayStr;
+  const effectiveMin = minDate || "2020-01-01";
+  const minParsed = new Date(effectiveMin + (effectiveMin.length <= 7 ? "-15T12:00:00" : "T12:00:00"));
+  const maxParsed = new Date(effectiveMax + (effectiveMax.length <= 7 ? "-15T12:00:00" : "T12:00:00"));
+  const minYear = Number.isNaN(minParsed.getFullYear()) ? 2000 : minParsed.getFullYear();
+  const maxYear = Number.isNaN(maxParsed.getFullYear()) ? now.getFullYear() : maxParsed.getFullYear();
+  const canGoBackYear = viewYear > minYear;
+  const canGoForwardYear = viewYear < maxYear;
+  const canGoBackMonth = viewYear === minYear ? viewMonth > minParsed.getMonth() : viewYear > minYear;
+  const canGoForwardMonth = viewYear === maxYear ? viewMonth < maxParsed.getMonth() : viewYear < maxYear;
+
+  const monthName = MONTH_NAMES[viewMonth];
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+
+  const isDayDisabled = (day: number) => {
+    const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return ds < effectiveMin || ds > effectiveMax;
+  };
+  const isMonthDisabled = (m: number) => {
+    const padM = String(m + 1).padStart(2, "0");
+    const padMinM = String(minParsed.getMonth() + 1).padStart(2, "0");
+    const padMaxM = String(maxParsed.getMonth() + 1).padStart(2, "0");
+    const minKey = `${minYear}-${padMinM}`;
+    const maxKey = `${maxYear}-${padMaxM}`;
+    const curKey = `${viewYear}-${padM}`;
+    return curKey < minKey || curKey > maxKey;
+  };
+
+  const handleSelect = (y: number, m: number, d?: number) => {
+    if (mode === "month") {
+      onSelect(`${y}-${String(m + 1).padStart(2, "0")}`);
+    } else {
+      const day = d || 1;
+      onSelect(`${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+    }
+    onClose();
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
+      <View style={[{ position: "absolute", left: "50%", top: "50%", transform: [{ translateX: -150 }, { translateY: -200 }], width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20, zIndex: 9999 }]}>
+        <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderColor: colors.border }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <TouchableOpacity onPress={() => canGoBackYear && setViewYear(viewYear - 1)} disabled={!canGoBackYear}>
+              <MaterialCommunityIcons name="chevron-left" size={26} color={canGoBackYear ? colors.text : colors.disabled} />
+            </TouchableOpacity>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>{viewYear}</Text>
+            <TouchableOpacity onPress={() => canGoForwardYear && setViewYear(viewYear + 1)} disabled={!canGoForwardYear}>
+              <MaterialCommunityIcons name="chevron-right" size={26} color={canGoForwardYear ? colors.text : colors.disabled} />
+            </TouchableOpacity>
+          </View>
+          {mode === "date" && (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <TouchableOpacity onPress={() => canGoBackMonth && setViewMonth(Math.max(0, viewMonth - 1))} disabled={!canGoBackMonth}>
+                <MaterialCommunityIcons name="chevron-left" size={22} color={canGoBackMonth ? colors.muted : colors.disabled} />
+              </TouchableOpacity>
+              <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "900" }}>{monthName}</Text>
+              <TouchableOpacity onPress={() => canGoForwardMonth && setViewMonth(Math.min(11, viewMonth + 1))} disabled={!canGoForwardMonth}>
+                <MaterialCommunityIcons name="chevron-right" size={22} color={canGoForwardMonth ? colors.muted : colors.disabled} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View style={{ padding: 12 }}>
+          {mode === "month" ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {MONTH_ABBR.map((abbr, i) => {
+                const isSelected = i === viewMonth;
+                const disabled = isMonthDisabled(i);
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => !disabled && handleSelect(viewYear, i)}
+                    disabled={disabled}
+                    style={{ width: "25%", paddingVertical: 10, alignItems: "center" }}
+                  >
+                    <View style={{ width: 52, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: "900" }}>{abbr}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <>
+              <View style={{ flexDirection: "row", marginBottom: 4 }}>
+                {DAY_LABELS.map((d) => (
+                  <Text key={d} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 11, fontWeight: "900" }}>{d}</Text>
+                ))}
+              </View>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => <View key={`e-${i}`} style={{ width: `${100 / 7}%` }} />)}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const isToday = day === now.getDate() && viewMonth === now.getMonth() && viewYear === now.getFullYear();
+                  const isSelected = day === selectedDay;
+                  const disabled = isDayDisabled(day);
+                  return (
+                    <TouchableOpacity key={day} onPress={() => { if (!disabled) { setSelectedDay(day); handleSelect(viewYear, viewMonth, day); } }} disabled={disabled} style={{ width: `${100 / 7}%`, paddingVertical: 6, alignItems: "center" }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : isToday ? colors.primarySoft : "transparent", alignItems: "center", justifyContent: "center", borderWidth: isToday && !isSelected ? 1 : 0, borderColor: colors.primary, opacity: disabled ? 0.3 : 1 }}>
+                        <Text style={{ color: isSelected ? colors.onPrimary : isToday ? colors.primary : colors.text, fontSize: 13, fontWeight: isSelected ? "900" : "700" }}>{day}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 14, paddingTop: 6, borderTopWidth: 1, borderColor: colors.border }}>
+          <TouchableOpacity onPress={() => {
+            const nowDate = new Date();
+            if (mode === "month") onSelect(`${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}`);
+            else onSelect(formatDateToISO(nowDate));
+            onClose();
+          }}>
+            <Text style={{ color: colors.primary, fontWeight: "900", fontSize: 14 }}>Este mes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { onSelect(""); onClose(); }}>
+            <Text style={{ color: colors.muted, fontWeight: "900", fontSize: 14 }}>Borrar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function Select({ value, options, onSelect, colors, placeholder, style }: any) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o: any) => o.value === value);
+  return (
+    <View style={[{ position: "relative" }, style]}>
+      <TouchableOpacity
+        style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderWidth: 1 }]}
+        onPress={() => setOpen(!open)}
+      >
+        <Text numberOfLines={1} style={[{ color: selected ? colors.text : colors.muted, fontWeight: "900", flex: 1 }]}>{selected ? selected.label : placeholder}</Text>
+        <MaterialCommunityIcons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+      </TouchableOpacity>
+      {open && (
+        <>
+          <TouchableOpacity style={[StyleSheet.absoluteFill, { zIndex: 998 }]} activeOpacity={1} onPress={() => setOpen(false)} />
+          <View style={[{ position: "absolute", top: 46, left: 0, right: 0, maxHeight: 200, backgroundColor: colors.card, borderColor: colors.border, borderRadius: 10, borderWidth: 1, zIndex: 999, overflow: "hidden", elevation: 999 }]}>
+            <ScrollView nestedScrollEnabled style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+              {options.map((opt: any) => {
+                const isSelected = opt.value === value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[{ paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderColor: colors.border, backgroundColor: isSelected ? colors.primarySoft : "transparent" }]}
+                    onPress={() => { onSelect(opt.value); setOpen(false); }}
+                  >
+                    <Text style={[{ color: isSelected ? colors.primary : colors.text, fontWeight: "900" }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function ExportModal({ visible, colors, config, setConfig, minDate, onClose, onExport }: any) {
+  const [calFrom, setCalFrom] = useState(false);
+  const [calTo, setCalTo] = useState(false);
+  const rangeLabel = (val: string, isMonth?: boolean) => {
+    if (!val) return "Seleccionar";
+    if (isMonth) {
+      const [y, m] = val.split("-");
+      return `${MONTH_NAMES[Number(m) - 1]} ${y}`;
+    }
+    const d = new Date(val + "T12:00:00");
+    return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
+  };
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modal, { backgroundColor: colors.card }]}>
+          <ModalHeader title="Exportar movimientos" icon="file-export" colors={colors} onClose={onClose} />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
+            <Text style={[styles.label, { color: colors.text }]}>Formato</Text>
+            <View style={styles.twoCols}>
+              <TouchableOpacity
+                style={[styles.exportChip, { backgroundColor: config.format === "xlsx" ? colors.primarySoft : colors.input, borderColor: config.format === "xlsx" ? colors.primary : colors.border }]}
+                onPress={() => setConfig({ ...config, format: "xlsx" })}
+              >
+                <MaterialCommunityIcons name="file-delimited" size={20} color={config.format === "xlsx" ? colors.primary : colors.muted} />
+                <Text style={[{ color: config.format === "xlsx" ? colors.primary : colors.text, fontWeight: "900" }]}>CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.exportChip, { backgroundColor: config.format === "pdf" ? colors.primarySoft : colors.input, borderColor: config.format === "pdf" ? colors.primary : colors.border }]}
+                onPress={() => setConfig({ ...config, format: "pdf" })}
+              >
+                <MaterialCommunityIcons name="file-pdf-box" size={20} color={config.format === "pdf" ? colors.primary : colors.muted} />
+                <Text style={[{ color: config.format === "pdf" ? colors.primary : colors.text, fontWeight: "900" }]}>PDF</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Rango</Text>
+            <View style={styles.twoCols}>
+              <TouchableOpacity
+                style={[styles.exportChip, { backgroundColor: config.rangeMode === "dates" ? colors.primarySoft : colors.input, borderColor: config.rangeMode === "dates" ? colors.primary : colors.border }]}
+                onPress={() => setConfig({ ...config, rangeMode: "dates" })}
+              >
+                <MaterialCommunityIcons name="calendar-range" size={20} color={config.rangeMode === "dates" ? colors.primary : colors.muted} />
+                <Text style={[{ color: config.rangeMode === "dates" ? colors.primary : colors.text, fontWeight: "900" }]}>Por fechas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.exportChip, { backgroundColor: config.rangeMode === "months" ? colors.primarySoft : colors.input, borderColor: config.rangeMode === "months" ? colors.primary : colors.border }]}
+                onPress={() => setConfig({ ...config, rangeMode: "months" })}
+              >
+                <MaterialCommunityIcons name="calendar-month" size={20} color={config.rangeMode === "months" ? colors.primary : colors.muted} />
+                <Text style={[{ color: config.rangeMode === "months" ? colors.primary : colors.text, fontWeight: "900" }]}>Por meses</Text>
+              </TouchableOpacity>
+            </View>
+            {config.rangeMode === "months" ? (
+              <>
+                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Mes inicial</Text>
+                <TouchableOpacity
+                  style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1 }]}
+                  onPress={() => setCalFrom(true)}
+                >
+                  <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
+                  <Text style={{ color: config.startDate ? colors.text : colors.muted, fontWeight: "900", flex: 1 }}>{rangeLabel(config.startDate, true)}</Text>
+                </TouchableOpacity>
+                <CalendarPicker visible={calFrom} value={config.startDate} mode="month" minDate={minDate ? minDate.slice(0, 7) : undefined} onSelect={(v: string) => setConfig({ ...config, startDate: v })} onClose={() => setCalFrom(false)} colors={colors} />
+                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Mes final</Text>
+                <TouchableOpacity
+                  style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1 }]}
+                  onPress={() => setCalTo(true)}
+                >
+                  <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
+                  <Text style={{ color: config.endDate ? colors.text : colors.muted, fontWeight: "900", flex: 1 }}>{rangeLabel(config.endDate, true)}</Text>
+                </TouchableOpacity>
+                <CalendarPicker visible={calTo} value={config.endDate} mode="month" minDate={minDate ? minDate.slice(0, 7) : undefined} onSelect={(v: string) => setConfig({ ...config, endDate: v })} onClose={() => setCalTo(false)} colors={colors} />
+              </>
+            ) : (
+              <>
+                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Desde</Text>
+                <TouchableOpacity
+                  style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1 }]}
+                  onPress={() => setCalFrom(true)}
+                >
+                  <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
+                  <Text style={{ color: config.startDate ? colors.text : colors.muted, fontWeight: "900", flex: 1 }}>{rangeLabel(config.startDate)}</Text>
+                </TouchableOpacity>
+                <CalendarPicker visible={calFrom} value={config.startDate} mode="date" minDate={minDate} onSelect={(v: string) => setConfig({ ...config, startDate: v })} onClose={() => setCalFrom(false)} colors={colors} />
+                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Hasta</Text>
+                <TouchableOpacity
+                  style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1 }]}
+                  onPress={() => setCalTo(true)}
+                >
+                  <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
+                  <Text style={{ color: config.endDate ? colors.text : colors.muted, fontWeight: "900", flex: 1 }}>{rangeLabel(config.endDate)}</Text>
+                </TouchableOpacity>
+                <CalendarPicker visible={calTo} value={config.endDate} mode="date" minDate={minDate} onSelect={(v: string) => setConfig({ ...config, endDate: v })} onClose={() => setCalTo(false)} colors={colors} />
+              </>
+            )}
+            <ActionRow colors={colors} onCancel={onClose} onSubmit={() => onExport(config)} submitLabel="Exportar" />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1453,7 +1832,7 @@ const styles = StyleSheet.create({
   googleLoginText: { fontSize: 15, fontWeight: "900" },
   loginStatus: { marginTop: 14, fontSize: 12, fontWeight: "700", textAlign: "center" },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  topBarMobile: { marginBottom: 0, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+  topBarMobile: { marginBottom: 0, paddingHorizontal: 12, paddingVertical: 10 },
   headerLeft: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
   headerLogo: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   titleBlock: { flex: 1, minWidth: 0 },
@@ -1463,7 +1842,7 @@ const styles = StyleSheet.create({
   pageSubMobile: { fontSize: 14 },
   themeToggle: { width: 58, height: 34, borderRadius: 999, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   themeThumb: { width: 29, height: 29, borderRadius: 15, backgroundColor: "#ffffff" },
-  periodControls: { borderBottomWidth: 1, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, gap: 10 },
+  periodControls: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, gap: 10 },
   periodTitleBlock: { gap: 3 },
   periodEyebrow: { fontSize: 10, fontWeight: "900", letterSpacing: 0 },
   periodTitle: { fontSize: 18, fontWeight: "900" },
@@ -1590,20 +1969,25 @@ const styles = StyleSheet.create({
   detailModal: { borderRadius: 20, borderWidth: 1, width: "100%", maxWidth: 390, maxHeight: "90%", alignSelf: "center", overflow: "hidden" },
   detailScroll: { flexShrink: 1 },
   detailBody: { gap: 12, padding: 18 },
-  detailHero: { borderWidth: 1, borderRadius: 16, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
-  detailHeroIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  detailHero: { borderRadius: 16, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  detailHeroIcon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   detailHeroText: { flex: 1, minWidth: 0 },
   detailHeroLabel: { fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
   detailHeroAmount: { marginTop: 4, fontSize: 24, fontWeight: "900" },
-  detailDescription: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 7 },
+  detailDescription: { borderRadius: 14, padding: 14, gap: 7 },
   detailSectionLabel: { fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
   detailDescriptionText: { fontSize: 16, fontWeight: "800", lineHeight: 22 },
   detailMetaGrid: { flexDirection: "row", gap: 10 },
-  detailMetaItem: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: "row", alignItems: "center", gap: 9 },
+  detailMetaItem: { flex: 1, minWidth: 0, borderRadius: 14, padding: 12, flexDirection: "row", alignItems: "center", gap: 9 },
   detailMetaText: { flex: 1, minWidth: 0 },
   detailMetaLabel: { fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
   detailMetaValue: { marginTop: 3, fontSize: 13, fontWeight: "900" },
+  exportChip: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  gasTableHeader: { flexDirection: "row", borderBottomWidth: 1, paddingVertical: 10, paddingHorizontal: 8 },
+  gasTableHeadCell: { flex: 1, fontSize: 10, fontWeight: "900", textAlign: "center" },
+  gasTableRow: { flexDirection: "row", borderBottomWidth: 1, paddingVertical: 9, paddingHorizontal: 8 },
+  gasTableCell: { flex: 1, fontSize: 11, fontWeight: "800", textAlign: "center" },
   detailActions: { flexDirection: "row", gap: 10 },
-  detailActionBtn: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  detailActionBtn: { flex: 1, height: 48, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   detailActionText: { fontSize: 14, fontWeight: "900" },
 });
