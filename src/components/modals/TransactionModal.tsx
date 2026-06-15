@@ -17,8 +17,9 @@ export function TransactionModal({ visible, colors, draft, setDraft, editing, op
 }) {
   const [calVisible, setCalVisible] = useState(false);
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
+        <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.recordModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.recordHeader, { borderColor: colors.border }]}>
             <Text style={[styles.recordTitle, { color: colors.text }]}>

@@ -1,4 +1,5 @@
-import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { DetailMeta } from "../ui/DetailMeta";
@@ -7,10 +8,36 @@ import { Transaction } from "../../types";
 import { formatMoney, formatCreatedTime, titleCaseType } from "../../utils/formats";
 
 export function DetailModal({ tx, colors, onClose, onEdit, onDelete }: { tx: Transaction | null; colors: Palette; onClose: () => void; onEdit: (tx: Transaction) => void; onDelete: (tx: Transaction) => void }) {
+  const enterProgress = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!tx) return;
+    enterProgress.setValue(0);
+    Animated.timing(enterProgress, {
+      toValue: 1,
+      duration: 90,
+      useNativeDriver: true,
+    }).start();
+  }, [enterProgress, tx]);
+
   return (
-    <Modal visible={!!tx} transparent animationType="fade">
+    <Modal visible={!!tx} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.detailModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={onClose} />
+        <Animated.View
+          style={[
+            styles.detailModal,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: enterProgress,
+              transform: [
+                { translateY: enterProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) },
+                { scale: enterProgress.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] }) },
+              ],
+            },
+          ]}
+        >
           <View style={[styles.recordHeader, { borderBottomWidth: 0 }]}>
             <Text style={[styles.recordTitle, { color: colors.text }]}>
               <MaterialCommunityIcons name="receipt-text" size={20} color={colors.yellow} /> Detalle del gasto
@@ -50,7 +77,7 @@ export function DetailModal({ tx, colors, onClose, onEdit, onDelete }: { tx: Tra
               </View>
             </ScrollView>
           )}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

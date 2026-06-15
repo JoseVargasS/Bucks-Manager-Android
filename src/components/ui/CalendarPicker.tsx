@@ -56,7 +56,7 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, mode
   if (!visible) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
       <View style={[{ position: "absolute", left: "50%", top: "50%", transform: [{ translateX: -150 }, { translateY: -200 }], width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20, zIndex: 9999 }]}>
         <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderColor: colors.border }}>

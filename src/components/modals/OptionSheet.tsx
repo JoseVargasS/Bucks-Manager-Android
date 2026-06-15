@@ -10,7 +10,7 @@ type PickerConfig = { title: string; options: PickerOption[]; selectedValue: str
 export function OptionSheet({ config, colors, onClose }: { config: PickerConfig; colors: Palette; onClose: () => void }) {
   if (!config) return null;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.optionOverlay}>
         <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.optionSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>

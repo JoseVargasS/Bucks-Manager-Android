@@ -7,8 +7,9 @@ import { SheetCandidate } from "../../types";
 
 export function SheetChooserModal({ visible, colors, candidates, onClose, onSelect }: { visible: boolean; colors: Palette; candidates: SheetCandidate[]; onClose: () => void; onSelect: (candidate: SheetCandidate) => void }) {
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
+        <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={[styles.modal, { backgroundColor: colors.card }]}>
           <ModalHeader title="Selecciona tu hoja" icon="google-spreadsheet" colors={colors} onClose={onClose} />
           <Text style={[styles.connectText, { color: colors.muted, marginBottom: 12 }]}>
