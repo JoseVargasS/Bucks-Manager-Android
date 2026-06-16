@@ -1,6 +1,6 @@
 # Bucks Manager Android
 
-Android migration of the Bucks Manager Google Apps Script app.
+React Native/Expo Android version of the Bucks Manager Google Apps Script app.
 
 The app has no custom backend. Each user signs in with Google and uses a private Google Sheet as the database.
 
@@ -55,6 +55,16 @@ Supported transaction types:
 - `GASTO FRECUENTE`
 - `GASTO NO FRECUENTE`
 
+## Visual System
+
+- UI copy stays in Spanish and currency stays as `S/`.
+- The current native visual direction uses a blue-slate dark theme and soft warm-gray light theme.
+- Indigo/blue is the primary action color. Green and red are reserved for income and expense semantics.
+- Cards should use soft surfaces, consistent 14px radii, and minimal outer borders.
+- Inputs, selects, destructive actions, and internal separators may keep borders for affordance.
+- Financial amounts should use tabular numbers where supported.
+- The Analysis screen is optimized for mobile readability with compact KPI rows, chart labels, and a simplified monthly table.
+
 ## Commands
 
 Install dependencies:
@@ -108,17 +118,18 @@ The debug/release SHA-1 in Google Cloud must match the keystore used to build th
 ## Project Structure
 
 ```text
-App.tsx
-src/
-  api/googleWorkspace.ts
-  domain/bucksLogic.ts
-  types.ts
-scripts/
-  run-android.ps1
+App.tsx                         Main app composition and runtime state
+src/api/googleWorkspace.ts      Google Drive and Sheets integration
+src/domain/bucksLogic.ts        Sheet contract, summaries, dates, and transaction rules
+src/components/                 Screens, layout, modals, and reusable UI
+src/styles/globalStyles.ts      Shared React Native style definitions
+src/theme/colors.ts             Light/dark palette tokens
+scripts/run-android.ps1         Physical-device Android run helper
 ```
 
-## Notes
+## Repository Hygiene
 
-- Do not commit `.env`, OAuth secrets, user spreadsheet IDs, `.expo/`, or `node_modules/`.
-- Keep Android UI aligned with the mobile Google Apps Script version.
+- Do not commit `.env`, OAuth secrets, user spreadsheet IDs, `.expo/`, logs, `dist/`, build outputs, or `node_modules/`.
+- Keep design briefs such as `DESIGN.md` local unless they become durable repo documentation.
+- Put durable agent/developer guidance in `AGENTS.md`.
 - Google Drive inspection from Codex should be read-only unless the user explicitly asks to modify a Drive file.

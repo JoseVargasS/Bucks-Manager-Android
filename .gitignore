@@ -27,6 +27,9 @@ yarn-debug.*
 yarn-error.*
 expo*.log
 
+# local planning/design briefs
+DESIGN.md
+
 # macOS
 .DS_Store
 *.pem
