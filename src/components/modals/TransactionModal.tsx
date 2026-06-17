@@ -79,7 +79,7 @@ export function TransactionModal({ visible, colors, copy, currencySymbol, draft,
                 style={[styles.moneyInput, { color: colors.text }]}
               />
               {hasAmountPreview && (
-                <Text numberOfLines={1} style={[styles.moneyPreview, { color: colors.blue }]}>{amountPreviewText}</Text>
+                <Text numberOfLines={1} style={[styles.moneyPreview, { color: amountPreview < 0 ? colors.red : colors.green, fontSize: 16 }]}>{amountPreviewText}</Text>
               )}
             </View>
             <View style={styles.calcToolbar}>
