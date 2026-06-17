@@ -6,7 +6,6 @@ import {
   buildTransactionFromDraft,
   formatDateToISO,
   getMonthYear,
-  insertChronologically,
   parseSpanishDate,
 } from "../domain/bucksLogic";
 
@@ -15,6 +14,90 @@ const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
 const HEADER_SCAN_ROWS = 12;
 type FormulaDialect = { sumifs: string; eomonth: string; sep: string };
+
+// --- Single-row operation helpers (match GAS insertRecordChronologically / editTransaction / deleteRow) ---
+
+async function getTransactionSheetId(token: string, spreadsheetId: string) {
+  const meta = await googleFetch<{ sheets?: { properties?: { sheetId?: number; title?: string } }[] }>(
+    token,
+    `${SHEETS}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
+  );
+  const sheetId = meta.sheets?.find((s) => s.properties?.title === SHEET_NAMES.transactions)?.properties?.sheetId;
+  if (sheetId == null) throw new Error("No se encontro la hoja de transacciones");
+  return sheetId;
+}
+
+async function insertBlankRow(token: string, spreadsheetId: string, sheetId: number, rowNumber: number) {
+  await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({
+      requests: [{
+        insertDimension: {
+          range: { sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber },
+          inheritFromBefore: true,
+        },
+      }],
+    }),
+  });
+}
+
+async function deleteSheetRow(token: string, spreadsheetId: string, sheetId: number, rowNumber: number) {
+  await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: { sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber },
+        },
+      }],
+    }),
+  });
+}
+
+function buildTransactionRow(tx: Transaction) {
+  return [
+    formatDateToISO(tx.rawDate),
+    formatAmountForSheet(tx),
+    tx.detail,
+    tx.type,
+    formatCreatedAtForSheet(tx.createdAt),
+  ];
+}
+
+async function writeRow(token: string, spreadsheetId: string, rowNumber: number, values: unknown[]) {
+  const range = `${SHEET_NAMES.transactions}!A${rowNumber}:E${rowNumber}`;
+  await googleFetch(token, `${valuesUrl(spreadsheetId, range)}?valueInputOption=USER_ENTERED`, {
+    method: "PUT",
+    body: JSON.stringify({ values: [values] }),
+  });
+}
+
+async function readSingleRow(token: string, spreadsheetId: string, rowNumber: number) {
+  const range = `${SHEET_NAMES.transactions}!A${rowNumber}:E${rowNumber}`;
+  const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range));
+  return data.values?.[0] || [];
+}
+
+async function findChronologicalInsertionRow(token: string, spreadsheetId: string, dateObj: Date) {
+  const range = `${SHEET_NAMES.transactions}!A2:A`;
+  try {
+    const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range));
+    const rows = data.values || [];
+    const targetMs = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime();
+    for (let i = 0; i < rows.length; i += 1) {
+      const rowDate = parseSheetDate(rows[i]?.[0]);
+      if (rowDate) {
+        const rowMs = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate()).getTime();
+        if (rowMs > targetMs) return i + 2;
+      }
+    }
+    return rows.length + 2;
+  } catch {
+    return 2;
+  }
+}
+
+// ---
 
 async function googleFetch<T>(token: string, url: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
@@ -37,10 +120,6 @@ async function googleFetch<T>(token: string, url: string, init: RequestInit = {}
 
 function valuesUrl(spreadsheetId: string, range: string) {
   return `${SHEETS}/${spreadsheetId}/values/${encodeURIComponent(range)}`;
-}
-
-function clearValuesUrl(spreadsheetId: string, range: string) {
-  return `${valuesUrl(spreadsheetId, range)}:clear`;
 }
 
 function readValuesUrl(spreadsheetId: string, range: string) {
@@ -219,67 +298,77 @@ export async function readSummaries(token: string, spreadsheetId: string) {
 }
 
 export async function saveTransaction(token: string, spreadsheetId: string, draft: TransactionDraft) {
-  const existing = await readTransactions(token, spreadsheetId);
-  const tx = buildTransactionFromDraft(draft, existing.length + 2);
-  const ordered = insertChronologically(existing, tx);
-  await rewriteTransactions(token, spreadsheetId, ordered);
-  await ensureMonthlySummaryRow(token, spreadsheetId, new Date(tx.rawDate));
-  return ordered.find((item) => item.createdAt === tx.createdAt && item.detail === tx.detail) || tx;
+  const tx = buildTransactionFromDraft(draft, 0);
+  const dateObj = new Date(tx.rawDate);
+  const sheetId = await getTransactionSheetId(token, spreadsheetId);
+  const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, dateObj);
+  await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
+  await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
+  await ensureMonthlySummaryRow(token, spreadsheetId, dateObj);
+  return { ...tx, rowId: targetRow };
 }
 
 export async function updateTransaction(token: string, spreadsheetId: string, rowId: number, draft: TransactionDraft) {
-  const existing = await readTransactions(token, spreadsheetId);
-  const updated = buildTransactionFromDraft(draft, rowId);
-  const next = insertChronologically(existing.filter((tx) => tx.rowId !== rowId), updated);
-  await rewriteTransactions(token, spreadsheetId, next);
-  await ensureMonthlySummaryRow(token, spreadsheetId, new Date(updated.rawDate));
-  return next.find((tx) => tx.createdAt === updated.createdAt && tx.detail === updated.detail) || updated;
+  const tx = buildTransactionFromDraft(draft, rowId);
+  const newDateObj = new Date(tx.rawDate);
+
+  const oldRow = await readSingleRow(token, spreadsheetId, rowId);
+  const oldDate = parseSheetDate(oldRow[0]);
+  const oldMs = oldDate ? new Date(oldDate.getFullYear(), oldDate.getMonth(), oldDate.getDate()).getTime() : 0;
+  const newMs = new Date(newDateObj.getFullYear(), newDateObj.getMonth(), newDateObj.getDate()).getTime();
+
+  if (oldDate && oldMs !== newMs) {
+    const sheetId = await getTransactionSheetId(token, spreadsheetId);
+    await deleteSheetRow(token, spreadsheetId, sheetId, rowId);
+    const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, newDateObj);
+    await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
+    await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
+    await ensureMonthlySummaryRow(token, spreadsheetId, newDateObj);
+    await ensureMonthlySummaryRow(token, spreadsheetId, oldDate);
+    return { ...tx, rowId: targetRow };
+  }
+
+  await writeRow(token, spreadsheetId, rowId, buildTransactionRow(tx));
+  await ensureMonthlySummaryRow(token, spreadsheetId, newDateObj);
+  return { ...tx, rowId };
 }
 
 export async function deleteTransaction(token: string, spreadsheetId: string, rowId: number) {
-  const existing = await readTransactions(token, spreadsheetId);
-  const next = existing.filter((tx) => tx.rowId !== rowId).map((tx, index) => ({ ...tx, rowId: index + 2 }));
-  await rewriteTransactions(token, spreadsheetId, next);
+  const sheetId = await getTransactionSheetId(token, spreadsheetId);
+  await deleteSheetRow(token, spreadsheetId, sheetId, rowId);
 }
 
 export async function moveTransaction(token: string, spreadsheetId: string, rowId: number, direction: "up" | "down") {
-  const existing = await readTransactions(token, spreadsheetId);
-  const index = existing.findIndex((tx) => tx.rowId === rowId);
-  const targetIndex = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || targetIndex < 0 || targetIndex >= existing.length) return;
-  const next = [...existing];
-  [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-  await rewriteTransactions(token, spreadsheetId, next.map((tx, nextIndex) => ({ ...tx, rowId: nextIndex + 2 })));
-}
-
-export async function rewriteTransactions(token: string, spreadsheetId: string, transactions: Transaction[]) {
-  await googleFetch(token, clearValuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!A2:E`), { method: "POST" });
-  if (!transactions.length) return;
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!A2:E`)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({
-      values: transactions.map((tx) => [
-        formatDateToISO(tx.rawDate),
-        formatAmountForSheet(tx),
-        tx.detail,
-        tx.type,
-        formatCreatedAtForSheet(tx.createdAt),
-      ]),
-    }),
-  });
+  const targetRowId = direction === "up" ? rowId - 1 : rowId + 1;
+  if (targetRowId < 2) return;
+  const [row1, row2] = await Promise.all([
+    readSingleRow(token, spreadsheetId, rowId),
+    readSingleRow(token, spreadsheetId, targetRowId),
+  ]);
+  if (!row1.length || !row2.length) return;
+  await Promise.all([
+    writeRow(token, spreadsheetId, rowId, row2),
+    writeRow(token, spreadsheetId, targetRowId, row1),
+  ]);
 }
 
 function formatCreatedAtForSheet(value?: string) {
   const raw = String(value || "").trim();
   if (!raw || raw === "Invalid Date") return "";
-  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw)) return raw;
+  const timeMatch = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) return `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}:${timeMatch[3] || "00"}`;
   const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? raw : date.toLocaleTimeString("es-PE", { hour12: false });
+  if (Number.isNaN(date.getTime())) return raw;
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
 }
 
 function formatAmountForSheet(tx: Transaction) {
   const expression = sanitizeAmountExpression(tx.formula || "");
   if (!expression) return tx.amount;
+  if (/^-?\d+(\.\d+)?$/.test(expression)) {
+    const value = expression.replace(/^-/, "");
+    return tx.type.startsWith("GASTO") ? `=-${value}` : `=${value}`;
+  }
   return tx.type.startsWith("GASTO") ? `=-ABS(${expression})` : `=ABS(${expression})`;
 }
 
