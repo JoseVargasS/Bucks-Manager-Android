@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { BlurTargetView } from "expo-blur";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as SecureStore from "expo-secure-store";
@@ -99,7 +100,8 @@ export default function App() {
   const headerTopInset = statusBarInset + 6;
   const headerHeight = tab === "expenses" ? 154 : 62;
   const contentTopInset = headerTopInset + headerHeight;
-  const headerFadeHeight = headerTopInset + 86;
+  const headerFadeHeight = Math.max(headerTopInset + 28, 56);
+  const bottomFadeHeight = 128;
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -460,9 +462,9 @@ export default function App() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
       <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
       <View style={[styles.shell, styles.shellCompact, { backgroundColor: colors.bg, paddingTop: 0 }]}>
-        <View style={[styles.content, { width: "100%", position: "relative" }]}>
+        <BlurTargetView ref={blurTargetRef} style={[styles.content, { width: "100%", position: "relative" }]}>
           {tab === "expenses" || tab === "summary" ? (
-            <View ref={blurTargetRef} style={{ flex: 1 }}>
+            <View style={{ flex: 1 }}>
               {loading && (
                 <View style={styles.loadingBar}>
                   <ActivityIndicator color={colors.primary} />
@@ -521,7 +523,7 @@ export default function App() {
               )}
             </View>
           </View>
-        </View>
+        </BlurTargetView>
 
         {deletedTx && (
           <TouchableOpacity style={[styles.undoFab, compact && { left: 18 }, { backgroundColor: colors.card }]} onPress={undoDelete}>
@@ -529,7 +531,8 @@ export default function App() {
             <Text style={{ color: colors.text, fontWeight: "600" }}>Deshacer</Text>
           </TouchableOpacity>
         )}
-        <BottomNav colors={colors} tab={tab} setTab={setTab} onAdd={() => openAdd()} onSearch={() => setSearchVisible(true)} />
+        <BottomFade color={colors.bg} height={bottomFadeHeight} />
+        <BottomNav colors={colors} tab={tab} setTab={setTab} onAdd={() => openAdd()} onSearch={() => setSearchVisible(true)} blurTarget={blurTargetRef} />
       </View>
 
       <TransactionModal visible={addVisible} colors={colors} draft={draft} setDraft={setDraft}
@@ -644,14 +647,29 @@ function HeaderFade({ color, height }: { color: string; height: number }) {
     <Svg pointerEvents="none" width="100%" height={height} style={{ position: "absolute", top: 0, left: 0, right: 0 }}>
       <Defs>
         <LinearGradient id="headerFade" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="1" />
-          <Stop offset="0.64" stopColor={color} stopOpacity="1" />
-          <Stop offset="0.78" stopColor={color} stopOpacity="0.72" />
-          <Stop offset="0.90" stopColor={color} stopOpacity="0.24" />
+          <Stop offset="0" stopColor={color} stopOpacity="0.94" />
+          <Stop offset="0.38" stopColor={color} stopOpacity="0.72" />
+          <Stop offset="0.72" stopColor={color} stopOpacity="0.24" />
           <Stop offset="1" stopColor={color} stopOpacity="0" />
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerFade)" />
+    </Svg>
+  );
+}
+
+function BottomFade({ color, height }: { color: string; height: number }) {
+  return (
+    <Svg pointerEvents="none" width="100%" height={height} style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10 }}>
+      <Defs>
+        <LinearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="0" />
+          <Stop offset="0.36" stopColor={color} stopOpacity="0.16" />
+          <Stop offset="0.70" stopColor={color} stopOpacity="0.58" />
+          <Stop offset="1" stopColor={color} stopOpacity="0.86" />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
     </Svg>
   );
 }
