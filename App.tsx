@@ -22,6 +22,7 @@ import {
 import { dark, light, Palette } from "./src/theme/colors";
 import { getBlankDraft, compareTransactionsDesc, filterTransactionsByRollingPeriod } from "./src/utils/transactions";
 import { formatMoney, formatCreatedTime } from "./src/utils/formats";
+import { loadHistory, addHistoryEntry, removeHistoryEntry } from "./src/utils/history";
 import { styles } from "./src/styles/globalStyles";
 import { SkeletonScreen } from "./src/components/ui/SkeletonScreen";
 import { BottomNav } from "./src/components/layout/BottomNav";
@@ -36,9 +37,10 @@ import { DetailModal } from "./src/components/modals/DetailModal";
 import { FreqIncomeModal } from "./src/components/modals/FreqIncomeModal";
 import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
 import { ConfirmModal, ConfirmConfig } from "./src/components/modals/ConfirmModal";
+import { HistoryModal } from "./src/components/modals/HistoryModal";
 import { SheetChooserModal } from "./src/components/modals/SheetChooserModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
-import { ExportFormat, SearchFilters, SheetCandidate, SummaryRow, Transaction, TransactionDraft, TransactionType } from "./src/types";
+import { ExportFormat, HistoryEntry, SearchFilters, SheetCandidate, SummaryRow, Transaction, TransactionDraft, TransactionType } from "./src/types";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
 
 const GOOGLE_ANDROID_CLIENT_ID = Constants.expoConfig?.extra?.googleAndroidClientId || "";
@@ -111,7 +113,8 @@ export default function App() {
   const [loadedMonthCount, setLoadedMonthCount] = useState(1);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [picker, setPicker] = useState<PickerConfig>(null);
-  const [deletedTx, setDeletedTx] = useState<Transaction | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [historyVisible, setHistoryVisible] = useState(false);
   const [freqInput, setFreqInput] = useState("");
   const [exportVisible, setExportVisible] = useState(false);
   const [exportConfig, setExportConfig] = useState<ExportConfig>(defaultExportConfig);
@@ -132,6 +135,7 @@ export default function App() {
     });
     restorePreferences();
     restoreSession();
+    loadHistory().then(setHistoryEntries).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -322,7 +326,7 @@ export default function App() {
   async function clearGoogleSession() {
     await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY), SecureStore.deleteItemAsync(SHEET_KEY)]);
     setAccessToken(""); setSpreadsheetId(""); setTransactions([]); setSummaries([]);
-    setFreqIncome({}); setAccountInfo(null); setDeletedTx(null);
+    setFreqIncome({}); setAccountInfo(null);
     didSetInitialPeriodRef.current = false;
   }
 
@@ -425,18 +429,30 @@ export default function App() {
 
     if (accessToken && spreadsheetId) {
       syncGoogleInBackground(async () => {
-        if (currentEdit) await updateGoogleTransaction(accessToken, spreadsheetId, currentEdit.rowId, currentDraft);
-        else await saveTransaction(accessToken, spreadsheetId, currentDraft);
+        if (currentEdit) {
+          await updateGoogleTransaction(accessToken, spreadsheetId, currentEdit.rowId, currentDraft);
+          addHistoryEntry({ action: "edit", transaction: optimistic, previousTransaction: currentEdit }).then((entry) => {
+            setHistoryEntries((prev) => [entry, ...prev]);
+          }).catch(() => undefined);
+        } else {
+          await saveTransaction(accessToken, spreadsheetId, currentDraft);
+          addHistoryEntry({ action: "create", transaction: optimistic }).then((entry) => {
+            setHistoryEntries((prev) => [entry, ...prev]);
+          }).catch(() => undefined);
+        }
         await reloadFromGoogle(accessToken, spreadsheetId, false);
       }, currentEdit ? copy.editRecord : copy.newRecord);
     }
   }
 
   async function deleteTx(tx: Transaction) {
-    setDeletedTx(tx); setDetailTx(null);
+    setDetailTx(null);
     setSelectedRows((current) => current.filter((rowId) => rowId !== tx.rowId));
     const next = renumberTransactions(transactions.filter((item) => item.rowId !== tx.rowId));
     setTransactions(next); setSummaries(calculateSummaries(next, freqIncome));
+    addHistoryEntry({ action: "delete", transaction: tx }).then((entry) => {
+      setHistoryEntries((prev) => [entry, ...prev]);
+    }).catch(() => undefined);
     if (accessToken && spreadsheetId) {
       syncGoogleInBackground(async () => {
         await deleteGoogleTransaction(accessToken, spreadsheetId, tx.rowId);
@@ -448,11 +464,15 @@ export default function App() {
   async function deleteSelectedRows() {
     const selected = transactions.filter((tx) => selectedRows.includes(tx.rowId)).sort((a, b) => b.rowId - a.rowId);
     if (!selected.length) return;
-    setDeletedTx(selected[0]);
     const selectedIds = new Set(selected.map((tx) => tx.rowId));
     const next = renumberTransactions(transactions.filter((item) => !selectedIds.has(item.rowId)));
     setTransactions(next); setSummaries(calculateSummaries(next, freqIncome));
     setSelectedRows([]);
+    for (const tx of selected) {
+      addHistoryEntry({ action: "delete", transaction: tx }).then((entry) => {
+        setHistoryEntries((prev) => [entry, ...prev]);
+      }).catch(() => undefined);
+    }
     if (accessToken && spreadsheetId) {
       syncGoogleInBackground(async () => {
         for (const tx of selected) await deleteGoogleTransaction(accessToken, spreadsheetId, tx.rowId);
@@ -499,26 +519,60 @@ export default function App() {
     });
   }
 
-  async function undoDelete() {
-    if (!deletedTx) return;
-    const next = [...transactions, deletedTx].sort((a, b) => new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime());
-    setTransactions(next.map((item, idx) => ({ ...item, rowId: idx + 2 })));
-    setSummaries(calculateSummaries(next, freqIncome));
-    if (accessToken && spreadsheetId) {
-      const restored = deletedTx;
-      const draft: TransactionDraft = {
-        date: formatDateToISO(restored.rawDate),
-        amount: restored.formula ? `=${restored.formula}` : String(Math.abs(restored.amount)),
-        detail: restored.detail,
-        type: restored.type,
-        createdAt: restored.createdAt,
-      };
-      syncGoogleInBackground(async () => {
-        await saveTransaction(accessToken, spreadsheetId, draft);
-        await reloadFromGoogle(accessToken, spreadsheetId, false);
-      }, "Deshacer");
+  async function undoHistoryEntry(entry: HistoryEntry) {
+    const entryId = entry.id;
+    setHistoryEntries((prev) => prev.filter((e) => e.id !== entryId));
+    removeHistoryEntry(entryId).catch(() => undefined);
+
+    if (entry.action === "delete") {
+      const next = [...transactions, entry.transaction].sort((a, b) => new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime());
+      setTransactions(next.map((item, idx) => ({ ...item, rowId: idx + 2 })));
+      setSummaries(calculateSummaries(next, freqIncome));
+      if (accessToken && spreadsheetId) {
+        const draft: TransactionDraft = {
+          date: formatDateToISO(entry.transaction.rawDate),
+          amount: entry.transaction.formula ? `=${entry.transaction.formula}` : String(Math.abs(entry.transaction.amount)),
+          detail: entry.transaction.detail,
+          type: entry.transaction.type,
+          createdAt: entry.transaction.createdAt,
+        };
+        syncGoogleInBackground(async () => {
+          await saveTransaction(accessToken, spreadsheetId, draft);
+          await reloadFromGoogle(accessToken, spreadsheetId, false);
+        }, "Deshacer");
+      }
+    } else if (entry.action === "edit" && entry.previousTransaction) {
+      const prev = entry.previousTransaction;
+      const next = renumberTransactions(insertChronologically(
+        transactions.filter((tx) => tx.rowId !== prev.rowId && tx.rowId !== entry.transaction.rowId),
+        prev
+      ));
+      setTransactions(next);
+      setSummaries(calculateSummaries(next, freqIncome));
+      if (accessToken && spreadsheetId) {
+        const draft: TransactionDraft = {
+          date: formatDateToISO(prev.rawDate),
+          amount: prev.formula ? `=${prev.formula}` : String(Math.abs(prev.amount)),
+          detail: prev.detail,
+          type: prev.type,
+          createdAt: prev.createdAt,
+        };
+        syncGoogleInBackground(async () => {
+          await updateGoogleTransaction(accessToken, spreadsheetId, entry.transaction.rowId, draft);
+          await reloadFromGoogle(accessToken, spreadsheetId, false);
+        }, "Deshacer");
+      }
+    } else if (entry.action === "create") {
+      const next = renumberTransactions(transactions.filter((item) => item.rowId !== entry.transaction.rowId));
+      setTransactions(next);
+      setSummaries(calculateSummaries(next, freqIncome));
+      if (accessToken && spreadsheetId) {
+        syncGoogleInBackground(async () => {
+          await deleteGoogleTransaction(accessToken, spreadsheetId, entry.transaction.rowId);
+          await reloadFromGoogle(accessToken, spreadsheetId, false);
+        }, "Deshacer");
+      }
     }
-    setDeletedTx(null);
   }
 
   async function saveFreqIncome() {
@@ -642,7 +696,7 @@ export default function App() {
             <View pointerEvents="box-none" style={{ paddingTop: headerTopInset }}>
               <View style={[styles.topBar, styles.topBarMobile, { backgroundColor: "transparent" }]}>
                 <HeaderTitleFade color={colors.bg} />
-                <View style={styles.headerLeft}>
+               <View style={styles.headerLeft}>
                   <View style={[styles.headerLogo, { backgroundColor: colors.primary }]}>
                     <MaterialCommunityIcons name="sack" size={19} color={colors.onPrimary} />
                   </View>
@@ -651,6 +705,12 @@ export default function App() {
                     {!!pageSubtitle && <Text numberOfLines={1} style={[styles.pageSub, styles.pageSubMobile, theme === "dark" ? styles.headerReadableTextDark : styles.headerReadableTextLight, { color: colors.muted, textShadowColor: colors.shadow }]}>{pageSubtitle}</Text>}
                   </View>
                 </View>
+                <TouchableOpacity
+                  style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}
+                  onPress={() => setHistoryVisible(true)}
+                >
+                  <MaterialCommunityIcons name="history" size={20} color={historyEntries.length ? colors.primary : colors.muted} />
+                </TouchableOpacity>
                </View>
               {tab === "expenses" && (
                 <PeriodControls colors={colors} copy={copy} year={year} month={month} availableYears={availableYears} availableMonths={availableMonths}
@@ -661,12 +721,6 @@ export default function App() {
           </View>
         </BlurTargetView>
 
-        {deletedTx && (
-          <TouchableOpacity style={[styles.undoFab, compact && { left: 18 }, { backgroundColor: colors.card }]} onPress={undoDelete}>
-            <MaterialCommunityIcons name="undo" size={20} color={colors.blue} />
-            <Text style={{ color: colors.text, fontWeight: "600" }}>{copy.undo}</Text>
-          </TouchableOpacity>
-        )}
         <BottomFade color={colors.bg} height={bottomFadeHeight} />
         <BottomNav colors={colors} copy={copy} tab={tab} setTab={setTab} onAdd={() => openAdd()} onSearch={() => setSearchVisible(true)} blurTarget={blurTargetRef} />
       </View>
@@ -681,6 +735,7 @@ export default function App() {
         onClose={() => setSheetCandidates([])} onSelect={(c) => selectSpreadsheet(accessToken, c.id, c.name)} />
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setConfirmConfig(null)} onConfirm={handleConfirm} />
+      <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setHistoryVisible(false)} onUndo={undoHistoryEntry} />
       <ExportModal visible={exportVisible} colors={colors} config={exportConfig} setConfig={setExportConfig}
         minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
         copy={copy} onClose={() => setExportVisible(false)} onExport={(cfg: ExportConfig) => { setExportVisible(false); exportRows(cfg); }} />
