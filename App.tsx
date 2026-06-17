@@ -35,6 +35,7 @@ import { TransactionModal } from "./src/components/modals/TransactionModal";
 import { DetailModal } from "./src/components/modals/DetailModal";
 import { FreqIncomeModal } from "./src/components/modals/FreqIncomeModal";
 import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
+import { ConfirmModal, ConfirmConfig } from "./src/components/modals/ConfirmModal";
 import { SheetChooserModal } from "./src/components/modals/SheetChooserModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
 import { ExportFormat, SearchFilters, SheetCandidate, SummaryRow, Transaction, TransactionDraft, TransactionType } from "./src/types";
@@ -114,6 +115,7 @@ export default function App() {
   const [freqInput, setFreqInput] = useState("");
   const [exportVisible, setExportVisible] = useState(false);
   const [exportConfig, setExportConfig] = useState<ExportConfig>(defaultExportConfig);
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const blurTargetRef = useRef<View | null>(null);
   const didSetInitialPeriodRef = useRef(false);
   const compact = true;
@@ -373,7 +375,7 @@ export default function App() {
 
   function openEdit(tx: Transaction) {
     setDetailTx(null); setSelectedRows([]); setEditingTx(tx);
-    setDraft({ date: formatDateToISO(tx.rawDate), amount: String(tx.formula || Math.abs(tx.amount)), detail: tx.detail, type: tx.type, createdAt: tx.createdAt });
+    setDraft({ date: formatDateToISO(tx.rawDate), amount: tx.formula ? `=${tx.formula}` : String(Math.abs(tx.amount)), detail: tx.detail, type: tx.type, createdAt: tx.createdAt });
     setAddVisible(true);
   }
 
@@ -385,6 +387,24 @@ export default function App() {
     task().catch((error) => {
       Alert.alert(title, error instanceof Error ? error.message : copy.syncError);
     });
+  }
+
+  function requestDelete(tx: Transaction) {
+    setDetailTx(null);
+    setConfirmConfig({ kind: "delete", tx });
+  }
+
+  function requestDeleteSelected() {
+    if (!selectedRows.length) return;
+    setConfirmConfig({ kind: "deleteSelected", count: selectedRows.length });
+  }
+
+  function handleConfirm() {
+    const cfg = confirmConfig;
+    setConfirmConfig(null);
+    if (!cfg) return;
+    if (cfg.kind === "delete" && cfg.tx) deleteTx(cfg.tx);
+    else if (cfg.kind === "deleteSelected") deleteSelectedRows();
   }
 
   async function submitDraft() {
@@ -484,6 +504,20 @@ export default function App() {
     const next = [...transactions, deletedTx].sort((a, b) => new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime());
     setTransactions(next.map((item, idx) => ({ ...item, rowId: idx + 2 })));
     setSummaries(calculateSummaries(next, freqIncome));
+    if (accessToken && spreadsheetId) {
+      const restored = deletedTx;
+      const draft: TransactionDraft = {
+        date: formatDateToISO(restored.rawDate),
+        amount: restored.formula ? `=${restored.formula}` : String(Math.abs(restored.amount)),
+        detail: restored.detail,
+        type: restored.type,
+        createdAt: restored.createdAt,
+      };
+      syncGoogleInBackground(async () => {
+        await saveTransaction(accessToken, spreadsheetId, draft);
+        await reloadFromGoogle(accessToken, spreadsheetId, false);
+      }, "Deshacer");
+    }
     setDeletedTx(null);
   }
 
@@ -577,7 +611,7 @@ export default function App() {
                   onEditFreq={() => { setFreqInput(String(currentSummary.freqIncome || 0)); setFreqVisible(true); }}
                   onExitSearch={() => setSearchActive(false)}
                   onOpenDetail={handleTransactionPress} onEdit={openEdit}
-                  onDeleteSelected={deleteSelectedRows} onMove={openMoveMenu}
+                  onDeleteSelected={requestDeleteSelected} onMove={openMoveMenu}
                   onToggleSelection={toggleSelection}
                   onLoadOlder={() => setLoadedMonthCount((c) => c + 1)}
                   topInset={contentTopInset}
@@ -642,10 +676,11 @@ export default function App() {
         editing={!!editingTx} openPicker={setPicker} onClose={() => setAddVisible(false)} onSubmit={submitDraft} />
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
         copy={copy} onClose={() => setFreqVisible(false)} onSubmit={saveFreqIncome} />
-      <DetailModal tx={detailTx} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setDetailTx(null)} onEdit={openEdit} onDelete={deleteTx} />
+      <DetailModal tx={detailTx} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setDetailTx(null)} onEdit={openEdit} onDelete={requestDelete} />
       <SheetChooserModal visible={sheetCandidates.length > 1} colors={colors} candidates={sheetCandidates}
         onClose={() => setSheetCandidates([])} onSelect={(c) => selectSpreadsheet(accessToken, c.id, c.name)} />
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
+      <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setConfirmConfig(null)} onConfirm={handleConfirm} />
       <ExportModal visible={exportVisible} colors={colors} config={exportConfig} setConfig={setExportConfig}
         minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
         copy={copy} onClose={() => setExportVisible(false)} onExport={(cfg: ExportConfig) => { setExportVisible(false); exportRows(cfg); }} />
