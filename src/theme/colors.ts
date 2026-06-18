@@ -24,7 +24,7 @@ export const dark = {
   switchTrack: "#1e2333",
   editBg: "#17280f",
   editBorder: "#7aa600",
-  freqExpenseRow: "rgba(224,107,107,0.06)",
+  freqExpenseRow: "rgba(224,107,107,0.10)",
   overlay: "rgba(0,0,0,0.72)",
   shadow: "#000000",
 };
@@ -53,7 +53,7 @@ export const light = {
   switchTrack: "#e3d8ca",
   editBg: "#e8f5b8",
   editBorder: "#8ab800",
-  freqExpenseRow: "rgba(190,75,75,0.05)",
+  freqExpenseRow: "rgba(190,75,75,0.09)",
   overlay: "rgba(42,31,20,0.36)",
   shadow: "#3a3028",
 };

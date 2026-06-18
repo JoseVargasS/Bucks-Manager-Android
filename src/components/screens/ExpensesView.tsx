@@ -9,6 +9,19 @@ import { Palette } from "../../theme/colors";
 import { SummaryRow, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 
+function fullTypeLabel(type: string, copy: UiCopy) {
+  if (type === "INGRESO FRECUENTE") return copy.freqIncomeFull;
+  if (type === "INGRESO NO FRECUENTE") return copy.nonFreqIncomeFull;
+  if (type === "GASTO FRECUENTE") return copy.freqExpenseFull;
+  return copy.nonFreqExpenseFull;
+}
+
+function typeChipBg(type: string, colors: Palette) {
+  if (type === "INGRESO FRECUENTE" || type === "INGRESO NO FRECUENTE") return colors.incomeSoft;
+  if (type === "GASTO FRECUENTE") return colors.expenseSoft;
+  return colors.warnSoft;
+}
+
 export function ExpensesView({
   colors,
   summary,
@@ -94,6 +107,8 @@ export function ExpensesView({
               {group.items.map((tx, index) => {
                 const selected = selectedRows.includes(tx.rowId);
                 const icon = tx.amount >= 0 ? "bank-transfer-in" : tx.type === "GASTO FRECUENTE" ? "credit-card-outline" : "basket-outline";
+                const isFreqExpense = tx.type === "GASTO FRECUENTE";
+                const showPill = tx.type !== "GASTO NO FRECUENTE";
                 return (
                   <TouchableOpacity
                     key={`${tx.rowId}-${tx.createdAt}`}
@@ -102,7 +117,7 @@ export function ExpensesView({
                     style={[
                       styles.groupedTxRow,
                       index > 0 && { borderTopWidth: 0.5, borderColor: colors.border },
-                      tx.type === "GASTO FRECUENTE" && { backgroundColor: colors.freqExpenseRow },
+                      isFreqExpense && { backgroundColor: colors.freqExpenseRow },
                       selected && { backgroundColor: colors.primarySoft },
                     ]}
                   >
@@ -116,9 +131,21 @@ export function ExpensesView({
                         style={[styles.groupedTxTitle, { color: colors.text }]}
                         highlightStyle={{ color: colors.onPrimary, backgroundColor: colors.primary, borderRadius: 4 }}
                       />
-                      <Text numberOfLines={1} style={[styles.groupedTxMeta, { color: colors.muted }]}>
-                        {`${compactTypeLabel(tx.type, copy)} - ${formatCreatedTime(tx.createdAt).slice(0, 5)}`}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                        {showPill && (
+                          <View style={{
+                            paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5,
+                            backgroundColor: typeChipBg(tx.type, colors),
+                          }}>
+                            <Text style={{ fontSize: 11, fontWeight: "600", color: typeColor(tx.type, colors) }}>
+                              {fullTypeLabel(tx.type, copy)}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={[styles.groupedTxMeta, { color: colors.muted }]}>
+                          {formatCreatedTime(tx.createdAt).slice(0, 5)}
+                        </Text>
+                      </View>
                     </View>
                     <Text numberOfLines={1} style={[styles.groupedTxAmount, { color: tx.amount >= 0 ? colors.green : colors.red }]}>{formatMoney(tx.amount, currencySymbol)}</Text>
                     {selected && <MaterialCommunityIcons name="drag-vertical" size={18} color={colors.muted} />}
@@ -141,11 +168,4 @@ export function ExpensesView({
       </View>
     </ScrollView>
   );
-}
-
-function compactTypeLabel(type: string, copy: UiCopy) {
-  if (type === "INGRESO FRECUENTE") return copy.freqIncome;
-  if (type === "INGRESO NO FRECUENTE") return copy.nonFreqIncome;
-  if (type === "GASTO FRECUENTE") return copy.freqExpense;
-  return copy.nonFreqExpense;
 }
