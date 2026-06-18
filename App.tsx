@@ -1,11 +1,11 @@
 import Constants from "expo-constants";
-import { BlurTargetView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as SecureStore from "expo-secure-store";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Modal, SafeAreaView, Text, TouchableOpacity, View, StatusBar as NativeStatusBar } from "react-native";
+import { ActivityIndicator, Alert, AppState, Modal, SafeAreaView, Text, TouchableOpacity, View, StatusBar as NativeStatusBar } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
@@ -23,6 +23,7 @@ import { dark, light, Palette } from "./src/theme/colors";
 import { getBlankDraft, compareTransactionsDesc, filterTransactionsByRollingPeriod } from "./src/utils/transactions";
 import { formatMoney, formatCreatedTime } from "./src/utils/formats";
 import { loadHistory, addHistoryEntry, removeHistoryEntry } from "./src/utils/history";
+import { isPinEnabled, setPinEnabled, savePin, verifyPin, clearPin } from "./src/utils/pin";
 import { styles } from "./src/styles/globalStyles";
 import { SkeletonScreen } from "./src/components/ui/SkeletonScreen";
 import { BottomNav } from "./src/components/layout/BottomNav";
@@ -32,12 +33,14 @@ import { ExpensesView } from "./src/components/screens/ExpensesView";
 import { SearchPage } from "./src/components/screens/SearchPage";
 import { SummaryView } from "./src/components/screens/SummaryView";
 import { SettingsView } from "./src/components/screens/SettingsView";
+import { PinScreen } from "./src/components/screens/PinScreen";
 import { TransactionModal } from "./src/components/modals/TransactionModal";
 import { DetailModal } from "./src/components/modals/DetailModal";
 import { FreqIncomeModal } from "./src/components/modals/FreqIncomeModal";
 import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
 import { ConfirmModal, ConfirmConfig } from "./src/components/modals/ConfirmModal";
 import { HistoryModal } from "./src/components/modals/HistoryModal";
+import { PinSetupModal } from "./src/components/modals/PinSetupModal";
 import { SheetChooserModal } from "./src/components/modals/SheetChooserModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
 import { ExportFormat, HistoryEntry, SearchFilters, SheetCandidate, SummaryRow, Transaction, TransactionDraft, TransactionType } from "./src/types";
@@ -119,6 +122,12 @@ export default function App() {
   const [exportVisible, setExportVisible] = useState(false);
   const [exportConfig, setExportConfig] = useState<ExportConfig>(defaultExportConfig);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
+  const [pinEnabled, setPinEnabledState] = useState(false);
+  const [pinVerified, setPinVerified] = useState(false);
+  const [pinLoading, setPinLoading] = useState(true);
+  const [pinSetupVisible, setPinSetupVisible] = useState(false);
+  const [pinWrong, setPinWrong] = useState(false);
+  const pinLockedRef = useRef(false);
   const blurTargetRef = useRef<View | null>(null);
   const didSetInitialPeriodRef = useRef(false);
   const compact = true;
@@ -136,6 +145,19 @@ export default function App() {
     restorePreferences();
     restoreSession();
     loadHistory().then(setHistoryEntries).catch(() => undefined);
+    isPinEnabled().then((enabled) => {
+      setPinEnabledState(enabled);
+      setPinVerified(!enabled);
+      pinLockedRef.current = false;
+    }).finally(() => setPinLoading(false));
+
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "background") {
+        pinLockedRef.current = true;
+        setPinVerified(false);
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
@@ -536,6 +558,38 @@ export default function App() {
     }
   }
 
+  async function handlePinOpen() {
+    if (pinEnabled) {
+      await clearPin();
+      pinLockedRef.current = false;
+      setPinEnabledState(false);
+      setPinVerified(true);
+    } else {
+      setPinSetupVisible(true);
+    }
+  }
+
+  function handlePinSave(value: string) {
+    savePin(value).then(() => {
+      setPinEnabledState(true);
+      setPinVerified(true);
+      setPinSetupVisible(false);
+    }).catch(() => undefined);
+  }
+
+  function handlePinVerify(pin: string) {
+    verifyPin(pin).then((ok) => {
+      if (ok) {
+        pinLockedRef.current = false;
+        setPinVerified(true);
+        setPinWrong(false);
+      } else {
+        setPinWrong(true);
+        setTimeout(() => setPinWrong(false), 1500);
+      }
+    });
+  }
+
   async function saveFreqIncome() {
     const amount = Number(freqInput);
     if (!Number.isFinite(amount) || amount < 0) { Alert.alert("Monto inválido", "Ingresa un monto válido."); return; }
@@ -604,6 +658,35 @@ export default function App() {
     );
   }
 
+  if (pinLoading) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+        <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+        <BlurView
+          intensity={90}
+          tint={theme === "dark" ? "dark" : "light"}
+          style={{ flex: 1 }}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (pinEnabled && (!pinVerified || pinLockedRef.current)) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+        <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+        <PinScreen
+          colors={colors}
+          title={copy.pinRequired}
+          subtitle={copy.pinForgot}
+          wrong={pinWrong}
+          bgColor={colors.bg}
+          onFill={handlePinVerify}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
       <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
@@ -644,8 +727,9 @@ export default function App() {
                 </View>
               )}
               <SettingsView colors={colors} copy={copy} accountInfo={accountInfo}
-                language={language} currencySymbol={currencySymbol} fontPreference={fontPreference}
+                language={language} currencySymbol={currencySymbol} fontPreference={fontPreference} pinEnabled={pinEnabled}
                 onOpenLanguage={openLanguagePicker} onOpenCurrency={openCurrencyPicker} onOpenFont={openFontPicker}
+                onOpenPin={handlePinOpen}
                 onRescan={rescanDrive} onSwitch={switchGoogleAccount} onDisconnect={disconnectGoogle} onOpenExport={() => setExportVisible(true)}
               />
             </View>
@@ -705,6 +789,7 @@ export default function App() {
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setConfirmConfig(null)} onConfirm={handleConfirm} />
       <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setHistoryVisible(false)} onUndo={undoDeleteEntry} />
+      <PinSetupModal visible={pinSetupVisible} colors={colors} copy={copy} onClose={() => setPinSetupVisible(false)} onSave={handlePinSave} />
       <ExportModal visible={exportVisible} colors={colors} config={exportConfig} setConfig={setExportConfig}
         minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
         copy={copy} onClose={() => setExportVisible(false)} onExport={(cfg: ExportConfig) => { setExportVisible(false); exportRows(cfg); }} />

@@ -1,4 +1,4 @@
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { SettingsRow } from "../ui/SettingsRow";
@@ -6,13 +6,16 @@ import { Palette } from "../../theme/colors";
 import { UiCopy } from "../../i18n";
 
 export function SettingsView({
-  colors, copy, accountInfo, language, currencySymbol, fontPreference,
-  onOpenLanguage, onOpenCurrency, onOpenFont, onRescan, onSwitch, onDisconnect, onOpenExport,
+  colors, copy, accountInfo, language, currencySymbol, fontPreference, pinEnabled,
+  onOpenLanguage, onOpenCurrency, onOpenFont, onOpenPin,
+  onRescan, onSwitch, onDisconnect, onOpenExport,
 }: {
   colors: Palette; copy: UiCopy;
   language: "es" | "en"; currencySymbol: string; fontPreference: "system" | "serif" | "mono";
   accountInfo: { name?: string; email?: string } | null;
+  pinEnabled: boolean;
   onOpenLanguage: () => void; onOpenCurrency: () => void; onOpenFont: () => void;
+  onOpenPin: () => void;
   onRescan: () => void; onSwitch: () => void; onDisconnect: () => void; onOpenExport: () => void;
 }) {
   const initial = (accountInfo?.email || accountInfo?.name || "B").slice(0, 1).toUpperCase();
@@ -42,6 +45,25 @@ export function SettingsView({
           <ChoiceRow colors={colors} icon="translate" label={copy.language} value={language === "es" ? copy.spanish : copy.english} onPress={onOpenLanguage} />
           <ChoiceRow colors={colors} icon="currency-usd" label={copy.currencySymbol} value={currencySymbol} onPress={onOpenCurrency} />
           <ChoiceRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel} onPress={onOpenFont} last />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <Text style={[styles.settingsLabel, { color: colors.muted }]}>{copy.security}</Text>
+        <View style={[styles.settingsGroup, { backgroundColor: colors.card }]}>
+          <View style={[styles.settingsRow, { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, paddingHorizontal: 16, paddingVertical: 12 }]}>
+            <MaterialCommunityIcons name="shield-lock" size={22} color={colors.primary} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>{copy.pinApp}</Text>
+              <Text style={{ fontSize: 11, fontWeight: "500", color: colors.muted, marginTop: 1 }}>{copy.pinAppSub}</Text>
+            </View>
+            <Switch
+              value={pinEnabled}
+              onValueChange={onOpenPin}
+              trackColor={{ false: colors.switchTrack, true: colors.primarySoft }}
+              thumbColor={pinEnabled ? colors.primary : colors.disabled}
+            />
+          </View>
         </View>
       </View>
 
