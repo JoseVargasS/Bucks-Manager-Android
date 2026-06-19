@@ -1,8 +1,6 @@
 import { SheetCandidate, SummaryRow, Transaction, TransactionDraft } from "../types";
 import {
   SHEET_NAMES,
-  SUMMARY_HEADERS,
-  TRANSACTION_HEADERS,
   buildTransactionFromDraft,
   formatDateToISO,
   getMonthYear,
@@ -13,6 +11,15 @@ const DRIVE = "https://www.googleapis.com/drive/v3";
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
 const HEADER_SCAN_ROWS = 12;
+
+const SUMMARY_HEADERS = [
+  "MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS",
+  "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS",
+  "NETO MENSUAL", "NETO SIN ING FRECUENTE",
+];
+
+const TRANSACTION_HEADERS = ["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACIÓN"];
+
 type FormulaDialect = { sumifs: string; eomonth: string; sep: string };
 
 // --- Single-row operation helpers (match GAS insertRecordChronologically / editTransaction / deleteRow) ---
@@ -146,7 +153,7 @@ export async function findCompatibleSheets(token: string) {
   return compatible;
 }
 
-export async function validateSpreadsheetStructure(token: string, spreadsheetId: string) {
+async function validateSpreadsheetStructure(token: string, spreadsheetId: string) {
   const meta = await googleFetch<{ sheets?: { properties?: { title?: string } }[] }>(
     token,
     `${SHEETS}/${spreadsheetId}?fields=sheets.properties.title`,
@@ -228,7 +235,7 @@ export async function createBucksSpreadsheet(token: string) {
   return created.spreadsheetId;
 }
 
-export async function initializeSpreadsheet(token: string, spreadsheetId: string) {
+async function initializeSpreadsheet(token: string, spreadsheetId: string) {
   const currentMonth = new Date();
   const firstDay = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}-01`;
   const locale = await getSpreadsheetLocale(token, spreadsheetId);
@@ -304,7 +311,7 @@ export async function saveTransaction(token: string, spreadsheetId: string, draf
   const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, dateObj);
   await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
   await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
-  await ensureMonthlySummaryRow(token, spreadsheetId, dateObj);
+  await ensureMonthlySummaryRowByDate(token, spreadsheetId, dateObj);
   return { ...tx, rowId: targetRow };
 }
 
@@ -315,7 +322,7 @@ export async function insertTransactionAtRow(token: string, spreadsheetId: strin
   const safeRow = Math.max(2, targetRow);
   await insertBlankRow(token, spreadsheetId, sheetId, safeRow);
   await writeRow(token, spreadsheetId, safeRow, buildTransactionRow(tx));
-  await ensureMonthlySummaryRow(token, spreadsheetId, dateObj);
+  await ensureMonthlySummaryRowByDate(token, spreadsheetId, dateObj);
   return { ...tx, rowId: safeRow };
 }
 
@@ -334,13 +341,13 @@ export async function updateTransaction(token: string, spreadsheetId: string, ro
     const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, newDateObj);
     await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
     await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
-    await ensureMonthlySummaryRow(token, spreadsheetId, newDateObj);
-    await ensureMonthlySummaryRow(token, spreadsheetId, oldDate);
+    await ensureMonthlySummaryRowByDate(token, spreadsheetId, newDateObj);
+    await ensureMonthlySummaryRowByDate(token, spreadsheetId, oldDate);
     return { ...tx, rowId: targetRow };
   }
 
   await writeRow(token, spreadsheetId, rowId, buildTransactionRow(tx));
-  await ensureMonthlySummaryRow(token, spreadsheetId, newDateObj);
+  await ensureMonthlySummaryRowByDate(token, spreadsheetId, newDateObj);
   return { ...tx, rowId };
 }
 
@@ -417,10 +424,6 @@ export async function updateFreqIncome(token: string, spreadsheetId: string, mon
     method: "PUT",
     body: JSON.stringify({ values: [[amount]] }),
   });
-}
-
-export async function ensureMonthlySummaryRow(token: string, spreadsheetId: string, date: Date) {
-  return ensureMonthlySummaryRowByDate(token, spreadsheetId, date);
 }
 
 async function ensureMonthlySummaryRowByMonthYear(token: string, spreadsheetId: string, monthYear: string) {

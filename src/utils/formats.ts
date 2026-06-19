@@ -22,22 +22,6 @@ export function formatDateGroupLabel(rawDate: string, copy: UiCopy = UI_COPY.es)
   return date.toLocaleDateString(locale, { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
 }
 
-export function abbrev(type: string): string {
-  return type
-    .replace("INGRESO", "Ing.")
-    .replace("GASTO", "G.")
-    .replace("NO FRECUENTE", "No Frec.")
-    .replace("FRECUENTE", "Frec.");
-}
-
-export function titleCaseType(type: string): string {
-  return type
-    .toLowerCase()
-    .split(" ")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 export function typeColor(type: string, colors: Record<string, string>): string {
   if (type === "INGRESO NO FRECUENTE" || type === "INGRESO FRECUENTE") return colors.green;
   if (type === "GASTO FRECUENTE") return colors.red;

@@ -19,19 +19,11 @@ export const MONTH_NAMES = [
 
 export const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-export const SUMMARY_HEADERS = [
-  "MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS",
-  "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS",
-  "NETO MENSUAL", "NETO SIN ING FRECUENTE",
-];
-
-export const TRANSACTION_HEADERS = ["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACIÓN"];
-
 /** Formatea un valor numérico como moneda con signo explícito: "+ S/ 100.00" o "- S/ 50.00" */
-export function formatMoney(value: number, symbol = "S/"): string {
+export function formatMoney(value: number, symbol = "S/", decimals = 2): string {
   const n = Number(value) || 0;
   const sign = n >= 0 ? "+ " : "- ";
-  return `${sign}${symbol} ${Math.abs(n).toFixed(2)}`;
+  return `${sign}${symbol} ${Math.abs(n).toFixed(decimals)}`;
 }
 
 /** Convierte un Date o string ISO a formato YYYY-MM-DD */
@@ -42,7 +34,7 @@ export function formatDateToISO(date: Date | string): string {
 }
 
 /** Convierte Date al formato usado en Sheets: DD-mes-AA (ej: 15-jun-26) */
-export function formatDateForSheet(date: Date): string {
+function formatDateForSheet(date: Date): string {
   return `${String(date.getDate()).padStart(2, "0")}-${SHORT_MONTHS[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
 }
 
@@ -81,13 +73,13 @@ export function normalizeAmountExpression(value: string): string {
 }
 
 /** Detecta si el valor es una fórmula que debe ser evaluada */
-export function isMathExpression(value: string): boolean {
+function isMathExpression(value: string): boolean {
   const expression = normalizeAmountExpression(value);
   return value.trim().startsWith("=") || /[+*/()]/.test(expression) || /.\s*-/.test(expression);
 }
 
 /** Aplica signo al monto según tipo: gastos → negativo, ingresos → positivo */
-export function normalizeDraftAmount(draft: TransactionDraft): number {
+function normalizeDraftAmount(draft: TransactionDraft): number {
   const calculated = Number(calculateExpression(normalizeAmountExpression(draft.amount)));
   if (draft.type.startsWith("GASTO")) return -Math.abs(calculated);
   return Math.abs(calculated);
@@ -107,16 +99,6 @@ export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number
     type: draft.type,
     createdAt: draft.createdAt || new Date().toISOString(),
   };
-}
-
-/** Filtra transacciones por mes/año exacto, ordenadas por rowId descendente */
-export function filterTransactionsByPeriod(transactions: Transaction[], month: number, year: number): Transaction[] {
-  return transactions
-    .filter((tx) => {
-      const date = tx.rawDate ? new Date(tx.rawDate) : parseSpanishDate(tx.date);
-      return date && date.getMonth() === month && date.getFullYear() === year;
-    })
-    .sort((a, b) => b.rowId - a.rowId);
 }
 
 /** Inserta una transacción en orden cronológico y renumera todos los rowId */
@@ -190,7 +172,7 @@ export function calculateSummaries(transactions: Transaction[], freqIncomeByMont
 }
 
 /** Convierte "Enero 2026" → Date del primer día de ese mes */
-export function monthYearToDate(monthYear: string): Date {
+function monthYearToDate(monthYear: string): Date {
   const [monthName, year] = monthYear.split(" ");
   const month = MONTH_NAMES.findIndex((name) => name.toLowerCase() === monthName.toLowerCase());
   return new Date(Number(year), Math.max(0, month), 1);

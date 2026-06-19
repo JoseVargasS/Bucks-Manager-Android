@@ -1,8 +1,8 @@
 import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
-import { SettingsRow } from "../ui/SettingsRow";
 import { Palette } from "../../theme/colors";
+import { MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 
 export function SettingsView({
@@ -42,9 +42,9 @@ export function SettingsView({
       <View style={styles.settingsSection}>
         <Text style={[styles.settingsLabel, { color: colors.muted }]}>{copy.preferences}</Text>
         <View style={[styles.settingsGroup, { backgroundColor: colors.card }]}>
-          <ChoiceRow colors={colors} icon="translate" label={copy.language} value={language === "es" ? copy.spanish : copy.english} onPress={onOpenLanguage} />
-          <ChoiceRow colors={colors} icon="currency-usd" label={copy.currencySymbol} value={currencySymbol} onPress={onOpenCurrency} />
-          <ChoiceRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel} onPress={onOpenFont} last />
+          <SettingsRow colors={colors} icon="translate" label={copy.language} value={language === "es" ? copy.spanish : copy.english} onPress={onOpenLanguage} />
+          <SettingsRow colors={colors} icon="currency-usd" label={copy.currencySymbol} value={currencySymbol} onPress={onOpenCurrency} />
+          <SettingsRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel} onPress={onOpenFont} last />
         </View>
       </View>
 
@@ -81,15 +81,15 @@ export function SettingsView({
   );
 }
 
-function ChoiceRow({ colors, icon, label, value, onPress, last = false }: {
-  colors: Palette; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  label: string; value: string; onPress: () => void; last?: boolean;
+function SettingsRow({ colors, icon, label, value, onPress, last = false }: {
+  colors: Palette; icon: MaterialIconName;
+  label: string; value?: string; onPress: () => void; last?: boolean;
 }) {
   return (
     <TouchableOpacity style={[styles.settingsRow, !last && { borderBottomWidth: 0.5, borderColor: colors.border }]} onPress={onPress}>
       <MaterialCommunityIcons name={icon} size={22} color={colors.blue} />
       <Text style={[styles.settingsRowLabel, { color: colors.text }]}>{label}</Text>
-      <Text numberOfLines={1} style={[styles.settingsRowValue, { color: colors.muted }]}>{value}</Text>
+      {value !== undefined && <Text numberOfLines={1} style={[styles.settingsRowValue, { color: colors.muted }]}>{value}</Text>}
       <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
     </TouchableOpacity>
   );

@@ -7,7 +7,7 @@ import { formatMoney } from "../../domain/bucksLogic";
 import { typeLabel } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 
-export type ConfirmKind = "delete" | "edit" | "deleteSelected";
+export type ConfirmKind = "delete" | "deleteSelected";
 
 export interface ConfirmConfig {
   kind: ConfirmKind;
@@ -24,16 +24,11 @@ export function ConfirmModal({ config, colors, currencySymbol, copy, onClose, on
   onConfirm: () => void;
 }) {
   if (!config) return null;
-  const isDelete = config.kind === "delete" || config.kind === "deleteSelected";
-  const title = config.kind === "delete" ? copy.confirmDeleteTitle
-    : config.kind === "edit" ? copy.confirmEditTitle
-    : copy.confirmDeleteSelectedTitle;
-  const message = config.kind === "delete" ? copy.confirmDeleteMsg
-    : config.kind === "edit" ? copy.confirmEditMsg
-    : copy.confirmDeleteSelectedMsg;
-  const accent = isDelete ? colors.red : colors.blue;
-  const accentSoft = isDelete ? colors.expenseSoft : colors.infoSoft;
-  const icon = isDelete ? "trash-can" : "pencil";
+  const title = config.kind === "delete" ? copy.confirmDeleteTitle : copy.confirmDeleteSelectedTitle;
+  const message = config.kind === "delete" ? copy.confirmDeleteMsg : copy.confirmDeleteSelectedMsg;
+  const accent = colors.red;
+  const accentSoft = colors.expenseSoft;
+  const icon = "trash-can";
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>

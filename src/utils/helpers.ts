@@ -28,14 +28,15 @@ export function parseMonthKey(value: string) {
 export function buildExportFileName(cfg: ExportConfig) {
   const range = cfg.rangeMode === "months"
     ? buildRangeFilePart(cfg.startDate, cfg.endDate, formatMonthFilePart)
-    : buildRangeFilePart(cfg.startDate, cfg.endDate, formatDateFilePart);
+    : buildRangeFilePart(cfg.startDate, cfg.endDate);
   return `bucks-manager_${range}`;
 }
 
-function buildRangeFilePart(start: string, end: string, formatter: (value: string) => string) {
-  if (start && end) return `${formatter(start)}_a_${formatter(end)}`;
-  if (start) return `desde_${formatter(start)}`;
-  if (end) return `hasta_${formatter(end)}`;
+function buildRangeFilePart(start: string, end: string, formatter?: (value: string) => string) {
+  const fmt = formatter || ((v: string) => v);
+  if (start && end) return `${fmt(start)}_a_${fmt(end)}`;
+  if (start) return `desde_${fmt(start)}`;
+  if (end) return `hasta_${fmt(end)}`;
   return "todo";
 }
 
@@ -43,10 +44,6 @@ function formatMonthFilePart(value: string) {
   const [year, month] = value.split("-").map(Number);
   if (!year || !month) return "mes";
   return `${slugify(MONTH_NAMES[month - 1] || "mes")}-${year}`;
-}
-
-function formatDateFilePart(value: string) {
-  return value;
 }
 
 function slugify(value: string) {

@@ -78,10 +78,6 @@ const defaultExportConfig: ExportConfig = {
   rangeMode: "dates" as const,
   startDate: "",
   endDate: "",
-  startMonth: new Date().getMonth(),
-  startYear: new Date().getFullYear(),
-  endMonth: new Date().getMonth(),
-  endYear: new Date().getFullYear(),
 };
 
 export default function App() {
@@ -128,7 +124,6 @@ export default function App() {
   const pinLockedRef = useRef(false);
   const blurTargetRef = useRef<View | null>(null);
   const didSetInitialPeriodRef = useRef(false);
-  const compact = true;
   const statusBarInset = NativeStatusBar.currentHeight || 0;
   const headerTopInset = statusBarInset + 6;
   const headerHeight = tab === "expenses" ? 112 : 62;
@@ -713,7 +708,7 @@ export default function App() {
                   topInset={contentTopInset}
                 />
               ) : (
-                <SummaryView colors={colors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} compact={compact} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
+                <SummaryView colors={colors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
               )}
             </View>
           ) : (

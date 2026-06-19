@@ -1,9 +1,8 @@
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
-import { DetailMeta } from "../ui/DetailMeta";
 import { Palette } from "../../theme/colors";
-import { Transaction } from "../../types";
+import { MaterialIconName, Transaction } from "../../types";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeLabelFull } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
@@ -38,8 +37,8 @@ export function DetailModal({ tx, colors, currencySymbol, copy, onClose, onEdit,
                 <Text selectable style={[styles.detailDescriptionText, { color: colors.text }]}>{tx.detail}</Text>
               </View>
               <View style={styles.detailMetaGrid}>
-                <DetailMeta icon="calendar" label={copy.date} value={tx.date} tone={colors.blue} colors={colors} />
-                <DetailMeta icon="clock-outline" label={copy.time} value={formatCreatedTime(tx.createdAt)} tone={colors.muted} colors={colors} />
+                <DetailMetaRow icon="calendar" label={copy.date} value={tx.date} tone={colors.blue} colors={colors} />
+                <DetailMetaRow icon="clock-outline" label={copy.time} value={formatCreatedTime(tx.createdAt)} tone={colors.muted} colors={colors} />
               </View>
               <View style={styles.detailActions}>
                 <TouchableOpacity style={[styles.detailActionBtn, { backgroundColor: colors.input }]} onPress={() => onEdit(tx)}>
@@ -56,5 +55,17 @@ export function DetailModal({ tx, colors, currencySymbol, copy, onClose, onEdit,
         </View>
       </View>
     </Modal>
+  );
+}
+
+function DetailMetaRow({ icon, label, value, tone, colors }: { icon: MaterialIconName; label: string; value: string; tone: string; colors: Palette }) {
+  return (
+    <View style={styles.detailMetaItem}>
+      <MaterialCommunityIcons name={icon} size={18} color={tone} />
+      <View style={styles.detailMetaText}>
+        <Text style={[styles.detailMetaLabel, { color: colors.muted }]}>{label}</Text>
+        <Text numberOfLines={1} selectable style={[styles.detailMetaValue, { color: colors.text }]}>{value}</Text>
+      </View>
+    </View>
   );
 }

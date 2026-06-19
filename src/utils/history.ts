@@ -4,10 +4,6 @@ import { HistoryEntry } from "../types";
 const HISTORY_KEY = "bucks_history";
 const MAX_DAYS = 30;
 
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function pruneExpired(entries: HistoryEntry[]): HistoryEntry[] {
   const cutoff = Date.now() - MAX_DAYS * 24 * 60 * 60 * 1000;
   return entries.filter((e) => new Date(e.timestamp).getTime() > cutoff);
@@ -32,7 +28,7 @@ async function saveHistory(entries: HistoryEntry[]): Promise<void> {
 export async function addHistoryEntry(entry: Omit<HistoryEntry, "id" | "timestamp">): Promise<HistoryEntry> {
   const full: HistoryEntry = {
     ...entry,
-    id: generateId(),
+    id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
   };
   const existing = await loadHistory();

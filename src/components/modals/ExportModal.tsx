@@ -14,10 +14,6 @@ export type ExportConfig = {
   rangeMode: "dates" | "months";
   startDate: string;
   endDate: string;
-  startMonth: number;
-  startYear: number;
-  endMonth: number;
-  endYear: number;
 };
 
 export function ExportModal({ visible, colors, copy, config, setConfig, minDate, onClose, onExport }: {

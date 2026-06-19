@@ -10,12 +10,6 @@ import { Palette } from "../../theme/colors";
 import { SummaryRow, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 
-function typeChipBg(type: string, colors: Palette) {
-  if (type === "INGRESO FRECUENTE" || type === "INGRESO NO FRECUENTE") return colors.incomeSoft;
-  if (type === "GASTO FRECUENTE") return colors.expenseSoft;
-  return colors.warnSoft;
-}
-
 export function ExpensesView({
   colors,
   summary,
@@ -129,7 +123,7 @@ export function ExpensesView({
                         {showPill && (
                           <View style={{
                             paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5,
-                            backgroundColor: typeChipBg(tx.type, colors),
+                            backgroundColor: typeFill(tx.type, colors),
                           }}>
                             <Text style={{ fontSize: 11, fontWeight: "600", color: typeColor(tx.type, colors) }}>
                               {typeLabelFull(tx.type, copy)}
