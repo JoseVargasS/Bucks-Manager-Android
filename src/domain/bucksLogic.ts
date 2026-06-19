@@ -17,7 +17,7 @@ export const MONTH_NAMES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-export const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** Formatea un valor numérico como moneda con signo explícito: "+ S/ 100.00" o "- S/ 50.00" */
 export function formatMoney(value: number, symbol = "S/", decimals = 2): string {
@@ -34,7 +34,7 @@ export function formatDateToISO(date: Date | string): string {
 }
 
 /** Convierte Date al formato usado en Sheets: DD-mes-AA (ej: 15-jun-26) */
-function formatDateForSheet(date: Date): string {
+export function formatDateForSheet(date: Date): string {
   return `${String(date.getDate()).padStart(2, "0")}-${SHORT_MONTHS[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
 }
 

@@ -7,7 +7,7 @@ import { formatMoney } from "../../domain/bucksLogic";
 import { typeLabel } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 
-export type ConfirmKind = "delete" | "deleteSelected";
+type ConfirmKind = "delete" | "deleteSelected";
 
 export interface ConfirmConfig {
   kind: ConfirmKind;

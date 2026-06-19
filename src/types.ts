@@ -63,9 +63,9 @@ export type SheetCandidate = {
 export type ExportFormat = "xlsx" | "pdf";
 export type MaterialIconName = React.ComponentProps<typeof import("@expo/vector-icons").MaterialCommunityIcons>["name"];
 
-export type HistoryAction = "create" | "edit" | "delete";
+type HistoryAction = "create" | "edit" | "delete";
 
-export type Tab = "expenses" | "search" | "summary" | "settings";
+export type Tab = "expenses" | "summary" | "settings";
 export type ThemeMode = "dark" | "light";
 export type LanguageMode = "es" | "en";
 export type FontPreference = "system" | "serif" | "mono";

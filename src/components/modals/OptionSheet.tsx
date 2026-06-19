@@ -51,4 +51,4 @@ export function OptionSheet({ config, colors, onClose }: { config: PickerConfig;
   );
 }
 
-export type { PickerConfig, PickerOption };
+export type { PickerConfig };

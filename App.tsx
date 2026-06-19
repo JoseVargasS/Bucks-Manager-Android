@@ -33,7 +33,6 @@ import { BottomNav } from "./src/components/layout/BottomNav";
 import { PeriodControls } from "./src/components/layout/PeriodControls";
 import { LoginScreen } from "./src/components/screens/LoginScreen";
 import { ExpensesView } from "./src/components/screens/ExpensesView";
-import { SearchPage } from "./src/components/screens/SearchPage";
 import { SummaryView } from "./src/components/screens/SummaryView";
 import { SettingsView } from "./src/components/screens/SettingsView";
 import { PinScreen } from "./src/components/screens/PinScreen";
@@ -44,11 +43,10 @@ import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
 import { ConfirmModal, ConfirmConfig } from "./src/components/modals/ConfirmModal";
 import { HistoryModal } from "./src/components/modals/HistoryModal";
 import { PinSetupModal } from "./src/components/modals/PinSetupModal";
-import { SheetChooserModal } from "./src/components/modals/SheetChooserModal";
 import { SearchModal } from "./src/components/modals/SearchModal";
 import { TagEditorModal } from "./src/components/modals/TagEditorModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
-import { ExportFormat, HistoryEntry, SearchFilters, SheetCandidate, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft, TransactionType } from "./src/types";
+import { ExportFormat, HistoryEntry, SearchFilters, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft, TransactionType } from "./src/types";
 import { getLatestTransactionDate, parseLocalDateTime, parseMonthKey, buildExportFileName, getPeriodRange, getAvailableMonthsForYear, detectDeviceCurrencySymbol, applyDefaultFont } from "./src/utils/helpers";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
 
@@ -109,7 +107,6 @@ export default function App() {
   const [freqIncome, setFreqIncome] = useState<Record<string, number>>({});
   const [addVisible, setAddVisible] = useState(false);
   const [freqVisible, setFreqVisible] = useState(false);
-  const [sheetCandidates, setSheetCandidates] = useState<SheetCandidate[]>([]);
   const [accountInfo, setAccountInfo] = useState<{ name?: string; email?: string } | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -375,7 +372,7 @@ export default function App() {
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
       await SecureStore.setItemAsync(SHEET_KEY, sheetId);
-      setAccessToken(token); setSpreadsheetId(sheetId); setSheetCandidates([]);
+      setAccessToken(token); setSpreadsheetId(sheetId);
       await reloadFromGoogle(token, sheetId, showLoader);
     } finally { setLoading(false); }
   }
@@ -971,8 +968,6 @@ export default function App() {
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
         copy={copy} onClose={() => setFreqVisible(false)} onSubmit={saveFreqIncome} />
       <DetailModal tx={detailTx} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setDetailTx(null)} onEdit={openEdit} onDelete={requestDelete} />
-      <SheetChooserModal visible={sheetCandidates.length > 1} colors={colors} candidates={sheetCandidates}
-        onClose={() => setSheetCandidates([])} onSelect={(c) => selectSpreadsheet(accessToken, c.id, c.name)} />
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setConfirmConfig(null)} onConfirm={handleConfirm} />
       <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setHistoryVisible(false)} onUndo={undoDeleteEntry} />

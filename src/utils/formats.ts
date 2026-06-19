@@ -1,6 +1,5 @@
 import { formatDateToISO } from "../domain/bucksLogic";
 import { UI_COPY, UiCopy } from "../i18n";
-import { TransactionType } from "../types";
 
 export function formatCreatedTime(createdAt?: string): string {
   if (!createdAt) return "-";
@@ -34,14 +33,14 @@ export function typeFill(type: string, colors: Record<string, string>): string {
   return colors.warnSoft;
 }
 
-export function typeLabel(type: TransactionType | string, copy: UiCopy) {
+export function typeLabel(type: string, copy: UiCopy) {
   if (type === "INGRESO FRECUENTE") return copy.freqIncome;
   if (type === "INGRESO NO FRECUENTE") return copy.nonFreqIncome;
   if (type === "GASTO FRECUENTE") return copy.freqExpense;
   return copy.nonFreqExpense;
 }
 
-export function typeLabelFull(type: TransactionType | string, copy: UiCopy) {
+export function typeLabelFull(type: string, copy: UiCopy) {
   if (type === "INGRESO FRECUENTE") return copy.freqIncomeFull;
   if (type === "INGRESO NO FRECUENTE") return copy.nonFreqIncomeFull;
   if (type === "GASTO FRECUENTE") return copy.freqExpenseFull;

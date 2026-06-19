@@ -2,6 +2,7 @@ import { SheetCandidate, SummaryRow, Transaction, TransactionDraft } from "../ty
 import {
   SHEET_NAMES,
   buildTransactionFromDraft,
+  formatDateForSheet,
   formatDateToISO,
   getMonthYear,
   parseSpanishDate,
@@ -405,7 +406,7 @@ export async function readTransactions(token: string, spreadsheetId: string) {
       const type = normalizeType(String(row[3] || ""));
       return {
         rowId: index + 1,
-        date: formatDateLabel(date),
+        date: formatDateForSheet(date),
         rawDate: date.toISOString(),
         amount: parseNumber(row[1]),
         detail: String(row[2] || ""),
@@ -760,10 +761,7 @@ function normalizeNumberString(value: string) {
   return value;
 }
 
-function formatDateLabel(date: Date) {
-  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-  return `${String(date.getDate()).padStart(2, "0")}-${months[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
-}
+
 
 function parseCreatedAt(value: unknown) {
   if (!value) return "";
