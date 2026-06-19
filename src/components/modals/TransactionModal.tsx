@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Dispatch, SetStateAction, useRef, useState } from "react";
+import { Modal, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { calculateExpression, normalizeAmountExpression, TRANSACTION_TYPES } from "../../domain/bucksLogic";
 import { styles } from "../../styles/globalStyles";
@@ -7,17 +7,22 @@ import { Field } from "../ui/Field";
 import { Select } from "../ui/Select";
 import { CalendarPicker } from "../ui/CalendarPicker";
 import { Palette } from "../../theme/colors";
-import { TransactionDraft, TransactionType } from "../../types";
-import { typeColor, typeFill, typeLabel } from "../../utils/formats";
+import { TransactionDraft, TransactionType, Tag } from "../../types";
+import { typeColor, typeFill, typeLabelFull } from "../../utils/formats";
+import { tagTextColor } from "../../utils/tags";
 import { PickerConfig } from "./OptionSheet";
 import { UiCopy } from "../../i18n";
 
-export function TransactionModal({ visible, colors, copy, currencySymbol, draft, setDraft, editing, openPicker, onClose, onSubmit }: {
-  visible: boolean; colors: Palette; draft: TransactionDraft; setDraft: (d: TransactionDraft) => void;
-  copy: UiCopy; currencySymbol: string;
+export function TransactionModal({ visible, colors, copy, currencySymbol, draft, setDraft, tags, editing, openPicker, onClose, onSubmit }: {
+  visible: boolean; colors: Palette; draft: TransactionDraft; setDraft: Dispatch<SetStateAction<TransactionDraft>>;
+  copy: UiCopy; currencySymbol: string; tags: Tag[];
   editing: boolean; openPicker: (config: PickerConfig) => void; onClose: () => void; onSubmit: () => void;
 }) {
   const [calVisible, setCalVisible] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagsFrame, setTagsFrame] = useState({ left: 14, top: 120, width: 320 });
+  const tagsRef = useRef<View>(null);
+  const windowSize = useWindowDimensions();
   const cleanAmount = normalizeAmountExpression(draft.amount);
   const openParens = (cleanAmount.match(/\(/g) || []).length;
   const closeParens = (cleanAmount.match(/\)/g) || []).length;
@@ -52,12 +57,36 @@ export function TransactionModal({ visible, colors, copy, currencySymbol, draft,
             <Text style={[styles.label, { color: colors.text }]}>{copy.type}</Text>
             <Select
               value={draft.type}
-              options={TRANSACTION_TYPES.map((type) => ({ label: typeLabel(type, copy), value: type, color: typeColor(type, colors), softBg: typeFill(type, colors) }))}
-              onSelect={(type: string) => setDraft({ ...draft, type: type as TransactionType })}
+              options={TRANSACTION_TYPES.map((type) => ({ label: typeLabelFull(type, copy), value: type, color: typeColor(type, colors), softBg: typeFill(type, colors) }))}
+              onSelect={(type: string) => {
+                if (!type.startsWith("GASTO")) setTagsOpen(false);
+                setDraft({ ...draft, type: type as TransactionType });
+              }}
               colors={colors}
               placeholder={copy.selectType}
               style={{ marginBottom: 18 }}
             />
+            {draft.type.startsWith("GASTO") && tags.length > 0 && (
+              <View style={{ marginBottom: 14 }}>
+                <Text style={[styles.label, { color: colors.text }]}>{copy.tagsTitle}</Text>
+                <TouchableOpacity
+                  ref={tagsRef}
+                  onPress={() => {
+                    tagsRef.current?.measureInWindow((x, y, width, height) => {
+                      const dropdownHeight = 148;
+                      setTagsFrame({ left: x, top: Math.min(y + height + 4, windowSize.height - dropdownHeight - 12), width });
+                      setTagsOpen(true);
+                    });
+                  }}
+                  style={{ minHeight: 42, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.input, flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <Text numberOfLines={1} style={{ flex: 1, color: (draft.tags || []).length ? colors.text : colors.muted, fontWeight: "600" }}>
+                    {(draft.tags || []).length ? (draft.tags || []).join(", ") : copy.tagsTitle}
+                  </Text>
+                  <MaterialCommunityIcons name={tagsOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+            )}
             <Text style={[styles.label, { color: colors.text }]}>
               {copy.amount} <Text style={{ color: colors.muted, fontSize: 13 }}>({copy.amountHelp})</Text>
             </Text>
@@ -98,6 +127,28 @@ export function TransactionModal({ visible, colors, copy, currencySymbol, draft,
               </TouchableOpacity>
             </View>
           </ScrollView>
+          <Modal visible={tagsOpen} transparent animationType="none" onRequestClose={() => setTagsOpen(false)}>
+            <TouchableOpacity activeOpacity={1} onPress={() => setTagsOpen(false)} style={{ flex: 1 }}>
+              <View onStartShouldSetResponder={() => true} style={{ position: "absolute", left: tagsFrame.left, top: tagsFrame.top, width: tagsFrame.width, maxHeight: 148, padding: 8, borderRadius: 12, backgroundColor: colors.input, borderWidth: 1, borderColor: colors.border, flexDirection: "row", flexWrap: "wrap", gap: 6, elevation: 12 }}>
+                {tags.map((tag) => {
+                  const selected = (draft.tags || []).includes(tag.label);
+                  const textColor = tagTextColor(tag.color);
+                  return (
+                    <TouchableOpacity
+                      key={tag.id}
+                      onPress={() => setDraft((currentDraft) => {
+                        const current = currentDraft.tags || [];
+                        return { ...currentDraft, tags: current.includes(tag.label) ? current.filter((t) => t !== tag.label) : [...current, tag.label] };
+                      })}
+                      style={{ maxWidth: "48%", height: 32, paddingHorizontal: 9, borderRadius: 8, borderWidth: 2, borderColor: selected ? colors.text : "transparent", backgroundColor: tag.color, opacity: selected ? 1 : 0.72, flexDirection: "row", alignItems: "center" }}
+                    >
+                      <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "700", color: textColor, flexShrink: 1 }}>{tag.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </TouchableOpacity>
+          </Modal>
         </View>
       </View>
     </Modal>

@@ -25,6 +25,7 @@ import { formatMoney } from "./src/domain/bucksLogic";
 import { formatCreatedTime } from "./src/utils/formats";
 import { loadHistory, addHistoryEntry, removeHistoryEntry } from "./src/utils/history";
 import { isPinEnabled, savePin, verifyPin, clearPin } from "./src/utils/pin";
+import { loadTags } from "./src/utils/tags";
 import { styles } from "./src/styles/globalStyles";
 import { SkeletonScreen } from "./src/components/ui/SkeletonScreen";
 import { BottomNav } from "./src/components/layout/BottomNav";
@@ -44,8 +45,9 @@ import { HistoryModal } from "./src/components/modals/HistoryModal";
 import { PinSetupModal } from "./src/components/modals/PinSetupModal";
 import { SheetChooserModal } from "./src/components/modals/SheetChooserModal";
 import { SearchModal } from "./src/components/modals/SearchModal";
+import { TagEditorModal } from "./src/components/modals/TagEditorModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
-import { ExportFormat, HistoryEntry, SearchFilters, SheetCandidate, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Transaction, TransactionDraft, TransactionType } from "./src/types";
+import { ExportFormat, HistoryEntry, SearchFilters, SheetCandidate, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft, TransactionType } from "./src/types";
 import { getLatestTransactionDate, parseLocalDateTime, parseMonthKey, buildExportFileName, getPeriodRange, getAvailableMonthsForYear, detectDeviceCurrencySymbol, applyDefaultFont } from "./src/utils/helpers";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
 
@@ -58,7 +60,7 @@ const GOOGLE_WORKSPACE_SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
 ];
 
-const emptySearch: SearchFilters = { text: "", minAmount: "", maxAmount: "", startDate: "", endDate: "" };
+const emptySearch: SearchFilters = { text: "", tag: "", minAmount: "", maxAmount: "", startDate: "", endDate: "" };
 const LANGUAGE_KEY = "bucks_language";
 const CURRENCY_SYMBOL_KEY = "bucks_currency_symbol";
 const FONT_KEY = "bucks_font";
@@ -121,6 +123,8 @@ export default function App() {
   const [pinLoading, setPinLoading] = useState(true);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
   const [pinWrong, setPinWrong] = useState(false);
+  const [tagsList, setTagsList] = useState<Tag[]>([]);
+  const [tagEditorVisible, setTagEditorVisible] = useState(false);
   const pinLockedRef = useRef(false);
   const blurTargetRef = useRef<View | null>(null);
   const didSetInitialPeriodRef = useRef(false);
@@ -138,6 +142,7 @@ export default function App() {
     restorePreferences();
     restoreSession();
     loadHistory().then(setHistoryEntries).catch(() => undefined);
+    loadTags().then(setTagsList).catch(() => undefined);
     isPinEnabled().then((enabled) => {
       setPinEnabledState(enabled);
       setPinVerified(!enabled);
@@ -394,7 +399,7 @@ export default function App() {
 
   function openEdit(tx: Transaction) {
     setDetailTx(null); setSelectedRows([]); setEditingTx(tx);
-    setDraft({ date: formatDateToISO(tx.rawDate), amount: tx.formula ? `=${tx.formula}` : String(Math.abs(tx.amount)), detail: tx.detail, type: tx.type, createdAt: tx.createdAt });
+    setDraft({ date: formatDateToISO(tx.rawDate), amount: tx.formula ? `=${tx.formula}` : String(Math.abs(tx.amount)), detail: tx.detail, type: tx.type, createdAt: tx.createdAt, tags: tx.tags || [] });
     setAddVisible(true);
   }
 
@@ -706,6 +711,7 @@ export default function App() {
                   onToggleSelection={toggleSelection}
                   onLoadOlder={() => setLoadedMonthCount((c) => c + 1)}
                   topInset={contentTopInset}
+                  tagsList={tagsList}
                 />
               ) : (
                 <SummaryView colors={colors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
@@ -721,8 +727,9 @@ export default function App() {
               )}
               <SettingsView colors={colors} copy={copy} accountInfo={accountInfo}
                 language={language} currencySymbol={currencySymbol} fontPreference={fontPreference} pinEnabled={pinEnabled}
+                tagsCount={tagsList.length}
                 onOpenLanguage={openLanguagePicker} onOpenCurrency={openCurrencyPicker} onOpenFont={openFontPicker}
-                onOpenPin={handlePinOpen}
+                onOpenPin={handlePinOpen} onOpenTags={() => setTagEditorVisible(true)}
                 onRescan={rescanDrive} onSwitch={switchGoogleAccount} onDisconnect={disconnectGoogle} onOpenExport={() => setExportVisible(true)}
               />
             </View>
@@ -771,7 +778,7 @@ export default function App() {
         <BottomNav colors={colors} copy={copy} tab={tab} setTab={setTab} onAdd={() => openAdd()} onSearch={() => setSearchVisible(true)} blurTarget={blurTargetRef} />
       </View>
 
-      <TransactionModal visible={addVisible} colors={colors} draft={draft} setDraft={setDraft}
+      <TransactionModal visible={addVisible} colors={colors} draft={draft} setDraft={setDraft} tags={tagsList}
         copy={copy} currencySymbol={currencySymbol}
         editing={!!editingTx} openPicker={setPicker} onClose={() => setAddVisible(false)} onSubmit={submitDraft} />
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
@@ -787,11 +794,12 @@ export default function App() {
         minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
         copy={copy} onClose={() => setExportVisible(false)} onExport={(cfg: ExportConfig) => { setExportVisible(false); exportRows(cfg); }} />
       <SearchModal visible={searchVisible} colors={colors} filters={searchFilters} setFilters={setSearchFilters}
-        copy={copy} currencySymbol={currencySymbol}
+        copy={copy} currencySymbol={currencySymbol} tags={tagsList}
         onClose={() => setSearchVisible(false)}
         onClear={() => { setSearchFilters(emptySearch); setSearchActive(false); setSearchVisible(false); }}
         onSubmit={() => { setSearchActive(true); setTab("expenses"); setSelectedRows([]); setSearchVisible(false); }}
       />
+      <TagEditorModal visible={tagEditorVisible} colors={colors} copy={copy} tags={tagsList} setTags={setTagsList} onClose={() => setTagEditorVisible(false)} />
     </SafeAreaView>
   );
 }

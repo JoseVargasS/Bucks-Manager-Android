@@ -98,6 +98,7 @@ export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number
     detail: draft.detail.trim(),
     type: draft.type,
     createdAt: draft.createdAt || new Date().toISOString(),
+    tags: draft.tags,
   };
 }
 
@@ -114,6 +115,7 @@ export function insertChronologically(transactions: Transaction[], tx: Transacti
 /** Aplica filtros de búsqueda avanzada (texto, montos, fechas). Límite 150 resultados. */
 export function applySearch(transactions: Transaction[], filters: SearchFilters): Transaction[] {
   const text = filters.text.toLowerCase().trim();
+  const tag = (filters.tag || "").trim();
   const min = filters.minAmount ? Number(filters.minAmount) : null;
   const max = filters.maxAmount ? Number(filters.maxAmount) : null;
   const start = filters.startDate ? new Date(`${filters.startDate}T00:00:00`) : null;
@@ -123,8 +125,9 @@ export function applySearch(transactions: Transaction[], filters: SearchFilters)
     .filter((tx) => {
       const abs = Math.abs(Number(tx.amount) || 0);
       const date = new Date(tx.rawDate);
-      const haystack = `${tx.detail} ${tx.type}`.toLowerCase();
+      const haystack = `${tx.detail} ${tx.type} ${(tx.tags || []).join(" ")}`.toLowerCase();
       if (text && !haystack.includes(text)) return false;
+      if (tag && !(tx.tags || []).includes(tag)) return false;
       if (min !== null && abs < min) return false;
       if (max !== null && abs > max) return false;
       if (start && date < start) return false;

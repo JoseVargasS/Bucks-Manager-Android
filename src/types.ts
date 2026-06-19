@@ -15,6 +15,7 @@ export type Transaction = {
   detail: string;
   type: TransactionType;
   createdAt?: string;
+  tags?: string[];
 };
 
 export type TransactionDraft = {
@@ -23,6 +24,13 @@ export type TransactionDraft = {
   detail: string;
   type: TransactionType;
   createdAt?: string;
+  tags?: string[];
+};
+
+export type Tag = {
+  id: string;
+  label: string;
+  color: string;
 };
 
 export type SummaryRow = {
@@ -39,6 +47,7 @@ export type SummaryRow = {
 
 export type SearchFilters = {
   text: string;
+  tag: string;
   minAmount: string;
   maxAmount: string;
   startDate: string;

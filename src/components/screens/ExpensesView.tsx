@@ -1,13 +1,15 @@
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useState, useMemo, useRef } from "react";
+import { Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeColor, typeFill, typeLabelFull } from "../../utils/formats";
+import { abbreviateTag, tagTextColor } from "../../utils/tags";
 import { groupTransactionsByDate } from "../../utils/transactions";
 import { styles } from "../../styles/globalStyles";
 import { StatCard } from "../ui/StatCard";
 import { HighlightedText } from "../ui/HighlightedText";
 import { Palette } from "../../theme/colors";
-import { SummaryRow, Transaction, MaterialIconName } from "../../types";
+import { SummaryRow, Tag, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 
 export function ExpensesView({
@@ -28,6 +30,7 @@ export function ExpensesView({
   onToggleSelection,
   onLoadOlder,
   topInset,
+  tagsList,
 }: {
   colors: Palette;
   summary: SummaryRow;
@@ -46,10 +49,18 @@ export function ExpensesView({
   onToggleSelection: (tx: Transaction) => void;
   onLoadOlder: () => void;
   topInset?: number;
+  tagsList: Tag[];
 }) {
   const groups = groupTransactionsByDate(transactions, copy);
   const selectedCount = selectedRows.length;
   const selectedTx = transactions.find((tx) => tx.rowId === selectedRows[0]);
+  const [tagBubble, setTagBubble] = useState<{ x: number; y: number; tags: string[] } | null>(null);
+  const tagButtonRefs = useRef<Record<number, { measureInWindow?: (cb: (x: number, y: number, width: number, height: number) => void) => void } | null>>({});
+  const tagColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    tagsList.forEach((t) => { map[t.label] = t.color; });
+    return map;
+  }, [tagsList]);
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, topInset !== undefined && { paddingTop: topInset }]}>
@@ -88,6 +99,7 @@ export function ExpensesView({
       )}
 
       <View style={styles.groupedList}>
+        <Text style={{ paddingHorizontal: 4, marginBottom: -6, fontSize: 16, fontWeight: "700", color: colors.text }}>{copy.movementsTitle}</Text>
         {groups.map((group) => (
           <View key={group.key} style={styles.dateGroup}>
             <Text style={[styles.dateGroupLabel, { color: colors.muted }]}>{group.label}</Text>
@@ -133,6 +145,33 @@ export function ExpensesView({
                         <Text style={[styles.groupedTxMeta, { color: colors.muted }]}>
                           {formatCreatedTime(tx.createdAt).slice(0, 5)}
                         </Text>
+                        {tx.tags && tx.tags.length > 0 && (
+                          <>
+                            {tx.tags.slice(0, 2).map((tag) => {
+                              const tc = tagColorMap[tag] || colors.muted;
+                              const textColor = tagTextColor(tc);
+                              return (
+                                <View key={tag} style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: tc }}>
+                                  <Text style={{ fontSize: 10, fontWeight: "700", color: textColor }}>{abbreviateTag(tag)}</Text>
+                                </View>
+                              );
+                            })}
+                            {tx.tags.length > 2 && (
+                              <TouchableOpacity
+                                ref={(ref) => { tagButtonRefs.current[tx.rowId] = ref; }}
+                                onPress={() => {
+                                  tagButtonRefs.current[tx.rowId]?.measureInWindow?.((x, y, width) => {
+                                    const screen = Dimensions.get("window");
+                                    setTagBubble({ x: Math.min(x, screen.width - 176), y: Math.min(y, screen.height - 190), tags: (tx.tags || []).slice(2) });
+                                  });
+                                }}
+                                style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: colors.primary }}
+                              >
+                                <Text style={{ fontSize: 10, fontWeight: "700", color: colors.onPrimary }}>+{tx.tags.length - 2}</Text>
+                              </TouchableOpacity>
+                            )}
+                          </>
+                        )}
                       </View>
                     </View>
                     <Text numberOfLines={1} style={[styles.groupedTxAmount, { color: tx.amount >= 0 ? colors.green : colors.red }]}>{formatMoney(tx.amount, currencySymbol)}</Text>
@@ -154,6 +193,23 @@ export function ExpensesView({
           </TouchableOpacity>
         )}
       </View>
+      <Modal visible={!!tagBubble} transparent animationType="none" onRequestClose={() => setTagBubble(null)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setTagBubble(null)} style={{ flex: 1 }}>
+          <View onStartShouldSetResponder={() => true} style={{ position: "absolute", left: tagBubble?.x || 0, top: tagBubble?.y || 0, maxWidth: 170, borderRadius: 12, padding: 8, backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 12, elevation: 8 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {(tagBubble?.tags || []).map((tag) => {
+                const tc = tagColorMap[tag] || colors.muted;
+                const textColor = tagTextColor(tc);
+                return (
+                  <View key={tag} style={{ maxWidth: "100%", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 7, backgroundColor: tc }}>
+                    <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "700", color: textColor }}>{tag}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }

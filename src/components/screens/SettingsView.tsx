@@ -7,15 +7,16 @@ import { UiCopy } from "../../i18n";
 
 export function SettingsView({
   colors, copy, accountInfo, language, currencySymbol, fontPreference, pinEnabled,
-  onOpenLanguage, onOpenCurrency, onOpenFont, onOpenPin,
+  tagsCount,
+  onOpenLanguage, onOpenCurrency, onOpenFont, onOpenPin, onOpenTags,
   onRescan, onSwitch, onDisconnect, onOpenExport,
 }: {
   colors: Palette; copy: UiCopy;
   language: "es" | "en"; currencySymbol: string; fontPreference: "system" | "serif" | "mono";
   accountInfo: { name?: string; email?: string } | null;
-  pinEnabled: boolean;
+  pinEnabled: boolean; tagsCount: number;
   onOpenLanguage: () => void; onOpenCurrency: () => void; onOpenFont: () => void;
-  onOpenPin: () => void;
+  onOpenPin: () => void; onOpenTags: () => void;
   onRescan: () => void; onSwitch: () => void; onDisconnect: () => void; onOpenExport: () => void;
 }) {
   const initial = (accountInfo?.email || accountInfo?.name || "B").slice(0, 1).toUpperCase();
@@ -64,6 +65,13 @@ export function SettingsView({
               thumbColor={pinEnabled ? colors.primary : colors.disabled}
             />
           </View>
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <Text style={[styles.settingsLabel, { color: colors.muted }]}>{copy.tagsTitle}</Text>
+        <View style={[styles.settingsGroup, { backgroundColor: colors.card }]}>
+          <SettingsRow colors={colors} icon="tag-multiple" label={copy.tagsTitle} value={String(tagsCount)} onPress={onOpenTags} last />
         </View>
       </View>
 

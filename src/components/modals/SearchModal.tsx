@@ -2,12 +2,12 @@ import { Modal, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
-import { SearchFilters } from "../../types";
+import { SearchFilters, Tag } from "../../types";
 import { SearchPage } from "../screens/SearchPage";
 import { UiCopy } from "../../i18n";
 
-export function SearchModal({ visible, colors, copy, currencySymbol, filters, setFilters, onClose, onClear, onSubmit }: {
-  visible: boolean; colors: Palette; copy: UiCopy; currencySymbol: string; filters: SearchFilters; setFilters: (f: SearchFilters) => void;
+export function SearchModal({ visible, colors, copy, currencySymbol, tags, filters, setFilters, onClose, onClear, onSubmit }: {
+  visible: boolean; colors: Palette; copy: UiCopy; currencySymbol: string; tags: Tag[]; filters: SearchFilters; setFilters: (f: SearchFilters) => void;
   onClose: () => void; onClear: () => void; onSubmit: () => void;
 }) {
   return (
@@ -28,7 +28,7 @@ export function SearchModal({ visible, colors, copy, currencySymbol, filters, se
               <MaterialCommunityIcons name="close" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <SearchPage colors={colors} copy={copy} currencySymbol={currencySymbol} filters={filters} setFilters={setFilters} onSubmit={onSubmit} onClear={onClear} />
+          <SearchPage colors={colors} copy={copy} currencySymbol={currencySymbol} tags={tags} filters={filters} setFilters={setFilters} onSubmit={onSubmit} onClear={onClear} />
         </View>
       </View>
     </Modal>
