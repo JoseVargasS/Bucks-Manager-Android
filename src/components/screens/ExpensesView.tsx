@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from "react";
-import { Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { Dimensions, Modal, Platform, SectionList, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeColor, typeFill, typeLabelFull } from "../../utils/formats";
@@ -11,6 +11,138 @@ import { HighlightedText } from "../ui/HighlightedText";
 import { Palette } from "../../theme/colors";
 import { SummaryRow, Tag, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
+
+type TransactionSection = {
+  key: string;
+  title: string;
+  data: Transaction[];
+};
+
+type TagBubble = { x: number; y: number; tags: string[] };
+
+type TagButtonRef = {
+  measureInWindow?: (cb: (x: number, y: number, width: number, height: number) => void) => void;
+};
+
+type TransactionRowProps = {
+  tx: Transaction;
+  index: number;
+  sectionLength: number;
+  selected: boolean;
+  colors: Palette;
+  currencySymbol: string;
+  copy: UiCopy;
+  searchActive: boolean;
+  searchText: string;
+  tagColorMap: Record<string, string>;
+  onOpenDetail: (tx: Transaction) => void;
+  onMove: (tx: Transaction) => void;
+  onToggleSelection: (tx: Transaction) => void;
+  setTagBubble: (bubble: TagBubble | null) => void;
+  tagButtonRefs: { current: Record<number, TagButtonRef | null> };
+};
+
+const TransactionRow = memo(function TransactionRow({
+  tx,
+  index,
+  sectionLength,
+  selected,
+  colors,
+  currencySymbol,
+  copy,
+  searchActive,
+  searchText,
+  tagColorMap,
+  onOpenDetail,
+  onMove,
+  onToggleSelection,
+  setTagBubble,
+  tagButtonRefs,
+}: TransactionRowProps) {
+  const icon = tx.amount >= 0 ? "bank-transfer-in" : tx.type === "GASTO FRECUENTE" ? "credit-card-outline" : "basket-outline";
+  const isFreqExpense = tx.type === "GASTO FRECUENTE";
+  const showPill = tx.type !== "GASTO NO FRECUENTE";
+  const tags = tx.tags || [];
+  const visibleTags = tags.slice(0, 2);
+  const hiddenTagCount = Math.max(0, tags.length - visibleTags.length);
+
+  const handlePress = useCallback(() => onOpenDetail(tx), [onOpenDetail, tx]);
+  const handleLongPress = useCallback(() => (selected ? onMove(tx) : onToggleSelection(tx)), [onMove, onToggleSelection, selected, tx]);
+  const handleTagRef = useCallback((ref: TagButtonRef | null) => {
+    if (ref) tagButtonRefs.current[tx.rowId] = ref;
+    else delete tagButtonRefs.current[tx.rowId];
+  }, [tagButtonRefs, tx.rowId]);
+  const handleHiddenTagsPress = useCallback(() => {
+    const hiddenTags = (tx.tags || []).slice(2);
+    if (!hiddenTags.length) return;
+    tagButtonRefs.current[tx.rowId]?.measureInWindow?.((x, y) => {
+      const screen = Dimensions.get("window");
+      setTagBubble({ x: Math.min(x, screen.width - 176), y: Math.min(y, screen.height - 190), tags: hiddenTags });
+    });
+  }, [setTagBubble, tagButtonRefs, tx.rowId, tx.tags]);
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      style={[
+        styles.groupedTxRow,
+        styles.sectionCardRow,
+        { backgroundColor: colors.card },
+        index > 0 && { borderTopWidth: 0.5, borderColor: colors.border },
+        index === 0 && styles.sectionCardFirstRow,
+        index === sectionLength - 1 && styles.sectionCardLastRow,
+        isFreqExpense && { backgroundColor: colors.freqExpenseRow },
+        selected && { backgroundColor: colors.primarySoft },
+      ]}
+    >
+      <View style={[styles.txIcon, { backgroundColor: selected ? colors.infoSoft : typeFill(tx.type, colors) }]}>
+        <MaterialCommunityIcons name={selected ? "check" : (icon as MaterialIconName)} size={18} color={selected ? colors.blue : typeColor(tx.type, colors)} />
+      </View>
+      <View style={styles.groupedTxMain}>
+        <HighlightedText
+          text={tx.detail}
+          query={searchActive ? searchText : ""}
+          style={[styles.groupedTxTitle, { color: colors.text }]}
+          highlightStyle={{ color: colors.onPrimary, backgroundColor: colors.primary, borderRadius: 4 }}
+        />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+          {showPill && (
+            <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: typeFill(tx.type, colors) }}>
+              <Text style={{ fontSize: 11, fontWeight: "600", color: typeColor(tx.type, colors) }}>
+                {typeLabelFull(tx.type, copy)}
+              </Text>
+            </View>
+          )}
+          <Text style={[styles.groupedTxMeta, { color: colors.muted }]}>
+            {formatCreatedTime(tx.createdAt).slice(0, 5)}
+          </Text>
+          {visibleTags.map((tag) => {
+            const tagColor = tagColorMap[tag] || colors.muted;
+            return (
+              <View key={tag} style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: tagColor }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: tagTextColor(tagColor) }}>{abbreviateTag(tag)}</Text>
+              </View>
+            );
+          })}
+          {hiddenTagCount > 0 && (
+            <TouchableOpacity
+              ref={handleTagRef}
+              onPress={handleHiddenTagsPress}
+              style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: colors.primary }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: "700", color: colors.onPrimary }}>+{hiddenTagCount}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+      <Text numberOfLines={1} style={[styles.groupedTxAmount, { color: tx.amount >= 0 ? colors.green : colors.red }]}>
+        {formatMoney(tx.amount, currencySymbol)}
+      </Text>
+      {selected && <MaterialCommunityIcons name="drag-vertical" size={18} color={colors.muted} />}
+    </TouchableOpacity>
+  );
+});
 
 export function ExpensesView({
   colors,
@@ -52,19 +184,24 @@ export function ExpensesView({
   tagsList: Tag[];
 }) {
   const groups = useMemo(() => groupTransactionsByDate(transactions, copy), [transactions, copy]);
+  const sections = useMemo<TransactionSection[]>(() => groups.map((group) => ({ key: group.key, title: group.label, data: group.items })), [groups]);
   const selectedRowSet = useMemo(() => new Set(selectedRows), [selectedRows]);
   const selectedCount = selectedRows.length;
-  const selectedTx = transactions.find((tx) => tx.rowId === selectedRows[0]);
-  const [tagBubble, setTagBubble] = useState<{ x: number; y: number; tags: string[] } | null>(null);
-  const tagButtonRefs = useRef<Record<number, { measureInWindow?: (cb: (x: number, y: number, width: number, height: number) => void) => void } | null>>({});
+  const firstSelectedRow = selectedRows[0];
+  const selectedTx = useMemo(() => transactions.find((tx) => tx.rowId === firstSelectedRow), [transactions, firstSelectedRow]);
+  const [tagBubble, setTagBubble] = useState<TagBubble | null>(null);
+  const tagButtonRefs = useRef<Record<number, TagButtonRef | null>>({});
   const tagColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     tagsList.forEach((t) => { map[t.label] = t.color; });
     return map;
   }, [tagsList]);
 
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, topInset !== undefined && { paddingTop: topInset }]}>
+  const keyExtractor = useCallback((tx: Transaction) => `${tx.rowId}-${tx.createdAt || ""}`, []);
+  const closeTagBubble = useCallback(() => setTagBubble(null), []);
+
+  const renderListHeader = useCallback(() => (
+    <>
       <View style={[styles.statsGrid, styles.statsGridMobile]}>
         <StatCard title={copy.freqIncome} value={formatMoney(summary.freqIncome, currencySymbol)} tone="income" icon="cash" colors={colors} action={onEditFreq} />
         <StatCard title={copy.nonFreqIncome} value={formatMoney(summary.nonFreqIncome, currencySymbol)} tone="income" icon="trending-up" colors={colors} />
@@ -99,101 +236,74 @@ export function ExpensesView({
         </View>
       )}
 
-      <View style={styles.groupedList}>
-        <Text style={{ paddingHorizontal: 4, marginBottom: -6, fontSize: 16, fontWeight: "700", color: colors.text }}>{copy.movementsTitle}</Text>
-        {groups.map((group) => (
-          <View key={group.key} style={styles.dateGroup}>
-            <Text style={[styles.dateGroupLabel, { color: colors.muted }]}>{group.label}</Text>
-            <View style={[styles.txGroupCard, { backgroundColor: colors.card }]}>
-              {group.items.map((tx, index) => {
-                const selected = selectedRowSet.has(tx.rowId);
-                const icon = tx.amount >= 0 ? "bank-transfer-in" : tx.type === "GASTO FRECUENTE" ? "credit-card-outline" : "basket-outline";
-                const isFreqExpense = tx.type === "GASTO FRECUENTE";
-                const showPill = tx.type !== "GASTO NO FRECUENTE";
-                return (
-                  <TouchableOpacity
-                    key={`${tx.rowId}-${tx.createdAt}`}
-                    onPress={() => onOpenDetail(tx)}
-                    onLongPress={() => (selected ? onMove(tx) : onToggleSelection(tx))}
-                    style={[
-                      styles.groupedTxRow,
-                      index > 0 && { borderTopWidth: 0.5, borderColor: colors.border },
-                      isFreqExpense && { backgroundColor: colors.freqExpenseRow },
-                      selected && { backgroundColor: colors.primarySoft },
-                    ]}
-                  >
-                    <View style={[styles.txIcon, { backgroundColor: selected ? colors.infoSoft : typeFill(tx.type, colors) }]}>
-                      <MaterialCommunityIcons name={selected ? "check" : (icon as MaterialIconName)} size={18} color={selected ? colors.blue : typeColor(tx.type, colors)} />
-                    </View>
-                    <View style={styles.groupedTxMain}>
-                      <HighlightedText
-                        text={tx.detail}
-                        query={searchActive ? searchText : ""}
-                        style={[styles.groupedTxTitle, { color: colors.text }]}
-                        highlightStyle={{ color: colors.onPrimary, backgroundColor: colors.primary, borderRadius: 4 }}
-                      />
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-                        {showPill && (
-                          <View style={{
-                            paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5,
-                            backgroundColor: typeFill(tx.type, colors),
-                          }}>
-                            <Text style={{ fontSize: 11, fontWeight: "600", color: typeColor(tx.type, colors) }}>
-                              {typeLabelFull(tx.type, copy)}
-                            </Text>
-                          </View>
-                        )}
-                        <Text style={[styles.groupedTxMeta, { color: colors.muted }]}>
-                          {formatCreatedTime(tx.createdAt).slice(0, 5)}
-                        </Text>
-                        {tx.tags && tx.tags.length > 0 && (
-                          <>
-                            {tx.tags.slice(0, 2).map((tag) => {
-                              const tc = tagColorMap[tag] || colors.muted;
-                              const textColor = tagTextColor(tc);
-                              return (
-                                <View key={tag} style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: tc }}>
-                                  <Text style={{ fontSize: 10, fontWeight: "700", color: textColor }}>{abbreviateTag(tag)}</Text>
-                                </View>
-                              );
-                            })}
-                            {tx.tags.length > 2 && (
-                              <TouchableOpacity
-                                ref={(ref) => { tagButtonRefs.current[tx.rowId] = ref; }}
-                                onPress={() => {
-                                  tagButtonRefs.current[tx.rowId]?.measureInWindow?.((x, y, width) => {
-                                    const screen = Dimensions.get("window");
-                                    setTagBubble({ x: Math.min(x, screen.width - 176), y: Math.min(y, screen.height - 190), tags: (tx.tags || []).slice(2) });
-                                  });
-                                }}
-                                style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: colors.primary }}
-                              >
-                                <Text style={{ fontSize: 10, fontWeight: "700", color: colors.onPrimary }}>+{tx.tags.length - 2}</Text>
-                              </TouchableOpacity>
-                            )}
-                          </>
-                        )}
-                      </View>
-                    </View>
-                    <Text numberOfLines={1} style={[styles.groupedTxAmount, { color: tx.amount >= 0 ? colors.green : colors.red }]}>{formatMoney(tx.amount, currencySymbol)}</Text>
-                    {selected && <MaterialCommunityIcons name="drag-vertical" size={18} color={colors.muted} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-        {!transactions.length && (
-          <View style={[styles.mobileEmptyCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.empty, { color: colors.muted }]}>{copy.noMovements}</Text>
-          </View>
-        )}
-        {!searchActive && (
-          <TouchableOpacity style={[styles.loadOlderBtn, { backgroundColor: colors.card }]} onPress={onLoadOlder}>
-            <Text style={[styles.loadOlderText, { color: colors.text }]}>{copy.loadOlder}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={{ paddingHorizontal: 18, paddingTop: 2, fontSize: 16, fontWeight: "700", color: colors.text }}>{copy.movementsTitle}</Text>
+    </>
+  ), [colors, copy, currencySymbol, onDeleteSelected, onEdit, onEditFreq, onExitSearch, searchActive, selectedCount, selectedTx, summary]);
+
+  const renderSectionHeader = useCallback(({ section }: { section: TransactionSection }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={[styles.dateGroupLabel, { color: colors.muted }]}>{section.title}</Text>
+    </View>
+  ), [colors.muted]);
+
+  const renderItem = useCallback(({ item, index, section }: { item: Transaction; index: number; section: TransactionSection }) => (
+    <TransactionRow
+      tx={item}
+      index={index}
+      sectionLength={section.data.length}
+      selected={selectedRowSet.has(item.rowId)}
+      colors={colors}
+      currencySymbol={currencySymbol}
+      copy={copy}
+      searchActive={searchActive}
+      searchText={searchText}
+      tagColorMap={tagColorMap}
+      onOpenDetail={onOpenDetail}
+      onMove={onMove}
+      onToggleSelection={onToggleSelection}
+      setTagBubble={setTagBubble}
+      tagButtonRefs={tagButtonRefs}
+    />
+  ), [colors, copy, currencySymbol, onMove, onOpenDetail, onToggleSelection, searchActive, searchText, selectedRowSet, tagColorMap]);
+
+  const renderListEmpty = useCallback(() => (
+    <View style={[styles.mobileEmptyCard, { backgroundColor: colors.card, marginHorizontal: 14, marginTop: 12 }]}>
+      <Text style={[styles.empty, { color: colors.muted }]}>{copy.noMovements}</Text>
+    </View>
+  ), [colors.card, colors.muted, copy.noMovements]);
+
+  const renderListFooter = useCallback(() => {
+    if (searchActive) return null;
+    return (
+      <TouchableOpacity style={[styles.loadOlderBtn, { backgroundColor: colors.card, marginHorizontal: 14, marginTop: sections.length ? 18 : 12 }]} onPress={onLoadOlder}>
+        <Text style={[styles.loadOlderText, { color: colors.text }]}>{copy.loadOlder}</Text>
+      </TouchableOpacity>
+    );
+  }, [colors.card, colors.text, copy.loadOlder, onLoadOlder, searchActive, sections.length]);
+
+  return (
+    <>
+      <SectionList<Transaction, TransactionSection>
+        style={{ flex: 1 }}
+        sections={sections}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        ListHeaderComponent={renderListHeader}
+        ListEmptyComponent={renderListEmpty}
+        ListFooterComponent={renderListFooter}
+        contentContainerStyle={[styles.pageScroll, topInset !== undefined && { paddingTop: topInset }]}
+        extraData={selectedRowSet}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === "android"}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+        onScrollBeginDrag={closeTagBubble}
+        onMomentumScrollBegin={closeTagBubble}
+      />
+
       <Modal visible={!!tagBubble} transparent animationType="none" onRequestClose={() => setTagBubble(null)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setTagBubble(null)} style={{ flex: 1 }}>
           <View onStartShouldSetResponder={() => true} style={{ position: "absolute", left: tagBubble?.x || 0, top: tagBubble?.y || 0, maxWidth: 170, borderRadius: 12, padding: 8, backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 12, elevation: 8 }}>
@@ -211,6 +321,6 @@ export function ExpensesView({
           </View>
         </TouchableOpacity>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
