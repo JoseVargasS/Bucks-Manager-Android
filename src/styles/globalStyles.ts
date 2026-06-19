@@ -78,7 +78,7 @@ export const styles = StyleSheet.create({
   groupedTxMeta: { marginTop: 2, fontSize: 12, fontWeight: "400" },
   groupedTxAmount: { maxWidth: 116, fontSize: 14, fontWeight: "700", textAlign: "right", fontVariant: ["tabular-nums"] },
   sectionHeader: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8 },
-  sectionCardRow: { marginHorizontal: 14, overflow: "hidden" },
+  sectionCardRow: { marginHorizontal: 14 },
   sectionCardFirstRow: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   sectionCardLastRow: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   loadOlderBtn: { minHeight: 48, borderWidth: 0, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 12 },

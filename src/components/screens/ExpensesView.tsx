@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { Dimensions, Modal, Platform, SectionList, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Modal, Pressable, SectionList, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeColor, typeFill, typeLabelFull } from "../../utils/formats";
@@ -82,7 +82,7 @@ const TransactionRow = memo(function TransactionRow({
   }, [setTagBubble, tagButtonRefs, tx.rowId, tx.tags]);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={handlePress}
       onLongPress={handleLongPress}
       style={[
@@ -140,7 +140,7 @@ const TransactionRow = memo(function TransactionRow({
         {formatMoney(tx.amount, currencySymbol)}
       </Text>
       {selected && <MaterialCommunityIcons name="drag-vertical" size={18} color={colors.muted} />}
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -197,7 +197,7 @@ export function ExpensesView({
     return map;
   }, [tagsList]);
 
-  const keyExtractor = useCallback((tx: Transaction) => `${tx.rowId}-${tx.createdAt || ""}`, []);
+  const keyExtractor = useCallback((tx: Transaction) => `${tx.rowId}-${tx.rawDate}-${tx.createdAt || ""}-${tx.amount}-${tx.detail}`, []);
   const closeTagBubble = useCallback(() => setTagBubble(null), []);
 
   const renderListHeader = useCallback(() => (
@@ -297,7 +297,7 @@ export function ExpensesView({
         initialNumToRender={12}
         maxToRenderPerBatch={10}
         windowSize={7}
-        removeClippedSubviews={Platform.OS === "android"}
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
         onScrollBeginDrag={closeTagBubble}
