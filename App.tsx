@@ -5,7 +5,7 @@ import * as Print from "expo-print";
 import * as SecureStore from "expo-secure-store";
 import * as Sharing from "expo-sharing";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, SafeAreaView, Text, TouchableOpacity, View, StatusBar as NativeStatusBar } from "react-native";
+import { ActivityIndicator, Alert, AppState, Text, TouchableOpacity, View, StatusBar as NativeStatusBar } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
@@ -640,38 +640,38 @@ export default function App() {
   // --- Render ---
   if (bootstrapping) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <View style={[styles.safe, { backgroundColor: colors.bg }]}>
         <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <SkeletonScreen colors={colors} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <View style={[styles.safe, { backgroundColor: colors.bg }]}>
         <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <LoginScreen colors={colors} copy={copy} loading={loading} canConnect={Boolean(GOOGLE_ANDROID_CLIENT_ID || GOOGLE_WEB_CLIENT_ID)} onSignIn={signInWithGoogle} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (pinLoading) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <View style={[styles.safe, { backgroundColor: colors.bg }]}>
         <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <BlurView
           intensity={90}
           tint={theme === "dark" ? "dark" : "light"}
           style={{ flex: 1 }}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (pinEnabled && (!pinVerified || pinLockedRef.current)) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <View style={[styles.safe, { backgroundColor: colors.bg }]}>
         <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
         <PinScreen
           colors={colors}
@@ -681,12 +681,12 @@ export default function App() {
           bgColor={colors.bg}
           onFill={handlePinVerify}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+    <View style={[styles.safe, { backgroundColor: colors.bg }]}>
       <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
       <View style={[styles.shell, styles.shellCompact, { backgroundColor: colors.bg, paddingTop: 0 }]}>
         <BlurTargetView ref={blurTargetRef} style={[styles.content, { width: "100%", position: "relative" }]}>
@@ -800,7 +800,7 @@ export default function App() {
         onSubmit={() => { setSearchActive(true); setTab("expenses"); setSelectedRows([]); setSearchVisible(false); }}
       />
       <TagEditorModal visible={tagEditorVisible} colors={colors} copy={copy} tags={tagsList} setTags={setTagsList} onClose={() => setTagEditorVisible(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
 
