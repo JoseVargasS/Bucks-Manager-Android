@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
-import { Keyboard, Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
+import { Animated, Keyboard, Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { useModalTransition } from "./useModalTransition";
 
 type SelectOption = { label: string; value: string; color?: string; softBg?: string };
 
@@ -14,11 +15,12 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
   const [menuFrame, setMenuFrame] = useState({ left: 12, menuTop: 124, width: 180, maxHeight: 240 });
   const triggerRef = useRef<View>(null);
   const windowSize = useWindowDimensions();
+  const transition = useModalTransition(open, 6, 0.99);
   const selected = options.find((o) => o.value === value);
   const label = selected ? selected.label : placeholder;
   const openMenu = () => {
     Keyboard.dismiss();
-    requestAnimationFrame(() => triggerRef.current?.measureInWindow((x, y, width, height) => {
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
       const margin = 12;
       const gap = 2;
       const panelWidth = Math.min(width, windowSize.width - margin * 2);
@@ -34,7 +36,7 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
         : Math.min(windowSize.height - margin - maxHeight, anchorTop + height + gap);
       setMenuFrame({ left, menuTop, width: panelWidth, maxHeight });
       setOpen(true);
-    }));
+    });
   };
 
   return (
@@ -50,10 +52,10 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
         <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
       </TouchableOpacity>
 
-      <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <View style={styles.selectModalOverlay}>
+      {transition.modalVisible && <Modal visible transparent animationType="none" onRequestClose={() => setOpen(false)}>
+        <Animated.View style={[styles.selectModalOverlay, transition.containerStyle]}>
           <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={() => setOpen(false)} />
-          <View
+          <Animated.View
             style={[
               styles.selectMenu,
               {
@@ -64,6 +66,7 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
                 width: menuFrame.width,
                 maxHeight: menuFrame.maxHeight,
               },
+              transition.panelStyle,
             ]}
           >
             <ScrollView
@@ -84,6 +87,7 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
                       { backgroundColor: isSelected ? opt.softBg || colors.primarySoft : "transparent" },
                     ]}
                     onPress={() => {
+                      transition.dismissImmediately();
                       onSelect(opt.value);
                       setOpen(false);
                     }}
@@ -95,9 +99,9 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
                 );
               })}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+          </Animated.View>
+        </Animated.View>
+      </Modal>}
     </View>
   );
 }

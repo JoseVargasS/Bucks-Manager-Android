@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction, useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
@@ -8,9 +9,14 @@ import { SearchFilters, Tag } from "../../types";
 import { UiCopy } from "../../i18n";
 
 export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFilters, onSubmit, onClear }: {
-  colors: Palette; copy: UiCopy; currencySymbol: string; tags: Tag[]; filters: SearchFilters; setFilters: (f: SearchFilters) => void;
+  colors: Palette; copy: UiCopy; currencySymbol: string; tags: Tag[]; filters: SearchFilters; setFilters: Dispatch<SetStateAction<SearchFilters>>;
   onSubmit: () => void; onClear: () => void;
 }) {
+  const tagOptions = useMemo(() => [
+    { label: copy.allTags, value: "" },
+    ...tags.map((tag) => ({ label: tag.label, value: tag.label, color: tag.color })),
+  ], [copy.allTags, tags]);
+
   return (
     <View style={styles.searchBody}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.searchScrollContent} keyboardShouldPersistTaps="always" keyboardDismissMode="none">
@@ -22,7 +28,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
           <Field
             label={copy.descriptionDetail}
             value={filters.text}
-            onChangeText={(text: string) => setFilters({ ...filters, text })}
+            onChangeText={(text: string) => setFilters((current) => ({ ...current, text }))}
             colors={colors}
             placeholder={copy.descriptionPlaceholder}
             rightIcon="text"
@@ -37,8 +43,8 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
             </View>
             <Select
               value={filters.tag}
-              options={[{ label: copy.allTags, value: "" }, ...tags.map((tag) => ({ label: tag.label, value: tag.label, color: tag.color }))]}
-              onSelect={(tag) => setFilters({ ...filters, tag })}
+              options={tagOptions}
+              onSelect={(tag) => setFilters((current) => ({ ...current, tag }))}
               colors={colors}
               placeholder={copy.allTags}
               title={copy.tagsTitle}
@@ -55,7 +61,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
             <Field
               label={copy.minAmount}
               value={filters.minAmount}
-              onChangeText={(minAmount: string) => setFilters({ ...filters, minAmount })}
+              onChangeText={(minAmount: string) => setFilters((current) => ({ ...current, minAmount }))}
               colors={colors}
               placeholder={`${currencySymbol} 0`}
               rightIcon="cash-minus"
@@ -63,7 +69,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
             <Field
               label={copy.maxAmount}
               value={filters.maxAmount}
-              onChangeText={(maxAmount: string) => setFilters({ ...filters, maxAmount })}
+              onChangeText={(maxAmount: string) => setFilters((current) => ({ ...current, maxAmount }))}
               colors={colors}
               placeholder={`${currencySymbol} 500`}
               rightIcon="cash-plus"
@@ -80,7 +86,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
             <Field
               label={copy.from}
               value={filters.startDate}
-              onChangeText={(startDate: string) => setFilters({ ...filters, startDate })}
+              onChangeText={(startDate: string) => setFilters((current) => ({ ...current, startDate }))}
               colors={colors}
               placeholder="YYYY-MM-DD"
               rightIcon="calendar-start"
@@ -88,7 +94,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
             <Field
               label={copy.to}
               value={filters.endDate}
-              onChangeText={(endDate: string) => setFilters({ ...filters, endDate })}
+              onChangeText={(endDate: string) => setFilters((current) => ({ ...current, endDate }))}
               colors={colors}
               placeholder="YYYY-MM-DD"
               rightIcon="calendar-end"

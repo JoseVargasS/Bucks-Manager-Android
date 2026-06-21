@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Modal, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { useLayoutEffect, useState } from "react";
+import { Animated, Modal, Text, TouchableOpacity, View, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
 import { Palette } from "../../theme/colors";
 import { UI_COPY, UiCopy } from "../../i18n";
+import { useModalTransition } from "./useModalTransition";
 
 const MONTH_ABBR = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
 const MONTH_ABBR_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -16,6 +17,17 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
   const [viewYear, setViewYear] = useState(parsed.getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed.getMonth());
   const [selectedDay, setSelectedDay] = useState(parsed.getDate());
+  const transition = useModalTransition(visible, 10, 0.985);
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    setViewYear(parsed.getFullYear());
+    setViewMonth(parsed.getMonth());
+    setSelectedDay(parsed.getDate());
+  }, [value, visible]);
+
+  if (!transition.modalVisible) return null;
+
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const effectiveMax = maxDate || todayStr;
@@ -60,12 +72,11 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
     onClose();
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
-      <View style={[{ position: "absolute", left: "50%", top: "50%", transform: [{ translateX: -150 }, { translateY: -200 }], width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20, zIndex: 9999 }]}>
+    <Modal visible={transition.modalVisible} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }, transition.containerStyle]}>
+        <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
+        <Animated.View style={[{ width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20, zIndex: 9999 }, transition.panelStyle]}>
         <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderColor: colors.border }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <TouchableOpacity onPress={() => canGoBackYear && setViewYear(viewYear - 1)} disabled={!canGoBackYear}>
@@ -147,7 +158,8 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
             <Text style={{ color: colors.muted, fontWeight: "900", fontSize: 14 }}>{copy.erase}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

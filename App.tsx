@@ -36,14 +36,14 @@ import { ExpensesView } from "./src/components/screens/ExpensesView";
 import { SummaryView } from "./src/components/screens/SummaryView";
 import { SettingsView } from "./src/components/screens/SettingsView";
 import { PinScreen } from "./src/components/screens/PinScreen";
-import { TransactionModal } from "./src/components/modals/TransactionModal";
-import { DetailModal } from "./src/components/modals/DetailModal";
+import { TransactionModal, TransactionModalHandle } from "./src/components/modals/TransactionModal";
+import { DetailModal, DetailModalHandle } from "./src/components/modals/DetailModal";
 import { FreqIncomeModal } from "./src/components/modals/FreqIncomeModal";
 import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
 import { ConfirmModal, ConfirmConfig } from "./src/components/modals/ConfirmModal";
 import { HistoryModal } from "./src/components/modals/HistoryModal";
 import { PinSetupModal } from "./src/components/modals/PinSetupModal";
-import { SearchModal } from "./src/components/modals/SearchModal";
+import { SearchModal, SearchModalHandle } from "./src/components/modals/SearchModal";
 import { TagEditorModal } from "./src/components/modals/TagEditorModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
 import { ExportFormat, HistoryEntry, SearchFilters, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft, TransactionType } from "./src/types";
@@ -110,15 +110,10 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summaries, setSummaries] = useState<SummaryRow[]>([]);
   const [freqIncome, setFreqIncome] = useState<Record<string, number>>({});
-  const [addVisible, setAddVisible] = useState(false);
   const [freqVisible, setFreqVisible] = useState(false);
   const [accountInfo, setAccountInfo] = useState<{ name?: string; email?: string } | null>(null);
-  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
-  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
-  const [draft, setDraft] = useState<TransactionDraft>(getBlankDraft());
   const [searchFilters, setSearchFilters] = useState<SearchFilters>(emptySearch);
   const [searchActive, setSearchActive] = useState(false);
-  const [searchVisible, setSearchVisible] = useState(false);
   const [loadedMonthCount, setLoadedMonthCount] = useState(1);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [picker, setPicker] = useState<PickerConfig>(null);
@@ -137,10 +132,14 @@ export default function App() {
   const [tagEditorVisible, setTagEditorVisible] = useState(false);
   const pinLockedRef = useRef(false);
   const blurTargetRef = useRef<View | null>(null);
+  const transactionModalRef = useRef<TransactionModalHandle>(null);
+  const detailModalRef = useRef<DetailModalHandle>(null);
+  const searchModalRef = useRef<SearchModalHandle>(null);
   const didSetInitialPeriodRef = useRef(false);
   const reloadPromiseRef = useRef<Promise<void> | null>(null);
   const freqIncomeRef = useRef<Record<string, number>>({});
   const hasLocalDataRef = useRef(false);
+  const pendingSyncRef = useRef(false);
   const tabRef = useRef<Tab>(tab);
   const pagerTranslateX = useRef(new Animated.Value(0)).current;
   const { width: tabWidth } = useWindowDimensions();
@@ -557,6 +556,7 @@ export default function App() {
     setSpreadsheetId(""); setTransactions([]); setSummaries([]);
     setFreqIncome({}); freqIncomeRef.current = {}; setAccountInfo(null); setHasLocalData(false); hasLocalDataRef.current = false; setLastSyncedAt(null);
     setSyncError(""); setAuthError(""); setPendingSync(false); setIsSyncing(false);
+    pendingSyncRef.current = false;
     didSetInitialPeriodRef.current = false;
   }
 
@@ -602,6 +602,7 @@ export default function App() {
   // --- Data operations ---
   async function reloadFromGoogle(token = accessToken, sheetId = spreadsheetId, showLoader = true, forceFresh = false) {
     if (!token || !sheetId) return;
+    if (pendingSyncRef.current && !forceFresh) return;
     if (reloadPromiseRef.current) {
       if (!forceFresh) return reloadPromiseRef.current;
       await reloadPromiseRef.current.catch(() => undefined);
@@ -612,12 +613,19 @@ export default function App() {
       setSyncError("");
       if (!hasLocalDataRef.current && !transactions.length) setIsFirstRemoteLoad(true);
       const [tx, summary] = await Promise.all([readTransactions(token, sheetId), readSummaries(token, sheetId)]);
+      if (pendingSyncRef.current && !forceFresh) {
+        if (showLoader) setLoading(false);
+        setIsSyncing(false);
+        setIsFirstRemoteLoad(false);
+        reloadPromiseRef.current = null;
+        return;
+      }
       const nextFreqIncome = summary.length ? freqIncomeFromSummaries(summary) : freqIncomeRef.current;
       const nextSummaries = summary.length ? summary : calculateSummaries(tx, nextFreqIncome);
       const syncedAt = new Date().toISOString();
       applyFinancialState(tx, nextSummaries, nextFreqIncome, syncedAt);
       persistFinancialState(tx, nextSummaries, nextFreqIncome, syncedAt, sheetId);
-      setPendingSync(false);
+      if (!forceFresh) setPendingSync(false);
       if (showLoader) setLoading(false);
       setIsSyncing(false);
       setIsFirstRemoteLoad(false);
@@ -646,12 +654,17 @@ export default function App() {
     selectPeriod(today.getMonth(), today.getFullYear());
   }, []);
 
-  function openAdd(type?: TransactionType) { setEditingTx(null); setDraft(getBlankDraft(type)); setAddVisible(true); }
+  function openAdd(type?: TransactionType) {
+    transactionModalRef.current?.open(getBlankDraft(type));
+  }
 
   function openEdit(tx: Transaction) {
-    setDetailTx(null); setSelectedRows([]); setEditingTx(tx);
-    setDraft({ date: formatDateToISO(tx.rawDate), amount: tx.formula ? `=${tx.formula}` : String(Math.abs(tx.amount)), detail: tx.detail, type: tx.type, createdAt: tx.createdAt, tags: tx.tags || [] });
-    setAddVisible(true);
+    detailModalRef.current?.close();
+    transactionModalRef.current?.open({
+      date: formatDateToISO(tx.rawDate), amount: tx.formula ? `=${tx.formula}` : String(Math.abs(tx.amount)),
+      detail: tx.detail, type: tx.type, createdAt: tx.createdAt, tags: tx.tags || [],
+    }, tx);
+    requestAnimationFrame(() => setSelectedRows([]));
   }
 
   function renumberTransactions(items: Transaction[]) {
@@ -659,12 +672,17 @@ export default function App() {
   }
 
   function syncGoogleInBackground(task: () => Promise<void>, title: string) {
+    pendingSyncRef.current = true;
     setIsSyncing(true);
     setPendingSync(true);
     setSyncError("");
     task()
-      .then(() => setPendingSync(false))
+      .then(() => {
+        pendingSyncRef.current = false;
+        setPendingSync(false);
+      })
       .catch((error) => {
+        pendingSyncRef.current = true;
         setPendingSync(true);
         setSyncError(getErrorMessage(error) || title);
       })
@@ -672,7 +690,6 @@ export default function App() {
   }
 
   function requestDelete(tx: Transaction) {
-    setDetailTx(null);
     setConfirmConfig({ kind: "delete", tx });
   }
 
@@ -689,38 +706,59 @@ export default function App() {
     else if (cfg.kind === "deleteSelected") deleteSelectedRows();
   }
 
-  async function submitDraft() {
-    if (!draft.date || !draft.amount || !draft.detail.trim()) {
-      Alert.alert(copy.incompleteData, copy.completeRequired); return;
+  function submitDraft(currentDraft: TransactionDraft, currentEdit: Transaction | null): boolean {
+    if (!currentDraft.date || !currentDraft.amount || !currentDraft.detail.trim()) {
+      Alert.alert(copy.incompleteData, copy.completeRequired); return false;
     }
-    const currentDraft = draft;
-    const currentEdit = editingTx;
-    const optimistic = buildTransactionFromDraft(currentDraft, currentEdit?.rowId || transactions.length + 2);
-    const next = currentEdit
-      ? renumberTransactions(insertChronologically(transactions.filter((tx) => tx.rowId !== currentEdit.rowId), optimistic))
-      : renumberTransactions(insertChronologically(transactions, optimistic));
-    const nextSummaries = calculateSummaries(next, freqIncome);
-    setTransactions(next);
-    setSummaries(nextSummaries);
-    persistFinancialState(next, nextSummaries, freqIncome);
-    setAddVisible(false);
-    setEditingTx(null);
-    setDraft(getBlankDraft());
+    const currentTransactions = transactions;
+    const currentFreqIncome = freqIncome;
+    const token = accessToken;
+    const sheetId = spreadsheetId;
+    if (token && sheetId) {
+      pendingSyncRef.current = true;
+    }
 
-    if (accessToken && spreadsheetId) {
-      syncGoogleInBackground(async () => {
-        if (currentEdit) {
-          await updateGoogleTransaction(accessToken, spreadsheetId, currentEdit.rowId, currentDraft);
-        } else {
-          await saveTransaction(accessToken, spreadsheetId, currentDraft);
-        }
-        await reloadFromGoogle(accessToken, spreadsheetId, false, true);
-      }, currentEdit ? copy.editRecord : copy.newRecord);
-    }
+    requestAnimationFrame(() => {
+      const optimistic = buildTransactionFromDraft(currentDraft, currentEdit?.rowId || currentTransactions.length + 2);
+      const next = currentEdit
+        ? renumberTransactions(insertChronologically(currentTransactions.filter((tx) => tx.rowId !== currentEdit.rowId), optimistic))
+        : renumberTransactions(insertChronologically(currentTransactions, optimistic));
+      const nextSummaries = calculateSummaries(next, currentFreqIncome);
+      setTransactions(next);
+      setSummaries(nextSummaries);
+      persistFinancialState(next, nextSummaries, currentFreqIncome);
+
+      if (token && sheetId) {
+        syncGoogleInBackground(async () => {
+          if (currentEdit) {
+            await updateGoogleTransaction(token, sheetId, currentEdit.rowId, currentDraft);
+          } else {
+            await saveTransaction(token, sheetId, currentDraft);
+          }
+          await reloadFromGoogle(token, sheetId, false, true);
+        }, currentEdit ? copy.editRecord : copy.newRecord);
+      }
+    });
+    return true;
+  }
+
+  function applySearchFilters(nextFilters: SearchFilters) {
+    requestAnimationFrame(() => {
+      setSearchFilters(nextFilters);
+      setSearchActive(true);
+      changeTab("expenses");
+      setSelectedRows([]);
+    });
+  }
+
+  function clearSearchFilters() {
+    requestAnimationFrame(() => {
+      setSearchFilters(emptySearch);
+      setSearchActive(false);
+    });
   }
 
   async function deleteTx(tx: Transaction) {
-    setDetailTx(null);
     setSelectedRows((current) => current.filter((rowId) => rowId !== tx.rowId));
     const next = renumberTransactions(transactions.filter((item) => item.rowId !== tx.rowId));
     const nextSummaries = calculateSummaries(next, freqIncome);
@@ -765,7 +803,7 @@ export default function App() {
 
   function handleTransactionPress(tx: Transaction) {
     if (selectedRows.length) { toggleSelection(tx); return; }
-    setDetailTx(tx);
+    detailModalRef.current?.open(tx);
   }
 
   async function moveTx(tx: Transaction, direction: "up" | "down") {
@@ -1080,15 +1118,15 @@ export default function App() {
         </BlurTargetView>
 
         <BottomFade color={colors.bg} height={bottomFadeHeight} />
-        <BottomNav colors={colors} copy={copy} tab={tab} setTab={changeTab} onAdd={() => openAdd()} onSearch={() => setSearchVisible(true)} blurTarget={blurTargetRef} />
+        <BottomNav colors={colors} copy={copy} tab={tab} setTab={changeTab} onAdd={() => openAdd()} onSearch={() => searchModalRef.current?.open(searchFilters)} blurTarget={blurTargetRef} />
       </View>
 
-      <TransactionModal visible={addVisible} colors={colors} draft={draft} setDraft={setDraft} tags={tagsList}
+      <TransactionModal ref={transactionModalRef} colors={colors} tags={tagsList}
         copy={copy} currencySymbol={currencySymbol}
-        editing={!!editingTx} onClose={() => setAddVisible(false)} onSubmit={submitDraft} />
+        onSubmit={submitDraft} />
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
         copy={copy} onClose={() => setFreqVisible(false)} onSubmit={saveFreqIncome} />
-      <DetailModal tx={detailTx} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setDetailTx(null)} onEdit={openEdit} onDelete={requestDelete} />
+      <DetailModal ref={detailModalRef} colors={colors} currencySymbol={currencySymbol} copy={copy} onEdit={openEdit} onDelete={requestDelete} />
       <OptionSheet config={picker} colors={colors} onClose={() => setPicker(null)} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setConfirmConfig(null)} onConfirm={handleConfirm} />
       <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={() => setHistoryVisible(false)} onUndo={undoDeleteEntry} />
@@ -1096,11 +1134,10 @@ export default function App() {
       <ExportModal visible={exportVisible} colors={colors} config={exportConfig} setConfig={setExportConfig}
         minDate={transactions.length ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10) : ""}
         copy={copy} onClose={() => setExportVisible(false)} onExport={(cfg: ExportConfig) => { setExportVisible(false); exportRows(cfg); }} />
-      <SearchModal visible={searchVisible} colors={colors} filters={searchFilters} setFilters={setSearchFilters}
+      <SearchModal ref={searchModalRef} colors={colors}
         copy={copy} currencySymbol={currencySymbol} tags={tagsList}
-        onClose={() => setSearchVisible(false)}
-        onClear={() => { setSearchFilters(emptySearch); setSearchActive(false); setSearchVisible(false); }}
-        onSubmit={() => { setSearchActive(true); changeTab("expenses"); setSelectedRows([]); setSearchVisible(false); }}
+        onClear={clearSearchFilters}
+        onSubmit={applySearchFilters}
       />
       <TagEditorModal visible={tagEditorVisible} colors={colors} copy={copy} tags={tagsList} setTags={setTagsList} onClose={() => setTagEditorVisible(false)} />
     </View>
