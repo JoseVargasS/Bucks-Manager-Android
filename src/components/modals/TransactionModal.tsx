@@ -233,13 +233,13 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
           </ScrollView>
           {tagsOpen && (
             <View style={[styles.selectMenu, { left: tagsFrame.left, top: tagsFrame.top, width: tagsFrame.width, maxHeight: tagsFrame.maxHeight, backgroundColor: colors.card, borderColor: colors.border, zIndex: 40 }]}>
-              <ScrollView contentContainerStyle={styles.selectMenuContent} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
+              <ScrollView contentContainerStyle={{ padding: 8, flexDirection: "row", flexWrap: "wrap", gap: 8 }} keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
                 {tags.map((tag) => {
                   const selected = (formDraft.tags || []).includes(tag.label);
                   return (
                     <TouchableOpacity
                       key={tag.id}
-                      style={[styles.selectOptionRow, { backgroundColor: selected ? colors.primarySoft : "transparent" }]}
+                      style={[styles.selectOptionRow, { width: "48%", backgroundColor: selected ? colors.primarySoft : colors.input }]}
                       onPress={() => {
                         setFormDraft((currentDraft) => {
                           const current = currentDraft.tags || [];

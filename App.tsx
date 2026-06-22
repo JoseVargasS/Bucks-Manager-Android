@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { BlurTargetView, BlurView } from "expo-blur";
+import { BlurView } from "expo-blur";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as SecureStore from "expo-secure-store";
@@ -132,7 +132,6 @@ export default function App() {
   const [tagsList, setTagsList] = useState<Tag[]>([]);
   const [tagEditorVisible, setTagEditorVisible] = useState(false);
   const pinLockedRef = useRef(false);
-  const blurTargetRef = useRef<View | null>(null);
   const transactionModalRef = useRef<TransactionModalHandle>(null);
   const detailModalRef = useRef<DetailModalHandle>(null);
   const searchModalRef = useRef<SearchModalHandle>(null);
@@ -144,7 +143,6 @@ export default function App() {
   const pendingSyncRef = useRef(false);
   const tabRef = useRef<Tab>(tab);
   const tabColorsRef = useRef<Record<Tab, Palette>>({ expenses: colors, summary: colors, settings: colors });
-  const tabCommitFrameRef = useRef<number | null>(null);
   const pagerTranslateX = useRef(new Animated.Value(0)).current;
   const { width: tabWidth } = useWindowDimensions();
   const statusBarInset = NativeStatusBar.currentHeight || 0;
@@ -161,11 +159,8 @@ export default function App() {
       duration: 210,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start();
-    if (tabCommitFrameRef.current !== null) cancelAnimationFrame(tabCommitFrameRef.current);
-    tabCommitFrameRef.current = requestAnimationFrame(() => {
-      tabCommitFrameRef.current = null;
-      setTab(next);
+    }).start(({ finished }) => {
+      if (finished && tabRef.current === next) setTab(next);
     });
   }, [pagerTranslateX, tabWidth]);
   const toggleTheme = useCallback(() => {
@@ -999,6 +994,7 @@ export default function App() {
     const pageSubtitle = targetTab === "expenses" ? `${uiMonthNames[month]} ${year}` : targetTab === "summary" ? copy.summarySubtitle : copy.settingsSubtitle;
     const isCurrent = targetTab === tab;
     const screenColors = isCurrent ? colors : tabColorsRef.current[targetTab];
+    const screenIsDark = screenColors.bg === dark.bg;
     if (isCurrent) tabColorsRef.current[targetTab] = colors;
 
     return (
@@ -1012,8 +1008,8 @@ export default function App() {
           <View style={{ flex: 1 }}>
             {(loading || syncStatusText) && (
               <View style={styles.loadingBar}>
-                {(loading || isSyncing) && <ActivityIndicator color={colors.primary} />}
-                <Text style={{ color: colors.muted }}>{syncStatusText || copy.syncing}</Text>
+                {(loading || isSyncing) && <ActivityIndicator color={screenColors.primary} />}
+                <Text style={{ color: screenColors.muted }}>{syncStatusText || copy.syncing}</Text>
               </View>
             )}
             {targetTab === "expenses" ? (
@@ -1039,8 +1035,8 @@ export default function App() {
           <View style={{ paddingTop: contentTopInset, flex: 1 }}>
             {(loading || syncStatusText) && (
               <View style={styles.loadingBar}>
-                {(loading || isSyncing) && <ActivityIndicator color={colors.primary} />}
-                <Text style={{ color: colors.muted }}>{syncStatusText || copy.syncing}</Text>
+                {(loading || isSyncing) && <ActivityIndicator color={screenColors.primary} />}
+                <Text style={{ color: screenColors.muted }}>{syncStatusText || copy.syncing}</Text>
               </View>
             )}
             <SettingsView colors={screenColors} copy={copy} accountInfo={accountInfo}
@@ -1054,26 +1050,26 @@ export default function App() {
         )}
 
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }} pointerEvents="box-none">
-          {(targetTab === "expenses" || targetTab === "summary") && <HeaderFade color={colors.bg} height={headerFadeHeight} />}
+          {(targetTab === "expenses" || targetTab === "summary") && <HeaderFade color={screenColors.bg} height={headerFadeHeight} />}
           <View pointerEvents="box-none" style={{ paddingTop: headerTopInset }}>
             <View style={[styles.topBar, styles.topBarMobile, { backgroundColor: "transparent" }]}>
-              <HeaderTitleFade color={colors.bg} />
+              <HeaderTitleFade color={screenColors.bg} />
               <View style={styles.headerLeft}>
-                <View style={[styles.headerLogo, { backgroundColor: colors.primary }]}>
-                  <MaterialCommunityIcons name="sack" size={19} color={colors.onPrimary} />
+                <View style={[styles.headerLogo, { backgroundColor: screenColors.primary }]}>
+                  <MaterialCommunityIcons name="sack" size={19} color={screenColors.onPrimary} />
                 </View>
                 <View style={styles.titleBlock}>
-                  <Text numberOfLines={1} style={[styles.pageTitle, styles.pageTitleMobile, theme === "dark" ? styles.headerReadableTextDark : styles.headerReadableTextLight, { color: colors.text, textShadowColor: colors.shadow }]}>{pageTitle}</Text>
-                  {!!pageSubtitle && <Text numberOfLines={1} style={[styles.pageSub, styles.pageSubMobile, theme === "dark" ? styles.headerReadableTextDark : styles.headerReadableTextLight, { color: colors.muted, textShadowColor: colors.shadow }]}>{pageSubtitle}</Text>}
+                  <Text numberOfLines={1} style={[styles.pageTitle, styles.pageTitleMobile, screenIsDark ? styles.headerReadableTextDark : styles.headerReadableTextLight, { color: screenColors.text, textShadowColor: screenColors.shadow }]}>{pageTitle}</Text>
+                  {!!pageSubtitle && <Text numberOfLines={1} style={[styles.pageSub, styles.pageSubMobile, screenIsDark ? styles.headerReadableTextDark : styles.headerReadableTextLight, { color: screenColors.muted, textShadowColor: screenColors.shadow }]}>{pageSubtitle}</Text>}
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <HeaderActionButton colors={colors} icon={theme === "dark" ? "weather-night" : "white-balance-sunny"} iconColor={colors.yellow} onPress={toggleTheme} activateOnPressIn />
-                <HeaderActionButton colors={colors} icon="history" iconColor={historyEntries.length ? colors.primary : colors.muted} onPress={openHistory} />
+                <HeaderActionButton colors={screenColors} icon={screenIsDark ? "weather-night" : "white-balance-sunny"} iconColor={screenColors.yellow} onPress={toggleTheme} />
+                <HeaderActionButton colors={screenColors} icon="history" iconColor={historyEntries.length ? screenColors.primary : screenColors.muted} onPress={openHistory} />
               </View>
             </View>
             {targetTab === "expenses" && (
-              <PeriodControls colors={colors} copy={copy} year={year} month={month} availableYears={availableYears} availableMonths={availableMonths}
+              <PeriodControls colors={screenColors} copy={copy} year={year} month={month} availableYears={availableYears} availableMonths={availableMonths}
                 onSelectPeriod={selectPeriod} goToday={goToday}
               />
             )}
@@ -1132,7 +1128,7 @@ export default function App() {
     <View style={[styles.safe, { backgroundColor: colors.bg }]}>
       <NativeStatusBar barStyle={theme === "dark" ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
       <View style={[styles.shell, styles.shellCompact, { backgroundColor: colors.bg, paddingTop: 0 }]}>
-        <BlurTargetView ref={blurTargetRef} style={[styles.content, { width: "100%", position: "relative", overflow: "hidden" }]}>
+        <View style={[styles.content, { width: "100%", position: "relative", overflow: "hidden" }]}>
           <Animated.View
             style={{
               width: tabWidth * TAB_ORDER.length,
@@ -1143,10 +1139,10 @@ export default function App() {
           >
             {TAB_ORDER.map(renderTabPage)}
           </Animated.View>
-        </BlurTargetView>
+        </View>
 
         <BottomFade color={colors.bg} height={bottomFadeHeight} />
-        <BottomNav colors={colors} copy={copy} tab={tab} setTab={changeTab} onAdd={openAdd} onSearch={openSearch} blurTarget={blurTargetRef} />
+        <BottomNav colors={colors} copy={copy} tab={tab} setTab={changeTab} onAdd={openAdd} onSearch={openSearch} />
       </View>
 
       <TransactionModal ref={transactionModalRef} colors={colors} tags={tagsList}
@@ -1154,7 +1150,7 @@ export default function App() {
         onSubmit={submitDraft} />
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
         copy={copy} onClose={closeFreqIncome} onSubmit={saveFreqIncome} />
-      <DetailModal ref={detailModalRef} colors={colors} currencySymbol={currencySymbol} copy={copy} onEdit={openEdit} onDelete={requestDelete} />
+      <DetailModal ref={detailModalRef} colors={colors} currencySymbol={currencySymbol} copy={copy} tags={tagsList} onEdit={openEdit} onDelete={requestDelete} />
       <OptionSheet ref={optionSheetRef} colors={colors} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={closeConfirm} onConfirm={handleConfirm} />
       <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={closeHistory} onUndo={undoDeleteEntry} />
@@ -1182,7 +1178,7 @@ function StartupSplash() {
   );
 }
 
-const HeaderActionButton = memo(function HeaderActionButton({ colors, icon, iconColor, onPress, activateOnPressIn = false }: { colors: Palette; icon: MaterialIconName; iconColor: string; onPress: () => void; activateOnPressIn?: boolean }) {
+const HeaderActionButton = memo(function HeaderActionButton({ colors, icon, iconColor, onPress }: { colors: Palette; icon: MaterialIconName; iconColor: string; onPress: () => void }) {
   const pressed = useRef(new Animated.Value(0)).current;
   const animate = (toValue: number, duration: number) => {
     pressed.stopAnimation();
@@ -1191,14 +1187,10 @@ const HeaderActionButton = memo(function HeaderActionButton({ colors, icon, icon
   return (
     <Animated.View style={{ opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] }), transform: [{ scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] }) }] }}>
       <Pressable
-        onPress={activateOnPressIn ? undefined : onPress}
-        onPressIn={() => {
-          animate(1, 70);
-          if (activateOnPressIn) onPress();
-        }}
+        onPress={onPress}
+        onPressIn={() => animate(1, 70)}
         onPressOut={() => animate(0, 110)}
         accessibilityRole="button"
-        onAccessibilityTap={activateOnPressIn ? onPress : undefined}
         style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}
       >
         <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
