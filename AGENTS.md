@@ -77,10 +77,11 @@ Use the mobile GAS workflow as the functional reference, but follow the current 
 - KPI/stat cards use two-column mobile layouts, soft surfaces, 14px radius, and minimal outer borders.
 - Amounts and finance values should use tabular numbers where React Native supports it.
 - Avoid `fontWeight: "900"` as a default. Prefer 700 for titles/primary amounts, 600 for list labels, 500 for metadata, and 400 for body text.
+- Use DM Sans as the default app font to match the GAS version. Keep the additional font choices in Settings and preview each option in its own family.
 - Keep borders for affordance on inputs, selects, destructive/secondary buttons, and internal row separators. Avoid border-heavy cards.
 - On the Gastos screen, keep the active period label in the header subtitle so the period dropdowns stay high and compact.
 - Bottom navigation should stay compact and translucent/floating, with a squircle add button protruding slightly above its container without making the bar taller or clipping the button, plus a subtle active indicator.
 - Settings should expose local preferences for language, currency symbol, and font style. Initialize currency from the device locale when no preference has been saved.
-- Bottom tab changes and modal open/close interactions should feel nearly instant, with minimal transition delay.
+- Bottom tab focus must update on press without waiting for the pager animation. Modal open/close interactions should also feel nearly instant.
 - The Analysis screen should stay mobile-readable: compact KPI rows, chart labels, and a simplified monthly table.
 - Modals should use rounded dark/light panels, clear labels, bordered inputs, large actions, and theme overlay tokens.

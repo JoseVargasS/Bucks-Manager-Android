@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef, useState } from "react";
-import { Alert, Animated, FlatList, Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, FlatList, Modal, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -7,6 +7,7 @@ import { Tag } from "../../types";
 import { UiCopy } from "../../i18n";
 import { loadTags, saveTags } from "../../utils/tags";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text, TextInput } from "../ui/AppText";
 
 const PRESET_COLORS = ["#FF6B6B", "#FF8E53", "#FFD93D", "#6BCB77", "#4D96FF", "#9B59B6", "#3498DB", "#1ABC9C", "#F39C12", "#E74C3C", "#2ECC71", "#E91E63"];
 

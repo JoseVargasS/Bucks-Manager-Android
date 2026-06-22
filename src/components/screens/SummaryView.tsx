@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { calculateSummaries, formatMoney, MONTH_NAMES } from "../../domain/bucksLogic";
@@ -10,6 +10,7 @@ import { MaterialIconName, SummaryRow, Transaction } from "../../types";
 import { BarChart } from "../ui/BarChart";
 import { Kpi } from "../ui/Kpi";
 import { Select } from "../ui/Select";
+import { Text } from "../ui/AppText";
 
 export const SummaryView = memo(function SummaryView({ colors, copy, summaries, transactions, freqIncome, availableYears, topInset, currencySymbol }: {
   colors: Palette; copy: UiCopy; summaries: SummaryRow[]; transactions: Transaction[]; freqIncome: Record<string, number>;
@@ -62,8 +63,8 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>{copy.annualOverview}</Text>
-          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "500", marginTop: 2 }}>{filtered.length} {copy.monthsAnalyzed}</Text>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{copy.annualOverview}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500", marginTop: 2 }}>{filtered.length} {copy.monthsAnalyzed}</Text>
         </View>
         <Select
           value={String(filterYear)}
@@ -78,12 +79,12 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
       <View style={{ backgroundColor: colors.card, borderRadius: 18, padding: 18, overflow: "hidden" }}>
         <View style={{ position: "absolute", width: 150, height: 150, borderRadius: 75, right: -48, top: -68, backgroundColor: colors.primarySoft }} />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "600", textTransform: "uppercase" }}>{copy.annualBalance}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600", textTransform: "uppercase" }}>{copy.annualBalance}</Text>
           <View style={{ backgroundColor: colors.primarySoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 }}>
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{filterYear}</Text>
+            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{filterYear}</Text>
           </View>
         </View>
-        <Text numberOfLines={1} style={{ color: totals.net >= 0 ? colors.primary : colors.red, fontSize: 32, fontWeight: "700", marginTop: 10, fontVariant: ["tabular-nums"] }}>
+        <Text numberOfLines={1} style={{ color: totals.net >= 0 ? colors.primary : colors.red, fontSize: 34, fontWeight: "700", marginTop: 10, fontVariant: ["tabular-nums"] }}>
           {formatMoney(totals.net, currencySymbol, 0)}
         </Text>
         <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
@@ -107,7 +108,7 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
         <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 3 }]}>{copy.monthlyActivity}</Text>
-            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "500" }}>{copy.incomeVsExpenses}</Text>
+            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500" }}>{copy.incomeVsExpenses}</Text>
           </View>
           <View style={{ gap: 5 }}>
             <Legend color={colors.green} label={copy.income} colors={colors} />
@@ -122,24 +123,24 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
 
       <View style={{ backgroundColor: colors.card, borderRadius: 14, overflow: "hidden" }}>
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10 }}>
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>{copy.monthlyDetail}</Text>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{copy.monthlyDetail}</Text>
         </View>
         {filtered.length ? [...filtered].reverse().map((row, index) => (
-          <View key={row.monthYear} style={{ minHeight: 68, paddingHorizontal: 14, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 11, borderTopWidth: index === 0 ? 0 : 0.5, borderColor: colors.border }}>
-            <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: colors.text, fontSize: 12, fontWeight: "700" }}>{monthLabel(row, copy.languageCode).slice(0, 3).toUpperCase()}</Text>
+          <View key={row.monthYear} style={{ minHeight: 74, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", gap: 11, borderTopWidth: index === 0 ? 0 : 0.5, borderColor: colors.border }}>
+            <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{monthLabel(row, copy.languageCode).slice(0, 3).toUpperCase()}</Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: "600" }}>{monthLabel(row, copy.languageCode)}</Text>
+              <Text numberOfLines={1} style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>{monthLabel(row, copy.languageCode)}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-                <Text numberOfLines={1} style={{ color: colors.green, fontSize: 11, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{fm(row.totalIncome)}</Text>
-                <Text style={{ color: colors.muted, fontSize: 10 }}>•</Text>
-                <Text numberOfLines={1} style={{ color: colors.red, fontSize: 11, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{fm(Math.abs(row.totalExpense))}</Text>
+                <Text numberOfLines={1} style={{ color: colors.green, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"], flexShrink: 1 }}>{fm(row.totalIncome)}</Text>
+                <Text style={{ color: colors.muted, fontSize: 11 }}>•</Text>
+                <Text numberOfLines={1} style={{ color: colors.red, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"], flexShrink: 1 }}>{fm(Math.abs(row.totalExpense))}</Text>
               </View>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text numberOfLines={1} style={{ color: row.netMonthly >= 0 ? colors.green : colors.red, fontSize: 14, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{formatMoney(row.netMonthly, currencySymbol, 0)}</Text>
-              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "500", marginTop: 3 }}>{row.totalIncome > 0 ? Math.round((row.netMonthly / row.totalIncome) * 100) : 0}%</Text>
+              <Text numberOfLines={1} style={{ color: row.netMonthly >= 0 ? colors.green : colors.red, fontSize: 16, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{formatMoney(row.netMonthly, currencySymbol, 0)}</Text>
+              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500", marginTop: 3 }}>{row.totalIncome > 0 ? Math.round((row.netMonthly / row.totalIncome) * 100) : 0}%</Text>
             </View>
           </View>
         )) : (
@@ -154,8 +155,8 @@ function Insight({ label, value, icon, color, colors }: { label: string; value: 
   return (
     <View style={{ flex: 1, minWidth: 0, backgroundColor: colors.input, borderRadius: 13, padding: 12 }}>
       <MaterialCommunityIcons name={icon} size={18} color={color} />
-      <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 10, fontWeight: "600", textTransform: "uppercase", marginTop: 8 }}>{label}</Text>
-      <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: "700", marginTop: 3, fontVariant: ["tabular-nums"] }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, fontWeight: "600", textTransform: "uppercase", marginTop: 8 }}>{label}</Text>
+      <Text numberOfLines={1} style={{ color: colors.text, fontSize: 15, fontWeight: "700", marginTop: 3, fontVariant: ["tabular-nums"] }}>{value}</Text>
     </View>
   );
 }
@@ -164,7 +165,7 @@ function Legend({ color, label, colors }: { color: string; label: string; colors
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
       <View style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: color }} />
-      <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "600" }}>{label}</Text>
     </View>
   );
 }
@@ -180,8 +181,8 @@ function BreakdownCard({ title, items, total, colors, format }: {
   return (
     <View style={{ backgroundColor: colors.card, borderRadius: 14, padding: 15, gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>{title}</Text>
-        <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{format(total)}</Text>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>{title}</Text>
+        <Text numberOfLines={1} style={{ color: colors.text, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{format(total)}</Text>
       </View>
       <View style={{ height: 9, borderRadius: 999, overflow: "hidden", backgroundColor: colors.input, flexDirection: "row" }}>
         {items.map((item) => item.value > 0 && <View key={item.label} style={{ flex: item.value / safeTotal, backgroundColor: item.color }} />)}
@@ -190,8 +191,8 @@ function BreakdownCard({ title, items, total, colors, format }: {
         {items.map((item) => (
           <View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: item.color }} />
-            <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 12, fontWeight: "500" }}>{item.label}</Text>
-            <Text style={{ color: item.color, fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{format(item.value)}</Text>
+            <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 13, fontWeight: "500" }}>{item.label}</Text>
+            <Text style={{ color: item.color, fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{format(item.value)}</Text>
           </View>
         ))}
       </View>

@@ -1,7 +1,8 @@
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { Text } from "../ui/AppText";
 import { UiCopy } from "../../i18n";
 
 export function LoginScreen({ colors, copy, loading, canConnect, onSignIn }: { colors: Palette; copy: UiCopy; loading: boolean; canConnect: boolean; onSignIn: () => void }) {

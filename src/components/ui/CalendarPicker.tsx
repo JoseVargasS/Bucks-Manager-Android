@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Animated, Modal, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { Animated, Modal, TouchableOpacity, View, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
 import { Palette } from "../../theme/colors";
 import { UI_COPY, UiCopy } from "../../i18n";
 import { useModalTransition } from "./useModalTransition";
+import { Text } from "./AppText";
 
 const MONTH_ABBR = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
 const MONTH_ABBR_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

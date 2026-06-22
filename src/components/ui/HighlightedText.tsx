@@ -1,4 +1,5 @@
-import { Text, TextStyle } from "react-native";
+import { TextStyle } from "react-native";
+import { Text } from "./AppText";
 
 export function HighlightedText({ text, query, style, highlightStyle }: { text: string; query: string; style: TextStyle | TextStyle[]; highlightStyle: TextStyle }) {
   const value = String(text || "");

@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Animated, Modal, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import { Animated, Modal, TouchableOpacity, View, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { MaterialIconName } from "../../types";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
-type PickerOption = { label: string; value: string; icon?: MaterialIconName; tone?: string };
+type PickerOption = { label: string; value: string; icon?: MaterialIconName; tone?: string; fontFamily?: string };
 type PickerConfig = { title: string; options: PickerOption[]; selectedValue: string; onSelect: (value: string) => void } | null;
 
 export function OptionSheet({ config, colors, onClose }: { config: PickerConfig; colors: Palette; onClose: () => void }) {
@@ -54,7 +55,7 @@ export function OptionSheet({ config, colors, onClose }: { config: PickerConfig;
                   <View style={[styles.optionIcon, { backgroundColor: selected ? colors.primarySoft : colors.card }]}>
                     <MaterialCommunityIcons name={option.icon || "chevron-right"} size={19} color={tone} />
                   </View>
-                  <Text numberOfLines={1} style={[styles.optionLabel, { color: selected ? colors.primary : colors.text }]}>{option.label}</Text>
+                  <Text numberOfLines={1} style={[styles.optionLabel, { color: selected ? colors.primary : colors.text, fontFamily: option.fontFamily, fontWeight: option.value === "light" ? "400" : "600" }]}>{option.label}</Text>
                   {selected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
                 </TouchableOpacity>
               );

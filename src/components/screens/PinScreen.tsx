@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Text, TouchableOpacity, View } from "react-native";
+import { Animated, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Palette } from "../../theme/colors";
+import { Text } from "../ui/AppText";
 
 const KEY_W = 68;
 const KEY_H = 52;

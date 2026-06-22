@@ -6,7 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Sharing from "expo-sharing";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, AppState, Easing, Image, Text, TouchableOpacity, useWindowDimensions, View, StatusBar as NativeStatusBar } from "react-native";
+import { ActivityIndicator, Alert, Animated, AppState, Easing, Image, TouchableOpacity, useWindowDimensions, View, StatusBar as NativeStatusBar } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
@@ -46,6 +46,7 @@ import { PinSetupModal } from "./src/components/modals/PinSetupModal";
 import { SearchModal, SearchModalHandle } from "./src/components/modals/SearchModal";
 import { TagEditorModal } from "./src/components/modals/TagEditorModal";
 import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
+import { getAppFontFamily, Text } from "./src/components/ui/AppText";
 import { ExportFormat, HistoryEntry, SearchFilters, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft } from "./src/types";
 import { getLatestTransactionDate, parseLocalDateTime, parseMonthKey, buildExportFileName, getPeriodRange, getAvailableMonthsForYear, detectDeviceCurrencySymbol, detectDeviceLanguage, applyDefaultFont } from "./src/utils/helpers";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
@@ -66,6 +67,7 @@ const emptySearch: SearchFilters = { text: "", tag: "", minAmount: "", maxAmount
 const LANGUAGE_KEY = "bucks_language";
 const CURRENCY_SYMBOL_KEY = "bucks_currency_symbol";
 const FONT_KEY = "bucks_font";
+const FONT_PREFERENCES: FontPreference[] = ["dmsans", "serif", "mono", "condensed", "light", "casual", "cursive", "smallcaps"];
 const CURRENCY_OPTIONS = [
   { labelEs: "Soles peruanos (S/)", labelEn: "Peruvian soles (S/)", value: "S/", icon: "cash" as const },
   { labelEs: "Dólares ($)", labelEn: "US dollars ($)", value: "$", icon: "currency-usd" as const },
@@ -91,7 +93,7 @@ export default function App() {
   const [language, setLanguage] = useState<LanguageMode>(detectDeviceLanguage);
   const copy = UI_COPY[language];
   const [currencySymbol, setCurrencySymbol] = useState(detectDeviceCurrencySymbol);
-  const [fontPreference, setFontPreference] = useState<FontPreference>("system");
+  const [fontPreference, setFontPreference] = useState<FontPreference>("dmsans");
   const [tab, setTab] = useState<Tab>("expenses");
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
@@ -151,6 +153,7 @@ export default function App() {
   const changeTab = useCallback((next: Tab) => {
     if (next === tabRef.current) return;
     tabRef.current = next;
+    setTab(next);
     pagerTranslateX.stopAnimation();
     Animated.timing(pagerTranslateX, {
       toValue: -TAB_ORDER.indexOf(next) * tabWidth,
@@ -158,9 +161,6 @@ export default function App() {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-    requestAnimationFrame(() => {
-      if (tabRef.current === next) setTab(next);
-    });
   }, [pagerTranslateX, tabWidth]);
 
   useEffect(() => {
@@ -312,9 +312,11 @@ export default function App() {
       setCurrencySymbol(detectedCurrency);
       await SecureStore.setItemAsync(CURRENCY_SYMBOL_KEY, detectedCurrency);
     }
-    if (storedFont === "system" || storedFont === "serif" || storedFont === "mono") {
-      setFontPreference(storedFont);
-      applyDefaultFont(storedFont);
+    if (storedFont === "system" || FONT_PREFERENCES.includes(storedFont as FontPreference)) {
+      const preference: FontPreference = storedFont === "system" ? "dmsans" : storedFont as FontPreference;
+      setFontPreference(preference);
+      applyDefaultFont(preference);
+      if (storedFont === "system") await SecureStore.setItemAsync(FONT_KEY, preference);
     }
   }
 
@@ -330,7 +332,7 @@ export default function App() {
   }, []);
 
   const saveFontPreference = useCallback((next: string) => {
-    const value = next === "serif" || next === "mono" ? next : "system";
+    const value = FONT_PREFERENCES.includes(next as FontPreference) ? next as FontPreference : "dmsans";
     applyDefaultFont(value);
     setFontPreference(value);
     SecureStore.setItemAsync(FONT_KEY, value).catch(() => undefined);
@@ -366,9 +368,14 @@ export default function App() {
       title: copy.fontStyle,
       selectedValue: fontPreference,
       options: [
-        { label: copy.system, value: "system", icon: "format-font" },
-        { label: copy.serif, value: "serif", icon: "format-letter-case" },
-        { label: copy.mono, value: "mono", icon: "code-tags" },
+        { label: copy.system, value: "dmsans", icon: "format-font", fontFamily: getAppFontFamily("dmsans") },
+        { label: copy.serif, value: "serif", icon: "format-letter-case", fontFamily: getAppFontFamily("serif") },
+        { label: copy.mono, value: "mono", icon: "code-tags", fontFamily: getAppFontFamily("mono") },
+        { label: copy.condensed, value: "condensed", icon: "format-letter-spacing", fontFamily: getAppFontFamily("condensed") },
+        { label: copy.lightFont, value: "light", icon: "feather", fontFamily: getAppFontFamily("light") },
+        { label: copy.casual, value: "casual", icon: "draw", fontFamily: getAppFontFamily("casual") },
+        { label: copy.cursive, value: "cursive", icon: "fountain-pen-tip", fontFamily: getAppFontFamily("cursive") },
+        { label: copy.smallCaps, value: "smallcaps", icon: "format-letter-case-upper", fontFamily: getAppFontFamily("smallcaps") },
       ],
       onSelect: saveFontPreference,
     });

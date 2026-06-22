@@ -4,8 +4,10 @@ import { MONTH_NAMES } from "../../domain/bucksLogic";
 import { UI_MONTH_NAMES } from "../../i18n";
 import { Palette } from "../../theme/colors";
 import { SummaryRow } from "../../types";
+import { useAppFontFamily } from "./AppText";
 
 export function BarChart({ rows, colors, language }: { rows: SummaryRow[]; colors: Palette; language: "es" | "en" }) {
+  const fontFamily = useAppFontFamily();
   const displayRows = rows.slice(-12);
   const max = Math.max(1, ...displayRows.map((row) => Math.max(row.totalIncome, Math.abs(row.totalExpense))));
   const chartWidth = 360;
@@ -25,7 +27,7 @@ export function BarChart({ rows, colors, language }: { rows: SummaryRow[]; color
           <G key={ratio}>
             <Line x1={plotLeft} y1={y} x2={chartWidth - 8} y2={y} stroke={colors.border} strokeWidth={0.75} strokeDasharray="3 5" />
             {(ratio === 0.5 || ratio === 1) && (
-              <SvgText x={2} y={y + 3} fontSize={8} fill={colors.muted} fontWeight="500">{compact(max * ratio)}</SvgText>
+              <SvgText x={2} y={y + 3} fontSize={10} fill={colors.muted} fontFamily={fontFamily} fontWeight="500">{compact(max * ratio)}</SvgText>
             )}
           </G>
         );
@@ -42,7 +44,7 @@ export function BarChart({ rows, colors, language }: { rows: SummaryRow[]; color
           <G key={row.monthYear}>
             <Rect x={x} y={baseY - incomeHeight} width={barWidth} height={incomeHeight} rx={3} fill={colors.green} opacity={0.92} />
             <Rect x={x + barWidth + gap} y={baseY - expenseHeight} width={barWidth} height={expenseHeight} rx={3} fill={colors.red} opacity={0.88} />
-            <SvgText x={x + groupWidth / 2} y={baseY + 16} fontSize={8.5} fill={colors.muted} textAnchor="middle" fontWeight="600">
+            <SvgText x={x + groupWidth / 2} y={baseY + 17} fontSize={10.5} fill={colors.muted} fontFamily={fontFamily} textAnchor="middle" fontWeight="600">
               {UI_MONTH_NAMES[language][month].slice(0, 3).toUpperCase()}
             </SvgText>
           </G>

@@ -1,7 +1,7 @@
-import { Text } from "react-native";
 import { Transaction, FontPreference } from "../types";
 import { ExportConfig } from "../components/modals/ExportModal";
 import { MONTH_NAMES } from "../domain/bucksLogic";
+import { setAppFontPreference } from "../components/ui/AppText";
 
 export function getLatestTransactionDate(transactions: Transaction[]) {
   const today = new Date();
@@ -116,8 +116,5 @@ export function detectDeviceCurrencySymbol() {
 }
 
 export function applyDefaultFont(fontPreference: FontPreference) {
-  const fontFamily = fontPreference === "serif" ? "serif" : fontPreference === "mono" ? "monospace" : "sans-serif";
-  const text = Text as typeof Text & { defaultProps?: { style?: unknown } };
-  text.defaultProps = text.defaultProps || {};
-  text.defaultProps.style = [{ fontFamily }];
+  setAppFontPreference(fontPreference);
 }

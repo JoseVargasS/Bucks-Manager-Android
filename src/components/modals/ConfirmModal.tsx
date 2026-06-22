@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Animated, Modal, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Modal, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -9,6 +9,7 @@ import { typeLabel } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 import { MaterialIconName } from "../../types";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 type ConfirmKind = "delete" | "deleteSelected" | "disconnect" | "removeAccount";
 

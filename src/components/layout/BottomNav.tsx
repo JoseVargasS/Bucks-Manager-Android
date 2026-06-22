@@ -1,11 +1,12 @@
 import { memo, type RefObject } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { Tab, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
+import { Text } from "../ui/AppText";
 
 export const BottomNav = memo(function BottomNav({ colors, copy, tab, setTab, onAdd, onSearch, blurTarget }: {
   colors: Palette; copy: UiCopy; tab: Tab; setTab: (tab: Tab) => void; onAdd: () => void; onSearch: () => void; blurTarget: RefObject<View | null>;
@@ -44,7 +45,7 @@ export const BottomNav = memo(function BottomNav({ colors, copy, tab, setTab, on
 
 function BottomNavItem({ colors, active, icon, label, onPress }: { colors: Palette; active: boolean; icon: MaterialIconName; label: string; onPress: () => void }) {
   return (
-    <Pressable onPressIn={onPress} style={[styles.bottomNavItem, active && { backgroundColor: colors.primarySoft }]}>
+    <Pressable onPressIn={onPress} style={({ pressed }) => [styles.bottomNavItem, (active || pressed) && { backgroundColor: colors.primarySoft }]}>
       <MaterialCommunityIcons name={icon} size={21} color={active ? colors.primary : colors.muted} />
       <Text numberOfLines={1} style={[styles.bottomNavLabel, { color: active ? colors.text : colors.muted }]}>{label}</Text>
       {active && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: -2 }} />}

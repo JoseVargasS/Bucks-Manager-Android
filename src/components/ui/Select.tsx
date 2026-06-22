@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { Animated, Keyboard, Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
+import { Animated, Keyboard, Modal, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { useModalTransition } from "./useModalTransition";
+import { Text } from "./AppText";
 
 type SelectOption = { label: string; value: string; color?: string; softBg?: string };
 

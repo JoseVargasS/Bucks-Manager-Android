@@ -65,9 +65,9 @@ Supported transaction types:
 - Financial amounts should use tabular numbers where supported.
 - On the Gastos screen, the active period label lives in the header subtitle so the period dropdowns stay high and compact.
 - Bottom navigation is a compact translucent floating bar; the add button should protrude slightly above it without increasing or clipping the bar.
-- Settings includes local preferences for language, currency symbol, and font style. Currency starts from the device locale when no saved preference exists.
+- Settings includes local preferences for language, currency symbol, and font style. DM Sans matches the GAS app and is the default; each alternate font is previewed in the selector. Currency starts from the device locale when no saved preference exists.
 - On the first launch, language and currency start from the device locale. Google account actions allow switching/adding an account or revoking the current account without deleting its spreadsheet.
-- Bottom tab changes and modal open/close interactions should feel nearly instant, with minimal transition delay.
+- Bottom tab focus changes immediately on press while the pager animates; modal open/close interactions should also feel nearly instant.
 - The Analysis screen is optimized for mobile readability with compact KPI rows, chart labels, and a simplified monthly table.
 
 ## Commands

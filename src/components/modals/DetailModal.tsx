@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Animated, BackHandler, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, BackHandler, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -8,6 +8,7 @@ import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeLabelFull } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 export type DetailModalHandle = { open: (tx: Transaction) => void; close: () => void };
 

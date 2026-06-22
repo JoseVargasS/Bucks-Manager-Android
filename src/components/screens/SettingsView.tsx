@@ -1,10 +1,11 @@
 import { memo } from "react";
-import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
-import { MaterialIconName } from "../../types";
+import { FontPreference, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
+import { Text } from "../ui/AppText";
 
 export const SettingsView = memo(function SettingsView({
   colors, copy, accountInfo, language, currencySymbol, fontPreference, pinEnabled,
@@ -13,7 +14,7 @@ export const SettingsView = memo(function SettingsView({
   onSwitch, onDisconnect, onOpenExport,
 }: {
   colors: Palette; copy: UiCopy;
-  language: "es" | "en"; currencySymbol: string; fontPreference: "system" | "serif" | "mono";
+  language: "es" | "en"; currencySymbol: string; fontPreference: FontPreference;
   accountInfo: { name?: string; email?: string } | null;
   pinEnabled: boolean; tagsCount: number;
   onOpenLanguage: () => void; onOpenCurrency: () => void; onOpenFont: () => void;
@@ -21,7 +22,16 @@ export const SettingsView = memo(function SettingsView({
   onSwitch: () => void; onDisconnect: () => void; onOpenExport: () => void;
 }) {
   const initial = (accountInfo?.email || accountInfo?.name || "B").slice(0, 1).toUpperCase();
-  const fontLabel = fontPreference === "serif" ? copy.serif : fontPreference === "mono" ? copy.mono : copy.system;
+  const fontLabel: Record<FontPreference, string> = {
+    dmsans: copy.system,
+    serif: copy.serif,
+    mono: copy.mono,
+    condensed: copy.condensed,
+    light: copy.lightFont,
+    casual: copy.casual,
+    cursive: copy.cursive,
+    smallcaps: copy.smallCaps,
+  };
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.pageScroll, styles.pageScrollMobile]}>
       <View style={styles.settingsSection}>
@@ -45,7 +55,7 @@ export const SettingsView = memo(function SettingsView({
         <View style={[styles.settingsGroup, { backgroundColor: colors.card }]}>
           <SettingsRow colors={colors} icon="translate" label={copy.language} value={language === "es" ? copy.spanish : copy.english} onPress={onOpenLanguage} />
           <SettingsRow colors={colors} icon="currency-usd" label={copy.currencySymbol} value={currencySymbol} onPress={onOpenCurrency} />
-          <SettingsRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel} onPress={onOpenFont} last />
+          <SettingsRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel[fontPreference]} onPress={onOpenFont} last />
         </View>
       </View>
 

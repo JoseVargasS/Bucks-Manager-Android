@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Modal, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Modal, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { PinScreen } from "../screens/PinScreen";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 export function PinSetupModal({ visible, colors, copy, onClose, onSave }: {
   visible: boolean;

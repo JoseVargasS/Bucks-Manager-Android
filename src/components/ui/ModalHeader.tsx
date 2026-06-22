@@ -1,7 +1,8 @@
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { Text } from "./AppText";
 import { MaterialIconName } from "../../types";
 
 export function ModalHeader({ title, icon, colors, onClose }: { title: string; icon: MaterialIconName; colors: Palette; onClose: () => void }) {

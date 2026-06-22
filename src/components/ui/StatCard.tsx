@@ -1,8 +1,9 @@
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { MaterialIconName } from "../../types";
+import { Text } from "./AppText";
 
 export function StatCard({ title, value, icon, tone, colors, action }: { title: string; value: string; icon: MaterialIconName; tone: "income" | "expense" | "warn" | "balance"; colors: Palette; action?: () => void }) {
   const color = tone === "income" ? colors.green : tone === "warn" ? colors.yellow : tone === "balance" ? colors.blue : colors.red;

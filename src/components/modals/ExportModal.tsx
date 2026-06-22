@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Animated, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { ModalHeader } from "../ui/ModalHeader";
@@ -9,6 +9,7 @@ import { Palette } from "../../theme/colors";
 import { ExportFormat } from "../../types";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 export type ExportConfig = {
   format: ExportFormat;

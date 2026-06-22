@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Animated, FlatList, Modal, Text, TouchableOpacity, View } from "react-native";
+import { Animated, FlatList, Modal, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { HistoryEntry } from "../../types";
 import { styles } from "../../styles/globalStyles";
@@ -8,6 +8,7 @@ import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 export function HistoryModal({ visible, entries, colors, currencySymbol, copy, onClose, onUndo }: {
   visible: boolean;

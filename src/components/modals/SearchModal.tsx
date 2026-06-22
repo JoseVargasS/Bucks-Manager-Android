@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Animated, BackHandler, Keyboard, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, BackHandler, Keyboard, StyleSheet, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -7,6 +7,7 @@ import { SearchFilters, Tag } from "../../types";
 import { SearchPage } from "../screens/SearchPage";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 export type SearchModalHandle = { open: (filters: SearchFilters) => void; close: () => void };
 

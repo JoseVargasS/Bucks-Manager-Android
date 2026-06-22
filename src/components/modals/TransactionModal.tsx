@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Alert, Animated, BackHandler, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, BackHandler, Keyboard, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { calculateExpression, normalizeAmountExpression, TRANSACTION_TYPES } from "../../domain/bucksLogic";
 import { styles } from "../../styles/globalStyles";
@@ -12,6 +12,7 @@ import { typeColor, typeFill, typeLabelFull } from "../../utils/formats";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
 import { getBlankDraft } from "../../utils/transactions";
+import { Text, TextInput } from "../ui/AppText";
 
 export type TransactionModalHandle = {
   open: (draft: TransactionDraft, editingTx?: Transaction | null) => void;

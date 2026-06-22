@@ -1,5 +1,5 @@
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Animated, Dimensions, Modal, Pressable, SectionList, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Dimensions, Modal, Pressable, SectionList, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeColor, typeFill, typeLabelFull } from "../../utils/formats";
@@ -12,6 +12,7 @@ import { Palette } from "../../theme/colors";
 import { SummaryRow, Tag, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
+import { Text } from "../ui/AppText";
 
 type TransactionSection = {
   key: string;

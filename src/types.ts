@@ -68,7 +68,7 @@ type HistoryAction = "create" | "edit" | "delete";
 export type Tab = "expenses" | "summary" | "settings";
 export type ThemeMode = "dark" | "light";
 export type LanguageMode = "es" | "en";
-export type FontPreference = "system" | "serif" | "mono";
+export type FontPreference = "dmsans" | "serif" | "mono" | "condensed" | "light" | "casual" | "cursive" | "smallcaps";
 
 export interface HistoryEntry {
   id: string;
