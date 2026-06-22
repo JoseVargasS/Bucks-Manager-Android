@@ -245,7 +245,6 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
                           const current = currentDraft.tags || [];
                           return { ...currentDraft, tags: current.includes(tag.label) ? current.filter((item) => item !== tag.label) : [...current, tag.label] };
                         });
-                        setTagsOpen(false);
                       }}
                     >
                       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tag.color }} />
