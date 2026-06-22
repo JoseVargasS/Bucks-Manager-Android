@@ -29,6 +29,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
   const [calVisible, setCalVisible] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagsFrame, setTagsFrame] = useState({ left: 14, top: 160, width: 320, maxHeight: 200 });
+  const [kbHeight, setKbHeight] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const modalRef = useRef<View>(null);
   const tagsRef = useRef<View>(null);
@@ -84,10 +85,12 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
   }, [close, visible]);
 
   useEffect(() => {
-    const subscription = Keyboard.addListener("keyboardDidShow", () => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setKbHeight(e.endCoordinates.height);
       if (detailFocusedRef.current) scrollRef.current?.scrollToEnd({ animated: true });
     });
-    return () => subscription.remove();
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKbHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
   const measureTags = useCallback(() => {
@@ -140,7 +143,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
               <MaterialCommunityIcons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView ref={scrollRef} style={styles.recordScroll} contentContainerStyle={styles.recordBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" keyboardDismissMode="none" onScrollBeginDrag={() => setTagsOpen(false)}>
+          <ScrollView ref={scrollRef} style={styles.recordScroll} contentContainerStyle={[styles.recordBody, { paddingBottom: kbHeight + 20 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" keyboardDismissMode="none" onScrollBeginDrag={() => setTagsOpen(false)}>
             <Text style={[styles.label, { color: colors.text }]}>{copy.date}</Text>
             <TouchableOpacity
               style={[{ backgroundColor: colors.input, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, marginBottom: 12 }]}
