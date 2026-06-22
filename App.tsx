@@ -20,7 +20,7 @@ import {
   readSummaries, readTransactions, saveTransaction, insertTransactionAtRow, updateFreqIncome as updateGoogleFreqIncome,
   updateTransaction as updateGoogleTransaction, deleteTransaction as deleteGoogleTransaction,
 } from "./src/api/googleWorkspace";
-import { dark, light, Palette } from "./src/theme/colors";
+import { ColorSchemePreference, dark, getPalette, Palette } from "./src/theme/colors";
 import { getBlankDraft, compareTransactionsDesc, filterTransactionsByRollingPeriod } from "./src/utils/transactions";
 import { formatMoney } from "./src/domain/bucksLogic";
 import { formatCreatedTime } from "./src/utils/formats";
@@ -67,7 +67,16 @@ const emptySearch: SearchFilters = { text: "", tag: "", minAmount: "", maxAmount
 const LANGUAGE_KEY = "bucks_language";
 const CURRENCY_SYMBOL_KEY = "bucks_currency_symbol";
 const FONT_KEY = "bucks_font";
+const COLOR_SCHEME_KEY = "bucks_color_scheme";
 const FONT_PREFERENCES: FontPreference[] = ["dmsans", "serif", "mono", "condensed", "light", "casual", "cursive", "smallcaps"];
+const COLOR_SCHEME_PREFERENCES: ColorSchemePreference[] = ["lime", "ocean", "violet", "amber", "mono"];
+const COLOR_SCHEME_OPTIONS: Array<{ value: ColorSchemePreference; labelEs: string; labelEn: string; icon: MaterialIconName }> = [
+  { value: "lime", labelEs: "Lima Bucks", labelEn: "Bucks Lime", icon: "sprout" },
+  { value: "ocean", labelEs: "Océano", labelEn: "Ocean", icon: "waves" },
+  { value: "violet", labelEs: "Violeta", labelEn: "Violet", icon: "circle-multiple-outline" },
+  { value: "amber", labelEs: "Ámbar", labelEn: "Amber", icon: "white-balance-sunny" },
+  { value: "mono", labelEs: "Monocromo", labelEn: "Monochrome", icon: "circle-half-full" },
+];
 const CURRENCY_OPTIONS = [
   { labelEs: "Soles peruanos (S/)", labelEn: "Peruvian soles (S/)", value: "S/", icon: "cash" as const },
   { labelEs: "Dólares ($)", labelEn: "US dollars ($)", value: "$", icon: "currency-usd" as const },
@@ -89,7 +98,8 @@ const TAB_ORDER: Tab[] = ["expenses", "summary", "settings"];
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const colors: Palette = theme === "dark" ? dark : light;
+  const [colorScheme, setColorScheme] = useState<ColorSchemePreference>("lime");
+  const colors: Palette = useMemo(() => getPalette(theme, colorScheme), [colorScheme, theme]);
   const [language, setLanguage] = useState<LanguageMode>(detectDeviceLanguage);
   const copy = UI_COPY[language];
   const [currencySymbol, setCurrencySymbol] = useState(detectDeviceCurrencySymbol);
@@ -142,7 +152,6 @@ export default function App() {
   const hasLocalDataRef = useRef(false);
   const pendingSyncRef = useRef(false);
   const tabRef = useRef<Tab>(tab);
-  const tabColorsRef = useRef<Record<Tab, Palette>>({ expenses: colors, summary: colors, settings: colors });
   const pagerTranslateX = useRef(new Animated.Value(0)).current;
   const { width: tabWidth } = useWindowDimensions();
   const statusBarInset = NativeStatusBar.currentHeight || 0;
@@ -236,6 +245,8 @@ export default function App() {
     : "", [transactions]);
 
   const uiMonthNames = copy.languageCode === "en" ? UI_MONTH_NAMES.en : UI_MONTH_NAMES.es;
+  const selectedColorScheme = COLOR_SCHEME_OPTIONS.find((option) => option.value === colorScheme) || COLOR_SCHEME_OPTIONS[0];
+  const colorSchemeLabel = language === "en" ? selectedColorScheme.labelEn : selectedColorScheme.labelEs;
   const savedDataText = copy.languageCode === "en" ? "Saved data" : "Datos guardados";
   const syncStatusText = authError
     ? authError
@@ -298,10 +309,11 @@ export default function App() {
   }
 
   async function restorePreferences() {
-    const [storedLanguage, storedCurrency, storedFont] = await Promise.all([
+    const [storedLanguage, storedCurrency, storedFont, storedColorScheme] = await Promise.all([
       SecureStore.getItemAsync(LANGUAGE_KEY),
       SecureStore.getItemAsync(CURRENCY_SYMBOL_KEY),
       SecureStore.getItemAsync(FONT_KEY),
+      SecureStore.getItemAsync(COLOR_SCHEME_KEY),
     ]);
     if (storedLanguage === "es" || storedLanguage === "en") {
       setLanguage(storedLanguage);
@@ -323,6 +335,9 @@ export default function App() {
       setAppFontPreference(preference);
       if (storedFont === "system") await SecureStore.setItemAsync(FONT_KEY, preference);
     }
+    if (COLOR_SCHEME_PREFERENCES.includes(storedColorScheme as ColorSchemePreference)) {
+      setColorScheme(storedColorScheme as ColorSchemePreference);
+    }
   }
 
   const saveLanguage = useCallback((next: string) => {
@@ -341,6 +356,12 @@ export default function App() {
     setAppFontPreference(value);
     setFontPreference(value);
     SecureStore.setItemAsync(FONT_KEY, value).catch(() => undefined);
+  }, []);
+
+  const saveColorScheme = useCallback((next: string) => {
+    const value = COLOR_SCHEME_PREFERENCES.includes(next as ColorSchemePreference) ? next as ColorSchemePreference : "lime";
+    setColorScheme(value);
+    SecureStore.setItemAsync(COLOR_SCHEME_KEY, value).catch(() => undefined);
   }, []);
 
   const openLanguagePicker = useCallback(() => {
@@ -385,6 +406,20 @@ export default function App() {
       onSelect: saveFontPreference,
     });
   }, [copy, fontPreference, saveFontPreference]);
+
+  const openColorSchemePicker = useCallback(() => {
+    optionSheetRef.current?.open({
+      title: copy.colorPalette,
+      selectedValue: colorScheme,
+      options: COLOR_SCHEME_OPTIONS.map((option) => ({
+        label: language === "en" ? option.labelEn : option.labelEs,
+        value: option.value,
+        icon: option.icon,
+        tone: getPalette(theme, option.value).primary,
+      })),
+      onSelect: saveColorScheme,
+    });
+  }, [colorScheme, copy.colorPalette, language, saveColorScheme, theme]);
 
   const openAccountManager = useCallback(() => {
     optionSheetRef.current?.open({
@@ -993,9 +1028,8 @@ export default function App() {
     const pageTitle = targetTab === "expenses" ? copy.expenses : targetTab === "summary" ? copy.summary : copy.settings;
     const pageSubtitle = targetTab === "expenses" ? `${uiMonthNames[month]} ${year}` : targetTab === "summary" ? copy.summarySubtitle : copy.settingsSubtitle;
     const isCurrent = targetTab === tab;
-    const screenColors = isCurrent ? colors : tabColorsRef.current[targetTab];
+    const screenColors = colors;
     const screenIsDark = screenColors.bg === dark.bg;
-    if (isCurrent) tabColorsRef.current[targetTab] = colors;
 
     return (
       <View
@@ -1040,9 +1074,11 @@ export default function App() {
               </View>
             )}
             <SettingsView colors={screenColors} copy={copy} accountInfo={accountInfo}
-              language={language} currencySymbol={currencySymbol} fontPreference={fontPreference} pinEnabled={pinEnabled}
+              language={language} currencySymbol={currencySymbol} fontPreference={fontPreference}
+              colorSchemeLabel={colorSchemeLabel}
+              pinEnabled={pinEnabled}
               tagsCount={tagsList.length}
-              onOpenLanguage={openLanguagePicker} onOpenCurrency={openCurrencyPicker} onOpenFont={openFontPicker}
+              onOpenLanguage={openLanguagePicker} onOpenCurrency={openCurrencyPicker} onOpenFont={openFontPicker} onOpenColorScheme={openColorSchemePicker}
               onOpenPin={handlePinOpen} onOpenTags={openTagEditor}
               onSwitch={openAccountManager} onDisconnect={requestDisconnectGoogle} onOpenExport={openExport}
             />

@@ -9,15 +9,17 @@ import { Text } from "../ui/AppText";
 
 export const SettingsView = memo(function SettingsView({
   colors, copy, accountInfo, language, currencySymbol, fontPreference, pinEnabled,
-  tagsCount,
-  onOpenLanguage, onOpenCurrency, onOpenFont, onOpenPin, onOpenTags,
+  colorSchemeLabel, tagsCount,
+  onOpenLanguage, onOpenCurrency, onOpenFont, onOpenColorScheme, onOpenPin, onOpenTags,
   onSwitch, onDisconnect, onOpenExport,
 }: {
   colors: Palette; copy: UiCopy;
   language: "es" | "en"; currencySymbol: string; fontPreference: FontPreference;
+  colorSchemeLabel: string;
   accountInfo: { name?: string; email?: string } | null;
   pinEnabled: boolean; tagsCount: number;
   onOpenLanguage: () => void; onOpenCurrency: () => void; onOpenFont: () => void;
+  onOpenColorScheme: () => void;
   onOpenPin: () => void; onOpenTags: () => void;
   onSwitch: () => void; onDisconnect: () => void; onOpenExport: () => void;
 }) {
@@ -55,7 +57,8 @@ export const SettingsView = memo(function SettingsView({
         <View style={[styles.settingsGroup, { backgroundColor: colors.card }]}>
           <SettingsRow colors={colors} icon="translate" label={copy.language} value={language === "es" ? copy.spanish : copy.english} onPress={onOpenLanguage} />
           <SettingsRow colors={colors} icon="currency-usd" label={copy.currencySymbol} value={currencySymbol} onPress={onOpenCurrency} />
-          <SettingsRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel[fontPreference]} onPress={onOpenFont} last />
+          <SettingsRow colors={colors} icon="format-font" label={copy.fontStyle} value={fontLabel[fontPreference]} onPress={onOpenFont} />
+          <SettingsRow colors={colors} icon="palette-outline" label={copy.colorPalette} value={colorSchemeLabel} tone={colors.primary} onPress={onOpenColorScheme} last />
         </View>
       </View>
 
@@ -99,13 +102,13 @@ export const SettingsView = memo(function SettingsView({
   );
 });
 
-function SettingsRow({ colors, icon, label, value, onPress, last = false }: {
+function SettingsRow({ colors, icon, label, value, tone, onPress, last = false }: {
   colors: Palette; icon: MaterialIconName;
-  label: string; value?: string; onPress: () => void; last?: boolean;
+  label: string; value?: string; tone?: string; onPress: () => void; last?: boolean;
 }) {
   return (
     <TouchableOpacity style={[styles.settingsRow, !last && { borderBottomWidth: 0.5, borderColor: colors.border }]} onPress={onPress}>
-      <MaterialCommunityIcons name={icon} size={22} color={colors.blue} />
+      <MaterialCommunityIcons name={icon} size={22} color={tone || colors.blue} />
       <Text style={[styles.settingsRowLabel, { color: colors.text }]}>{label}</Text>
       {value !== undefined && <Text numberOfLines={1} style={[styles.settingsRowValue, { color: colors.muted }]}>{value}</Text>}
       <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
