@@ -92,21 +92,25 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
     return () => subscription.remove();
   }, []);
 
-  function toggleTags() {
-    Keyboard.dismiss();
-    if (tagsOpen) {
-      setTagsOpen(false);
-      return;
-    }
+  const measureTags = useCallback(() => {
     tagsRef.current?.measureInWindow((x, y, width, height) => {
       modalRef.current?.measureInWindow((modalX, modalY, _modalWidth, modalHeight) => {
         const maxHeight = Math.min(220, Math.max(120, modalHeight - 92));
         const below = y - modalY + height + 4;
         const top = below + maxHeight <= modalHeight - 10 ? below : Math.max(70, y - modalY - maxHeight - 4);
         setTagsFrame({ left: x - modalX, top, width, maxHeight: Math.min(maxHeight, modalHeight - top - 8) });
-        setTagsOpen(true);
       });
     });
+  }, []);
+
+  function toggleTags() {
+    Keyboard.dismiss();
+    if (tagsOpen) {
+      setTagsOpen(false);
+      return;
+    }
+    setTagsOpen(true);
+    requestAnimationFrame(measureTags);
   }
 
   function submit() {
@@ -120,6 +124,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
     close();
   }
 
+  if (!transition.modalVisible) return null;
   return (
       <Animated.View
         pointerEvents={transition.modalVisible ? "auto" : "none"}
@@ -164,6 +169,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
                 <Text style={[styles.label, { color: colors.text }]}>{copy.tagsTitle}</Text>
                 <TouchableOpacity
                   ref={tagsRef}
+                  onLayout={measureTags}
                   onPress={toggleTags}
                   style={{ minHeight: 42, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.input, flexDirection: "row", alignItems: "center", gap: 8 }}
                 >

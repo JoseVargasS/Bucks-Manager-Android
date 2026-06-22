@@ -45,6 +45,7 @@ export const SearchModal = forwardRef<SearchModalHandle, {
     return () => subscription.remove();
   }, [close, visible]);
 
+  if (!transition.modalVisible) return null;
   return (
       <Animated.View
         pointerEvents={transition.modalVisible ? "auto" : "none"}

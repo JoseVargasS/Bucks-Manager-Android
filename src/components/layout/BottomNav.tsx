@@ -1,5 +1,5 @@
-import { memo, type RefObject } from "react";
-import { Pressable, View } from "react-native";
+import { memo, useRef, type RefObject } from "react";
+import { Animated, Easing, Pressable, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
@@ -33,9 +33,7 @@ export const BottomNav = memo(function BottomNav({ colors, copy, tab, setTab, on
       <View style={styles.bottomNavContent}>
         <BottomNavItem colors={colors} active={tab === "expenses"} icon="view-dashboard-outline" label={copy.expenses} onPress={() => selectTab("expenses")} />
         <BottomNavItem colors={colors} active={false} icon="magnify" label={copy.search} onPress={onSearch} />
-        <Pressable onPressIn={onAdd} style={[styles.bottomAddButton, { backgroundColor: colors.primary }]}>
-          <MaterialCommunityIcons name="plus" size={31} color={colors.onPrimary} />
-        </Pressable>
+        <BottomAddButton colors={colors} onPress={onAdd} />
         <BottomNavItem colors={colors} active={tab === "summary"} icon="chart-line" label={copy.summary} onPress={() => selectTab("summary")} />
         <BottomNavItem colors={colors} active={tab === "settings"} icon="cog-outline" label={copy.settings} onPress={() => selectTab("settings")} />
       </View>
@@ -44,12 +42,36 @@ export const BottomNav = memo(function BottomNav({ colors, copy, tab, setTab, on
 });
 
 function BottomNavItem({ colors, active, icon, label, onPress }: { colors: Palette; active: boolean; icon: MaterialIconName; label: string; onPress: () => void }) {
+  const pressed = useRef(new Animated.Value(0)).current;
+  const animate = (toValue: number, duration: number) => {
+    pressed.stopAnimation();
+    Animated.timing(pressed, { toValue, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+
   return (
-    <Pressable onPressIn={onPress} style={({ pressed }) => [styles.bottomNavItem, (active || pressed) && { backgroundColor: colors.primarySoft }]}>
-      <MaterialCommunityIcons name={icon} size={21} color={active ? colors.primary : colors.muted} />
-      <Text numberOfLines={1} style={[styles.bottomNavLabel, { color: active ? colors.text : colors.muted }]}>{label}</Text>
-      {active && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: -2 }} />}
-    </Pressable>
+    <Animated.View style={{ flex: 1, minWidth: 0, opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }), transform: [{ scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] }) }] }}>
+      <Pressable onPress={onPress} onPressIn={() => animate(1, 70)} onPressOut={() => animate(0, 110)} style={[styles.bottomNavItem, active && { backgroundColor: colors.primarySoft }]}>
+        <Animated.View pointerEvents="none" style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 14, backgroundColor: colors.primarySoft, opacity: pressed }} />
+        <MaterialCommunityIcons name={icon} size={21} color={active ? colors.primary : colors.muted} />
+        <Text numberOfLines={1} style={[styles.bottomNavLabel, { color: active ? colors.text : colors.muted }]}>{label}</Text>
+        {active && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary, marginTop: -2 }} />}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function BottomAddButton({ colors, onPress }: { colors: Palette; onPress: () => void }) {
+  const pressed = useRef(new Animated.Value(0)).current;
+  const animate = (toValue: number, duration: number) => {
+    pressed.stopAnimation();
+    Animated.timing(pressed, { toValue, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+  return (
+    <Animated.View style={[styles.bottomAddButton, { backgroundColor: colors.primary, opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] }), transform: [{ translateY: -16 }, { scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] }) }] }]}>
+      <Pressable onPress={onPress} onPressIn={() => animate(1, 70)} onPressOut={() => animate(0, 110)} style={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center", borderRadius: 17 }}>
+        <MaterialCommunityIcons name="plus" size={31} color={colors.onPrimary} />
+      </Pressable>
+    </Animated.View>
   );
 }
 

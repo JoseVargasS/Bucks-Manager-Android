@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Animated, Keyboard, Modal, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Animated, Easing, Keyboard, Modal, Pressable, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -16,6 +16,7 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
   const [menuFrame, setMenuFrame] = useState({ left: 12, menuTop: 124, width: 180, maxHeight: 240 });
   const triggerRef = useRef<View>(null);
   const pendingSelection = useRef<string | null>(null);
+  const pressed = useRef(new Animated.Value(0)).current;
   const windowSize = useWindowDimensions();
   const transition = useModalTransition(open, 6, 0.99, () => {
     const next = pendingSelection.current;
@@ -24,8 +25,7 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
   });
   const selected = options.find((o) => o.value === value);
   const label = selected ? selected.label : placeholder;
-  const openMenu = () => {
-    Keyboard.dismiss();
+  const measureMenu = useCallback(() => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {
       const margin = 12;
       const gap = 2;
@@ -41,22 +41,33 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
         ? Math.max(margin, anchorTop - maxHeight - gap)
         : Math.min(windowSize.height - margin - maxHeight, anchorTop + height + gap);
       setMenuFrame({ left, menuTop, width: panelWidth, maxHeight });
-      setOpen(true);
     });
+  }, [windowSize.height, windowSize.width]);
+  const openMenu = () => {
+    Keyboard.dismiss();
+    setOpen(true);
+    requestAnimationFrame(measureMenu);
+  };
+  const animatePress = (toValue: number, duration: number) => {
+    pressed.stopAnimation();
+    Animated.timing(pressed, { toValue, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   };
 
   return (
-    <View ref={triggerRef} collapsable={false} style={style}>
-      <TouchableOpacity
-        style={[styles.selectButton, { backgroundColor: colors.input, borderColor: colors.border }]}
-        onPress={openMenu}
-        activeOpacity={1}
-        accessibilityLabel={title || placeholder || label}
-      >
-        {selected?.color && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: selected.color }} />}
-        <Text numberOfLines={1} style={[styles.selectButtonText, { color: selected?.color || (selected ? colors.text : colors.muted) }]}>{label}</Text>
-        <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
-      </TouchableOpacity>
+    <View ref={triggerRef} collapsable={false} onLayout={measureMenu} style={style}>
+      <Animated.View style={{ opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }), transform: [{ scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.985] }) }] }}>
+        <Pressable
+          style={[styles.selectButton, { backgroundColor: colors.input, borderColor: colors.border }]}
+          onPress={openMenu}
+          onPressIn={() => animatePress(1, 70)}
+          onPressOut={() => animatePress(0, 110)}
+          accessibilityLabel={title || placeholder || label}
+        >
+          {selected?.color && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: selected.color }} />}
+          <Text numberOfLines={1} style={[styles.selectButtonText, { color: selected?.color || (selected ? colors.text : colors.muted) }]}>{label}</Text>
+          <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
+        </Pressable>
+      </Animated.View>
 
       {transition.modalVisible && <Modal visible transparent animationType="none" onRequestClose={() => setOpen(false)}>
         <Animated.View style={[styles.selectModalOverlay, transition.containerStyle]}>

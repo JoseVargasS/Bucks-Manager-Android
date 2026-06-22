@@ -5,8 +5,8 @@ import * as Print from "expo-print";
 import * as SecureStore from "expo-secure-store";
 import * as Sharing from "expo-sharing";
 import * as SplashScreen from "expo-splash-screen";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, AppState, Easing, Image, TouchableOpacity, useWindowDimensions, View, StatusBar as NativeStatusBar } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, AppState, Easing, Image, Pressable, TouchableOpacity, useWindowDimensions, View, StatusBar as NativeStatusBar } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
@@ -45,9 +45,9 @@ import { HistoryModal } from "./src/components/modals/HistoryModal";
 import { PinSetupModal } from "./src/components/modals/PinSetupModal";
 import { SearchModal, SearchModalHandle } from "./src/components/modals/SearchModal";
 import { TagEditorModal } from "./src/components/modals/TagEditorModal";
-import { OptionSheet, PickerConfig } from "./src/components/modals/OptionSheet";
+import { OptionSheet, OptionSheetHandle } from "./src/components/modals/OptionSheet";
 import { getAppFontFamily, Text } from "./src/components/ui/AppText";
-import { ExportFormat, HistoryEntry, SearchFilters, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, Tag, Transaction, TransactionDraft } from "./src/types";
+import { ExportFormat, HistoryEntry, SearchFilters, SummaryRow, Tab, ThemeMode, LanguageMode, FontPreference, MaterialIconName, Tag, Transaction, TransactionDraft } from "./src/types";
 import { getLatestTransactionDate, parseLocalDateTime, parseMonthKey, buildExportFileName, getPeriodRange, getAvailableMonthsForYear, detectDeviceCurrencySymbol, detectDeviceLanguage, applyDefaultFont } from "./src/utils/helpers";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
 
@@ -118,7 +118,6 @@ export default function App() {
   const [searchActive, setSearchActive] = useState(false);
   const [loadedMonthCount, setLoadedMonthCount] = useState(1);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
-  const [picker, setPicker] = useState<PickerConfig>(null);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [freqInput, setFreqInput] = useState("");
@@ -137,12 +136,15 @@ export default function App() {
   const transactionModalRef = useRef<TransactionModalHandle>(null);
   const detailModalRef = useRef<DetailModalHandle>(null);
   const searchModalRef = useRef<SearchModalHandle>(null);
+  const optionSheetRef = useRef<OptionSheetHandle>(null);
   const didSetInitialPeriodRef = useRef(false);
   const reloadPromiseRef = useRef<Promise<void> | null>(null);
   const freqIncomeRef = useRef<Record<string, number>>({});
   const hasLocalDataRef = useRef(false);
   const pendingSyncRef = useRef(false);
   const tabRef = useRef<Tab>(tab);
+  const tabColorsRef = useRef<Record<Tab, Palette>>({ expenses: colors, summary: colors, settings: colors });
+  const tabCommitFrameRef = useRef<number | null>(null);
   const pagerTranslateX = useRef(new Animated.Value(0)).current;
   const { width: tabWidth } = useWindowDimensions();
   const statusBarInset = NativeStatusBar.currentHeight || 0;
@@ -153,7 +155,6 @@ export default function App() {
   const changeTab = useCallback((next: Tab) => {
     if (next === tabRef.current) return;
     tabRef.current = next;
-    setTab(next);
     pagerTranslateX.stopAnimation();
     Animated.timing(pagerTranslateX, {
       toValue: -TAB_ORDER.indexOf(next) * tabWidth,
@@ -161,7 +162,16 @@ export default function App() {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
+    if (tabCommitFrameRef.current !== null) cancelAnimationFrame(tabCommitFrameRef.current);
+    tabCommitFrameRef.current = requestAnimationFrame(() => {
+      tabCommitFrameRef.current = null;
+      setTab(next);
+    });
   }, [pagerTranslateX, tabWidth]);
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => current === "dark" ? "light" : "dark");
+  }, []);
+  const openHistory = useCallback(() => setHistoryVisible(true), []);
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -339,7 +349,7 @@ export default function App() {
   }, []);
 
   const openLanguagePicker = useCallback(() => {
-    setPicker({
+    optionSheetRef.current?.open({
       title: copy.language,
       selectedValue: language,
       options: [
@@ -351,7 +361,7 @@ export default function App() {
   }, [copy, language, saveLanguage]);
 
   const openCurrencyPicker = useCallback(() => {
-    setPicker({
+    optionSheetRef.current?.open({
       title: copy.currencySymbol,
       selectedValue: currencySymbol,
       options: CURRENCY_OPTIONS.map((option) => ({
@@ -364,7 +374,7 @@ export default function App() {
   }, [copy.currencySymbol, currencySymbol, language, saveCurrencySymbol]);
 
   const openFontPicker = useCallback(() => {
-    setPicker({
+    optionSheetRef.current?.open({
       title: copy.fontStyle,
       selectedValue: fontPreference,
       options: [
@@ -382,7 +392,7 @@ export default function App() {
   }, [copy, fontPreference, saveFontPreference]);
 
   const openAccountManager = useCallback(() => {
-    setPicker({
+    optionSheetRef.current?.open({
       title: copy.googleAccounts,
       selectedValue: "",
       options: [
@@ -833,7 +843,7 @@ export default function App() {
   }, [accessToken, copy, freqIncome, spreadsheetId, transactions]);
 
   const openMoveMenu = useCallback((tx: Transaction) => {
-    setPicker({
+    optionSheetRef.current?.open({
       title: "Mover registro", selectedValue: "",
       options: [
         { label: "Subir una posición", value: "up", icon: "arrow-up", tone: colors.blue },
@@ -977,7 +987,6 @@ export default function App() {
   const openExport = useCallback(() => setExportVisible(true), []);
   const openSearch = useCallback(() => searchModalRef.current?.open(searchFilters), [searchFilters]);
   const closeFreqIncome = useCallback(() => setFreqVisible(false), []);
-  const closePicker = useCallback(() => setPicker(null), []);
   const closeConfirm = useCallback(() => setConfirmConfig(null), []);
   const closeHistory = useCallback(() => setHistoryVisible(false), []);
   const closePinSetup = useCallback(() => setPinSetupVisible(false), []);
@@ -989,6 +998,8 @@ export default function App() {
     const pageTitle = targetTab === "expenses" ? copy.expenses : targetTab === "summary" ? copy.summary : copy.settings;
     const pageSubtitle = targetTab === "expenses" ? `${uiMonthNames[month]} ${year}` : targetTab === "summary" ? copy.summarySubtitle : copy.settingsSubtitle;
     const isCurrent = targetTab === tab;
+    const screenColors = isCurrent ? colors : tabColorsRef.current[targetTab];
+    if (isCurrent) tabColorsRef.current[targetTab] = colors;
 
     return (
       <View
@@ -1007,7 +1018,7 @@ export default function App() {
             )}
             {targetTab === "expenses" ? (
               <ExpensesView
-                colors={colors} summary={currentSummary} transactions={visibleTransactions}
+                colors={screenColors} summary={currentSummary} transactions={visibleTransactions}
                 searchActive={searchActive} searchText={searchFilters.text} selectedRows={selectedRows}
                 currencySymbol={currencySymbol}
                 copy={copy}
@@ -1021,7 +1032,7 @@ export default function App() {
                 tagsList={tagsList}
               />
             ) : (
-              <SummaryView colors={colors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
+              <SummaryView colors={screenColors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
             )}
           </View>
         ) : (
@@ -1032,7 +1043,7 @@ export default function App() {
                 <Text style={{ color: colors.muted }}>{syncStatusText || copy.syncing}</Text>
               </View>
             )}
-            <SettingsView colors={colors} copy={copy} accountInfo={accountInfo}
+            <SettingsView colors={screenColors} copy={copy} accountInfo={accountInfo}
               language={language} currencySymbol={currencySymbol} fontPreference={fontPreference} pinEnabled={pinEnabled}
               tagsCount={tagsList.length}
               onOpenLanguage={openLanguagePicker} onOpenCurrency={openCurrencyPicker} onOpenFont={openFontPicker}
@@ -1057,18 +1068,8 @@ export default function App() {
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}
-                  onPress={() => setTheme(theme === "dark" ? "light" : "dark")}
-                >
-                  <MaterialCommunityIcons name={theme === "dark" ? "weather-night" : "white-balance-sunny"} size={20} color={colors.yellow} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}
-                  onPress={() => setHistoryVisible(true)}
-                >
-                  <MaterialCommunityIcons name="history" size={20} color={historyEntries.length ? colors.primary : colors.muted} />
-                </TouchableOpacity>
+                <HeaderActionButton colors={colors} icon={theme === "dark" ? "weather-night" : "white-balance-sunny"} iconColor={colors.yellow} onPress={toggleTheme} activateOnPressIn />
+                <HeaderActionButton colors={colors} icon="history" iconColor={historyEntries.length ? colors.primary : colors.muted} onPress={openHistory} />
               </View>
             </View>
             {targetTab === "expenses" && (
@@ -1154,7 +1155,7 @@ export default function App() {
       <FreqIncomeModal visible={freqVisible} colors={colors} value={freqInput} setValue={setFreqInput}
         copy={copy} onClose={closeFreqIncome} onSubmit={saveFreqIncome} />
       <DetailModal ref={detailModalRef} colors={colors} currencySymbol={currencySymbol} copy={copy} onEdit={openEdit} onDelete={requestDelete} />
-      <OptionSheet config={picker} colors={colors} onClose={closePicker} />
+      <OptionSheet ref={optionSheetRef} colors={colors} />
       <ConfirmModal config={confirmConfig} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={closeConfirm} onConfirm={handleConfirm} />
       <HistoryModal visible={historyVisible} entries={historyEntries} colors={colors} currencySymbol={currencySymbol} copy={copy} onClose={closeHistory} onUndo={undoDeleteEntry} />
       <PinSetupModal visible={pinSetupVisible} colors={colors} copy={copy} onClose={closePinSetup} onSave={handlePinSave} />
@@ -1181,7 +1182,32 @@ function StartupSplash() {
   );
 }
 
-function HeaderFade({ color, height }: { color: string; height: number }) {
+const HeaderActionButton = memo(function HeaderActionButton({ colors, icon, iconColor, onPress, activateOnPressIn = false }: { colors: Palette; icon: MaterialIconName; iconColor: string; onPress: () => void; activateOnPressIn?: boolean }) {
+  const pressed = useRef(new Animated.Value(0)).current;
+  const animate = (toValue: number, duration: number) => {
+    pressed.stopAnimation();
+    Animated.timing(pressed, { toValue, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+  return (
+    <Animated.View style={{ opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.8] }), transform: [{ scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] }) }] }}>
+      <Pressable
+        onPress={activateOnPressIn ? undefined : onPress}
+        onPressIn={() => {
+          animate(1, 70);
+          if (activateOnPressIn) onPress();
+        }}
+        onPressOut={() => animate(0, 110)}
+        accessibilityRole="button"
+        onAccessibilityTap={activateOnPressIn ? onPress : undefined}
+        style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.input, alignItems: "center", justifyContent: "center" }}
+      >
+        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+const HeaderFade = memo(function HeaderFade({ color, height }: { color: string; height: number }) {
   return (
     <Svg pointerEvents="none" width="100%" height={height} style={{ position: "absolute", top: 0, left: 0, right: 0 }}>
       <Defs>
@@ -1195,9 +1221,9 @@ function HeaderFade({ color, height }: { color: string; height: number }) {
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerFade)" />
     </Svg>
   );
-}
+});
 
-function HeaderTitleFade({ color }: { color: string }) {
+const HeaderTitleFade = memo(function HeaderTitleFade({ color }: { color: string }) {
   return (
     <Svg pointerEvents="none" width="92%" height={70} style={styles.headerTitleFade}>
       <Defs>
@@ -1219,9 +1245,9 @@ function HeaderTitleFade({ color }: { color: string }) {
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerTitleFadeHorizontal)" mask="url(#headerTitleFadeMask)" />
     </Svg>
   );
-}
+});
 
-function BottomFade({ color, height }: { color: string; height: number }) {
+const BottomFade = memo(function BottomFade({ color, height }: { color: string; height: number }) {
   return (
     <Svg pointerEvents="none" width="100%" height={height} style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10 }}>
       <Defs>
@@ -1235,4 +1261,4 @@ function BottomFade({ color, height }: { color: string; height: number }) {
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
     </Svg>
   );
-}
+});

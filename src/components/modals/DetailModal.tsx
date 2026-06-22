@@ -42,6 +42,7 @@ export const DetailModal = forwardRef<DetailModalHandle, { colors: Palette; curr
     return () => subscription.remove();
   }, [close, visible]);
 
+  if (!transition.modalVisible) return null;
   return (
       <Animated.View
         pointerEvents={transition.modalVisible ? "auto" : "none"}
