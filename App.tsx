@@ -44,6 +44,7 @@ import {
   deleteTransaction as deleteGoogleTransaction,
 } from "./src/api/googleWorkspace";
 import { ColorSchemePreference, getPalette, Palette } from "./src/theme/colors";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import {
   getBlankDraft,
   sortTransactionsDesc,
@@ -266,13 +267,9 @@ const defaultExportConfig: ExportConfig = {
 };
 const TAB_ORDER: Tab[] = ["expenses", "summary", "settings"];
 
-export default function App() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-  const [colorScheme, setColorScheme] = useState<ColorSchemePreference>("lime");
-  const colors: Palette = useMemo(
-    () => getPalette(theme, colorScheme),
-    [colorScheme, theme],
-  );
+function AppContent() {
+  const { colors, theme, colorScheme, toggleTheme, setColorScheme } =
+    useTheme();
   const [language, setLanguage] = useState<LanguageMode>(detectDeviceLanguage);
   const copy = UI_COPY[language];
   const [currencySymbol, setCurrencySymbol] = useState(
@@ -358,9 +355,6 @@ export default function App() {
     },
     [pagerTranslateX, tabWidth],
   );
-  const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }, []);
   const openHistory = useCallback(() => setHistoryVisible(true), []);
 
   useEffect(() => {
@@ -1903,7 +1897,6 @@ export default function App() {
 
         <BottomFade color={colors.bg} height={bottomFadeHeight} />
         <BottomNav
-          colors={colors}
           copy={copy}
           tab={tab}
           setTab={changeTab}
@@ -2180,3 +2173,11 @@ const BottomFade = memo(function BottomFade({
     </Svg>
   );
 });
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}

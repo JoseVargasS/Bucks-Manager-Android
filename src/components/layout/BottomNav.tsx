@@ -1,35 +1,47 @@
-import { memo, useRef, useEffect } from "react";
+import { memo, useRef, useMemo, useCallback } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
-import { Palette, dark } from "../../theme/colors";
+import { useColor } from "../../theme/ThemeContext";
+import { dark } from "../../theme/colors";
 import { Tab, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 import { Text } from "../ui/AppText";
 
 export const BottomNav = memo(function BottomNav({
-  colors,
   copy,
   tab,
   setTab,
   onAdd,
   onSearch,
 }: {
-  colors: Palette;
   copy: UiCopy;
   tab: Tab;
   setTab: (tab: Tab) => void;
   onAdd: () => void;
   onSearch: () => void;
 }) {
-  const isDark = colors.bg === dark.bg;
-  const glassSurface = isDark
-    ? withAlpha(colors.card, 0.72)
-    : withAlpha(colors.card, 0.96);
-  const selectTab = (next: Tab) => {
-    if (next === tab) return;
-    setTab(next);
-  };
+  const card = useColor("card");
+  const borderStrong = useColor("borderStrong");
+  const bg = useColor("bg");
+  const isDark = useMemo(() => bg === dark.bg, [bg]);
+
+  const glassSurface = useMemo(
+    () => (isDark ? withAlpha(card, 0.72) : withAlpha(card, 0.96)),
+    [isDark, card],
+  );
+  const borderAlpha = useMemo(
+    () => withAlpha(borderStrong, isDark ? 0.26 : 0.54),
+    [isDark, borderStrong],
+  );
+  const selectTab = useCallback(
+    (next: Tab) => {
+      if (next === tab) return;
+      setTab(next);
+    },
+    [tab, setTab],
+  );
+
   return (
     <View style={styles.bottomNav}>
       <View
@@ -38,35 +50,31 @@ export const BottomNav = memo(function BottomNav({
           styles.bottomNavGlass,
           {
             backgroundColor: glassSurface,
-            borderColor: withAlpha(colors.borderStrong, isDark ? 0.26 : 0.54),
+            borderColor: borderAlpha,
           },
         ]}
       />
       <View style={styles.bottomNavContent}>
         <BottomNavItem
-          colors={colors}
           active={tab === "expenses"}
           icon="view-dashboard-outline"
           label={copy.expenses}
           onPress={() => selectTab("expenses")}
         />
         <BottomNavItem
-          colors={colors}
           active={false}
           icon="magnify"
           label={copy.search}
           onPress={onSearch}
         />
-        <BottomAddButton colors={colors} onPress={onAdd} />
+        <BottomAddButton onPress={onAdd} />
         <BottomNavItem
-          colors={colors}
           active={tab === "summary"}
           icon="chart-line"
           label={copy.summary}
           onPress={() => selectTab("summary")}
         />
         <BottomNavItem
-          colors={colors}
           active={tab === "settings"}
           icon="cog-outline"
           label={copy.settings}
@@ -77,39 +85,62 @@ export const BottomNav = memo(function BottomNav({
   );
 });
 
-function BottomNavItem({
-  colors,
+const BottomNavItem = memo(function BottomNavItem({
   active,
   icon,
   label,
   onPress,
 }: {
-  colors: Palette;
   active: boolean;
   icon: MaterialIconName;
   label: string;
   onPress: () => void;
 }) {
+  const primary = useColor("primary");
+  const primarySoft = useColor("primarySoft");
+  const muted = useColor("muted");
+  const text = useColor("text");
+
   const pressed = useRef(new Animated.Value(0)).current;
-  const activeProgress = useRef(new Animated.Value(active ? 1 : 0)).current;
-  const animate = (toValue: number, duration: number) => {
-    pressed.stopAnimation();
-    Animated.timing(pressed, {
-      toValue,
-      duration,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
-  useEffect(() => {
-    activeProgress.stopAnimation();
-    Animated.timing(activeProgress, {
+  const activeAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const prevActive = useRef(active);
+
+  // Animate active state only when it changes
+  if (active !== prevActive.current) {
+    prevActive.current = active;
+    Animated.timing(activeAnim, {
       toValue: active ? 1 : 0,
-      duration: 170,
+      duration: 100,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [active, activeProgress]);
+  }
+
+  const handlePressIn = useCallback(() => {
+    Animated.timing(pressed, {
+      toValue: 1,
+      duration: 70,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressed]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressed, {
+      toValue: 0,
+      duration: 110,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressed]);
+
+  const activeOpacity = activeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const iconColor = active ? primary : muted;
+  const textColor = active ? text : muted;
 
   return (
     <Animated.View
@@ -132,8 +163,8 @@ function BottomNavItem({
     >
       <Pressable
         onPress={onPress}
-        onPressIn={() => animate(1, 70)}
-        onPressOut={() => animate(0, 110)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={styles.bottomNavItem}
       >
         <Animated.View
@@ -145,8 +176,8 @@ function BottomNavItem({
             bottom: 0,
             left: 0,
             borderRadius: 14,
-            backgroundColor: colors.primarySoft,
-            opacity: activeProgress,
+            backgroundColor: primarySoft,
+            opacity: activeOpacity,
           }}
         />
         <Animated.View
@@ -158,21 +189,14 @@ function BottomNavItem({
             bottom: 0,
             left: 0,
             borderRadius: 14,
-            backgroundColor: colors.primarySoft,
+            backgroundColor: primarySoft,
             opacity: pressed,
           }}
         />
-        <MaterialCommunityIcons
-          name={icon}
-          size={21}
-          color={active ? colors.primary : colors.muted}
-        />
+        <MaterialCommunityIcons name={icon} size={21} color={iconColor} />
         <Text
           numberOfLines={1}
-          style={[
-            styles.bottomNavLabel,
-            { color: active ? colors.text : colors.muted },
-          ]}
+          style={[styles.bottomNavLabel, { color: textColor }]}
         >
           {label}
         </Text>
@@ -181,40 +205,45 @@ function BottomNavItem({
             width: 4,
             height: 4,
             borderRadius: 2,
-            backgroundColor: colors.primary,
+            backgroundColor: primary,
             marginTop: -2,
-            opacity: activeProgress,
-            transform: [{ scale: activeProgress }],
+            opacity: activeOpacity,
           }}
         />
       </Pressable>
     </Animated.View>
   );
-}
+});
 
-function BottomAddButton({
-  colors,
-  onPress,
-}: {
-  colors: Palette;
-  onPress: () => void;
-}) {
+function BottomAddButton({ onPress }: { onPress: () => void }) {
+  const primary = useColor("primary");
+  const onPrimary = useColor("onPrimary");
   const pressed = useRef(new Animated.Value(0)).current;
-  const animate = (toValue: number, duration: number) => {
-    pressed.stopAnimation();
+
+  const handlePressIn = useCallback(() => {
     Animated.timing(pressed, {
-      toValue,
-      duration,
+      toValue: 1,
+      duration: 70,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  };
+  }, [pressed]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.timing(pressed, {
+      toValue: 0,
+      duration: 110,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressed]);
+
   return (
     <Animated.View
       style={[
         styles.bottomAddButton,
         {
-          backgroundColor: colors.primary,
+          backgroundColor: primary,
           opacity: pressed.interpolate({
             inputRange: [0, 1],
             outputRange: [1, 0.84],
@@ -233,8 +262,8 @@ function BottomAddButton({
     >
       <Pressable
         onPress={onPress}
-        onPressIn={() => animate(1, 70)}
-        onPressOut={() => animate(0, 110)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={{
           width: "100%",
           height: "100%",
@@ -243,11 +272,7 @@ function BottomAddButton({
           borderRadius: 17,
         }}
       >
-        <MaterialCommunityIcons
-          name="plus"
-          size={31}
-          color={colors.onPrimary}
-        />
+        <MaterialCommunityIcons name="plus" size={31} color={onPrimary} />
       </Pressable>
     </Animated.View>
   );
