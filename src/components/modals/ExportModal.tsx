@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Animated, Modal, ScrollView, TouchableOpacity, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { ModalHeader } from "../ui/ModalHeader";
 import { ActionRow } from "../ui/ActionRow";

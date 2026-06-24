@@ -61,7 +61,7 @@ export type SheetCandidate = {
 };
 
 export type ExportFormat = "xlsx" | "pdf";
-export type MaterialIconName = React.ComponentProps<typeof import("@expo/vector-icons").MaterialCommunityIcons>["name"];
+export type MaterialIconName = React.ComponentProps<typeof import("@expo/vector-icons/MaterialCommunityIcons").default>["name"];
 
 type HistoryAction = "create" | "edit" | "delete";
 

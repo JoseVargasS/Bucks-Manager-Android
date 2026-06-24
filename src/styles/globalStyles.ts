@@ -53,7 +53,6 @@ export const styles = StyleSheet.create({
   selectionText: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: "600" },
   selectionActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   selectionBtn: { width: 42, height: 42, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  dateGroup: { gap: 8 },
   dateGroupLabel: { paddingHorizontal: 4, fontSize: 12, fontWeight: "600", letterSpacing: 0 },
   groupedTxRow: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   txIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 0, alignItems: "center", justifyContent: "center" },

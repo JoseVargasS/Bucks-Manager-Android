@@ -1,5 +1,6 @@
-import { Transaction, TransactionDraft, TransactionType } from "../types";
+import type { Transaction, TransactionDraft, TransactionType } from "../types";
 import { formatDateToISO } from "../domain/bucksLogic";
+import { UI_COPY, type UiCopy } from "../i18n";
 import { formatDateGroupLabel } from "./formats";
 
 
@@ -9,10 +10,16 @@ export function getBlankDraft(type: TransactionType = "GASTO NO FRECUENTE"): Tra
 }
 
 /** Ordena transacciones por fecha descendente, resolviendo empates por createdAt */
-export function compareTransactionsDesc(a: Transaction, b: Transaction): number {
-  const dateDiff = new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime();
-  if (dateDiff) return dateDiff;
-  return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+export function sortTransactionsDesc(transactions: Transaction[]): Transaction[] {
+  return transactions
+    .map((tx, index) => ({
+      tx,
+      index,
+      date: Date.parse(tx.rawDate),
+      createdAt: tx.createdAt ? Date.parse(tx.createdAt) : 0,
+    }))
+    .sort((a, b) => b.date - a.date || b.createdAt - a.createdAt || a.index - b.index)
+    .map(({ tx }) => tx);
 }
 
 /** Filtra transacciones dentro de una ventana de N meses hacia atrás desde el mes/año dados */
@@ -27,16 +34,23 @@ export function filterTransactionsByRollingPeriod(transactions: Transaction[], m
 
 /** Agrupa transacciones por fecha en segmentos con etiqueta y array de items */
 export function groupTransactionsByDate(transactions: Transaction[], copy: UiCopy = UI_COPY.es): Array<{ key: string; label: string; items: Transaction[] }> {
-  const groups = transactions.reduce<Array<{ key: string; label: string; items: Transaction[] }>>((groups, tx) => {
-    const key = formatDateToISO(new Date(tx.rawDate));
-    let group = groups.find((item) => item.key === key);
+  const groups: Array<{ key: string; label: string; items: Transaction[] }> = [];
+  const groupsByDate = new Map<string, (typeof groups)[number]>();
+  const dateKeys = new Map<string, string>();
+  transactions.forEach((tx) => {
+    let key = dateKeys.get(tx.rawDate);
+    if (key === undefined) {
+      key = formatDateToISO(new Date(tx.rawDate));
+      dateKeys.set(tx.rawDate, key);
+    }
+    let group = groupsByDate.get(key);
     if (!group) {
       group = { key, label: formatDateGroupLabel(tx.rawDate, copy), items: [] };
+      groupsByDate.set(key, group);
       groups.push(group);
     }
     group.items.push(tx);
-    return groups;
-  }, []);
+  });
   for (const group of groups) group.items.reverse();
   return groups;
 }

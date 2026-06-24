@@ -1,4 +1,4 @@
-import { SheetCandidate, SummaryRow, Transaction, TransactionDraft } from "../types";
+import type { SheetCandidate, SummaryRow, Transaction, TransactionDraft } from "../types";
 import {
   SHEET_NAMES,
   buildTransactionFromDraft,
@@ -12,6 +12,7 @@ const DRIVE = "https://www.googleapis.com/drive/v3";
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
 const HEADER_SCAN_ROWS = 12;
+const SHEET_SCAN_BATCH_SIZE = 5;
 const TAG_SEPARATOR = ", ";
 const TAG_HEADER = "ETIQUETAS";
 const tagsColumnReady = new Set<string>();
@@ -135,10 +136,21 @@ async function readSingleRow(token: string, spreadsheetId: string, rowNumber: nu
   return data.values?.[0] || [];
 }
 
-async function ensureTransactionTagsColumn(token: string, spreadsheetId: string) {
+async function ensureTransactionTagsColumn(token: string, spreadsheetId: string, knownHeader?: unknown) {
   if (tagsColumnReady.has(spreadsheetId)) return;
+  let header = knownHeader;
+  if (header === undefined) {
+    const data = await googleFetch<{ values?: unknown[][] }>(
+      token,
+      readValuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1`),
+    );
+    header = data.values?.[0]?.[0];
+  }
+  if (normalizeHeader(header) === TAG_HEADER) {
+    tagsColumnReady.add(spreadsheetId);
+    return;
+  }
   const sheetId = await getTransactionSheetId(token, spreadsheetId);
-  await migrateTagsColumnIntoTable(token, spreadsheetId, sheetId);
   await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1`)}?valueInputOption=USER_ENTERED`, {
     method: "PUT",
     body: JSON.stringify({ values: [[TAG_HEADER]] }),
@@ -180,35 +192,6 @@ async function ensureTransactionTagsColumn(token: string, spreadsheetId: string)
   });
   await normalizeExistingTagCells(token, spreadsheetId);
   tagsColumnReady.add(spreadsheetId);
-}
-
-async function migrateTagsColumnIntoTable(token: string, spreadsheetId: string, sheetId: number) {
-  const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1:G`));
-  const rows = data.values || [];
-  const fHeader = normalizeHeader(rows[0]?.[0]);
-  if (fHeader === TAG_HEADER) return;
-  const gHasData = rows.some((row) => String(row[1] || "").trim());
-  if (fHeader !== normalizeHeader(TRANSACTION_HEADERS[5]) || gHasData) return;
-  const values = rows.map((row, index) => [index === 0 ? TAG_HEADER : parseTags(row[0]).join(TAG_SEPARATOR)]);
-  await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
-    method: "POST",
-    body: JSON.stringify({
-      requests: [{
-        insertDimension: {
-          range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 },
-          inheritFromBefore: true,
-        },
-      }],
-    }),
-  });
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1:F${Math.max(1, values.length)}`)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({ values }),
-  });
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!G1:G${Math.max(1, values.length)}`)}:clear`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
 }
 
 async function normalizeExistingTagCells(token: string, spreadsheetId: string) {
@@ -280,12 +263,16 @@ export async function findCompatibleSheets(token: string) {
   const list = await googleFetch<{ files: SheetCandidate[] }>(token, url);
   const compatible: SheetCandidate[] = [];
 
-  for (const file of list.files || []) {
-    try {
-      if (await validateSpreadsheetStructure(token, file.id)) compatible.push(file);
-    } catch {
-      // Ignore files the user cannot inspect or malformed spreadsheets.
-    }
+  const files = list.files || [];
+  for (let index = 0; index < files.length; index += SHEET_SCAN_BATCH_SIZE) {
+    const batch = await Promise.all(files.slice(index, index + SHEET_SCAN_BATCH_SIZE).map(async (file) => {
+      try {
+        return await validateSpreadsheetStructure(token, file.id) ? file : null;
+      } catch {
+        return null;
+      }
+    }));
+    compatible.push(...batch.filter((file): file is SheetCandidate => file !== null));
   }
   return compatible;
 }
@@ -390,13 +377,13 @@ async function initializeSpreadsheet(token: string, spreadsheetId: string) {
 }
 
 export async function readTransactions(token: string, spreadsheetId: string) {
-  await ensureTransactionTagsColumn(token, spreadsheetId);
   const range = `${SHEET_NAMES.transactions}!A1:F`;
   const [data, formulaData] = await Promise.all([
     googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range)),
     googleFetch<{ values?: unknown[][] }>(token, formulaValuesUrl(spreadsheetId, range)),
   ]);
   const rows = data.values || [];
+  await ensureTransactionTagsColumn(token, spreadsheetId, rows[0]?.[5] ?? "");
   const headerIndex = Math.max(0, findHeaderIndex(rows, TRANSACTION_HEADERS.slice(0, 4)));
   return (data.values || [])
     .map((row, index): Transaction | null => {

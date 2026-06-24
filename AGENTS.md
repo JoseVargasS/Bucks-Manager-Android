@@ -53,15 +53,34 @@ npm run android
 
 The script in `scripts/run-android.ps1` sets Java and Android SDK paths and targets a physical ADB-authorized phone. Use `npx expo start` only when a compatible development build is already installed on the phone.
 
+## Performance Invariants
+
+- Hydrate the local financial cache before waiting on Google Sheets, then revalidate in the background.
+- Reuse the saved spreadsheet ID before calling `findCompatibleSheets()`.
+- Keep `reloadFromGoogle()` deduplicated and preserve `pendingSyncRef`; an older read must not overwrite optimistic writes.
+- Add, edit, delete, move, and frequent-income interactions must update locally before remote reconciliation.
+- If column F already has the normalized `ETIQUETAS` header, do not repeat tag migration or formatting writes.
+- Keep Drive structure validation bounded. Do not make it fully sequential or launch an unbounded request burst.
+- Keep transaction grouping and sorting linear outside the actual sort; avoid date parsing inside sort comparisons or group lookup scans.
+- Import `MaterialCommunityIcons` from `@expo/vector-icons/MaterialCommunityIcons`, never the package root; the root entry bundles every icon font.
+- Do not add Redux, React Query, SQLite, MMKV, or another data layer without measured evidence that the current cache/sync path is insufficient.
+- Do not split `App.tsx` merely for file size. Extract only when it removes repeated work, isolates independently tested logic, or materially reduces rerenders.
+- Preserve `removeClippedSubviews={false}` on the Android transaction list unless emulator/device testing proves the historical blank-row regression is gone.
+
 ## Validation
 
 Before committing app changes, run:
 
 ```powershell
+npm test
 npx tsc --noEmit
 ```
 
+For cleanup work, also run `npx tsc --noEmit --noUnusedLocals --noUnusedParameters` and verify every deleted file is unreachable from `index.ts` or an Expo config/build entry.
+
 When possible, also install/run on a real Android device.
+
+Read `CONTEXT.md` before changing startup, sync, transaction ordering, navigation, or modal ownership. Update `README.md`, `AGENTS.md`, and `CONTEXT.md` when a durable contract changes.
 
 ## Git Commits
 

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Animated, Modal, TouchableOpacity, View, StyleSheet } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
 import { Palette } from "../../theme/colors";
 import { UI_COPY, UiCopy } from "../../i18n";

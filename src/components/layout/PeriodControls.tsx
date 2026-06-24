@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Select } from "../ui/Select";
 import { Palette } from "../../theme/colors";

@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 import { calculateSummaries, formatMoney, MONTH_NAMES } from "../../domain/bucksLogic";
 import { UI_MONTH_NAMES, UiCopy } from "../../i18n";

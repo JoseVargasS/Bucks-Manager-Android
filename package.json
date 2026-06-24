@@ -29,6 +29,7 @@
   "scripts": {
     "start": "expo start",
     "dev": "expo start --dev-client",
+    "test": "node --no-warnings --test tests/performance.test.mjs",
     "android": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-android.ps1",
     "android:build-dev": "eas build -p android --profile development",
     "ios": "expo run:ios",

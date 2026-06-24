@@ -9,12 +9,14 @@ The app has no custom backend. Each user signs in with Google and uses a private
 1. Open the app.
 2. If there is no Google session, show only the Bucks Manager login screen.
 3. Sign in with Google.
-4. Scan Google Drive for compatible spreadsheets.
-5. Prefer an existing spreadsheet named `INGRESOS Y GASTOS`.
-6. If none exists, create a new spreadsheet named `INGRESOS Y GASTOS`.
-7. Load transactions and summaries from Google Sheets.
+4. Restore the last spreadsheet and its local financial cache when available.
+5. Paint cached transactions immediately and revalidate Google Sheets in the background.
+6. Scan Google Drive only when there is no usable saved spreadsheet, validating candidates in bounded parallel batches.
+7. Prefer an existing spreadsheet named `INGRESOS Y GASTOS`; if none exists, create it with that exact name.
 
 No demo finance data is shown during startup. The native splash remains visible until a cached session or the first Google Sheets load is ready, so the app opens directly with real data instead of showing a skeleton.
+
+Add, edit, delete, reorder, and frequent-income changes update the local UI first. Google Sheets reconciliation runs in the background and a failed sync keeps the local data visible with a pending/error status.
 
 ## Google Sheet Contract
 
@@ -32,6 +34,7 @@ The spreadsheet must contain these tabs:
 | C | Detalle |
 | D | Tipo or Tipo de gasto |
 | E | HORA DE CREACION or HORA DE CREACIÓN |
+| F | ETIQUETAS |
 
 `RESUMEN POR MES` accepted headers:
 
@@ -84,6 +87,12 @@ Type-check:
 npx tsc --noEmit
 ```
 
+Run the focused domain/network regression checks:
+
+```powershell
+npm test
+```
+
 Install/run on a physical Android phone:
 
 ```powershell
@@ -128,11 +137,25 @@ The debug/release SHA-1 in Google Cloud must match the keystore used to build th
 App.tsx                         Main app composition and runtime state
 src/api/googleWorkspace.ts      Google Drive and Sheets integration
 src/domain/bucksLogic.ts        Sheet contract, summaries, dates, and transaction rules
+src/data/localCache.ts          Local-first financial cache
+src/utils/transactions.ts       Transaction filtering, sorting, and date grouping
 src/components/                 Screens, layout, modals, and reusable UI
 src/styles/globalStyles.ts      Shared React Native style definitions
 src/theme/colors.ts             Light/dark palette tokens
+tests/performance.test.mjs      Focused order, range, and request-count checks
 scripts/run-android.ps1         Physical-device Android run helper
+CONTEXT.md                      Runtime map and performance invariants
 ```
+
+## Performance Invariants
+
+- Never block cached startup or optimistic UI on Google Sheets.
+- Reuse a valid saved spreadsheet ID before scanning Drive.
+- Deduplicate in-flight reloads and do not overwrite optimistic state with an older remote response.
+- Treat an existing `ETIQUETAS` header as ready; do not repeat migration or formatting writes on every cold launch.
+- Keep Drive compatibility scans bounded rather than sequential or unbounded.
+- Import `MaterialCommunityIcons` from its direct module so Metro does not bundle unused icon-font families.
+- Preserve the mounted pager and ref-driven primary modals unless device evidence justifies a different architecture.
 
 ## Repository Hygiene
 

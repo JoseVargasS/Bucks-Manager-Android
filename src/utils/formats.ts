@@ -1,5 +1,5 @@
 import { formatDateToISO } from "../domain/bucksLogic";
-import { UI_COPY, UiCopy } from "../i18n";
+import { UI_COPY, type UiCopy } from "../i18n";
 
 export function formatCreatedTime(createdAt?: string): string {
   if (!createdAt) return "-";

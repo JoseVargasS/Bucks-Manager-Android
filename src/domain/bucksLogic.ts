@@ -1,4 +1,4 @@
-import { SearchFilters, SummaryRow, Transaction, TransactionDraft, TransactionType } from "../types";
+import type { SearchFilters, SummaryRow, Transaction, TransactionDraft, TransactionType } from "../types";
 
 export const SHEET_NAMES = {
   transactions: "INGRESOS Y GASTOS",

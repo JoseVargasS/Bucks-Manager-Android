@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { ScrollView, Switch, TouchableOpacity, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { FontPreference, MaterialIconName } from "../../types";

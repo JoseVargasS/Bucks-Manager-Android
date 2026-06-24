@@ -1,5 +1,5 @@
-import { Transaction } from "../types";
-import { ExportConfig } from "../components/modals/ExportModal";
+import type { Transaction } from "../types";
+import type { ExportConfig } from "../components/modals/ExportModal";
 import { MONTH_NAMES } from "../domain/bucksLogic";
 
 export function getLatestTransactionDate(transactions: Transaction[]) {
@@ -57,10 +57,15 @@ function slugify(value: string) {
 export function getPeriodRange(transactions: Transaction[]) {
   const today = new Date();
   const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const dates = transactions
-    .map((tx) => new Date(tx.rawDate))
-    .filter((date) => !Number.isNaN(date.getTime()) && date <= today);
-  if (!dates.length) {
+  let first: Date | null = null;
+  let last: Date | null = null;
+  for (const tx of transactions) {
+    const date = new Date(tx.rawDate);
+    if (Number.isNaN(date.getTime()) || date > today) continue;
+    if (!first || date < first) first = date;
+    if (!last || date > last) last = date;
+  }
+  if (!first || !last) {
     return {
       minYear: currentMonthStart.getFullYear(),
       minMonth: currentMonthStart.getMonth(),
@@ -68,8 +73,6 @@ export function getPeriodRange(transactions: Transaction[]) {
       maxMonth: currentMonthStart.getMonth(),
     };
   }
-  const first = dates.reduce<Date>((earliest, date) => date < earliest ? date : earliest, dates[0]);
-  const last = dates.reduce<Date>((latest, date) => date > latest ? date : latest, dates[0]);
   return {
     minYear: first.getFullYear(),
     minMonth: first.getMonth(),
@@ -78,8 +81,7 @@ export function getPeriodRange(transactions: Transaction[]) {
   };
 }
 
-export function getAvailableMonthsForYear(year: number, transactions: Transaction[]) {
-  const range = getPeriodRange(transactions);
+export function getAvailableMonthsForYear(year: number, range: ReturnType<typeof getPeriodRange>) {
   if (year < range.minYear || year > range.maxYear) return [];
   const start = year === range.minYear ? range.minMonth : 0;
   const end = year === range.maxYear ? range.maxMonth : 11;

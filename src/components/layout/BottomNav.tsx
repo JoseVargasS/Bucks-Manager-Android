@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { Tab, MaterialIconName } from "../../types";

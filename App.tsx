@@ -7,7 +7,7 @@ import * as Sharing from "expo-sharing";
 import * as SplashScreen from "expo-splash-screen";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, AppState, Easing, Image, Pressable, useWindowDimensions, View, StatusBar as NativeStatusBar } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
 
@@ -20,8 +20,8 @@ import {
   readSummaries, readTransactions, saveTransaction, insertTransactionAtRow, updateFreqIncome as updateGoogleFreqIncome,
   updateTransaction as updateGoogleTransaction, deleteTransaction as deleteGoogleTransaction,
 } from "./src/api/googleWorkspace";
-import { ColorSchemePreference, dark, getPalette, Palette } from "./src/theme/colors";
-import { getBlankDraft, compareTransactionsDesc, filterTransactionsByRollingPeriod } from "./src/utils/transactions";
+import { ColorSchemePreference, getPalette, Palette } from "./src/theme/colors";
+import { getBlankDraft, sortTransactionsDesc, filterTransactionsByRollingPeriod } from "./src/utils/transactions";
 import { formatMoney } from "./src/domain/bucksLogic";
 import { formatCreatedTime } from "./src/utils/formats";
 import { loadHistory, addHistoryEntry, removeHistoryEntry } from "./src/utils/history";
@@ -222,7 +222,7 @@ export default function App() {
     const source = searchActive
       ? applySearch(transactions, searchFilters)
       : filterTransactionsByRollingPeriod(transactions, month, year, loadedMonthCount);
-    return [...source].sort(compareTransactionsDesc);
+    return sortTransactionsDesc(source);
   }, [transactions, month, year, loadedMonthCount, searchActive, searchFilters]);
 
   const currentSummary = useMemo(() => {
@@ -234,12 +234,13 @@ export default function App() {
     };
   }, [summaries, month, year, freqIncome]);
 
-  const availableYears = useMemo(() => {
-    const range = getPeriodRange(transactions);
-    return Array.from({ length: range.maxYear - range.minYear + 1 }, (_, index) => range.maxYear - index);
-  }, [transactions]);
+  const periodRange = useMemo(() => getPeriodRange(transactions), [transactions]);
+  const availableYears = useMemo(
+    () => Array.from({ length: periodRange.maxYear - periodRange.minYear + 1 }, (_, index) => periodRange.maxYear - index),
+    [periodRange],
+  );
 
-  const availableMonths = useMemo(() => getAvailableMonthsForYear(year, transactions), [year, transactions]);
+  const availableMonths = useMemo(() => getAvailableMonthsForYear(year, periodRange), [year, periodRange]);
   const exportMinDate = useMemo(() => transactions.length
     ? transactions.reduce((earliest, tx) => tx.rawDate < earliest ? tx.rawDate : earliest, transactions[0].rawDate).slice(0, 10)
     : "", [transactions]);
@@ -686,12 +687,12 @@ export default function App() {
   }
 
   const selectPeriod = useCallback((nextMonth: number, nextYear: number) => {
-    const validMonths = getAvailableMonthsForYear(nextYear, transactions);
+    const validMonths = getAvailableMonthsForYear(nextYear, periodRange);
     const clampedMonth = validMonths.includes(nextMonth)
       ? nextMonth
       : validMonths.reduce((closest, item) => Math.abs(item - nextMonth) < Math.abs(closest - nextMonth) ? item : closest, validMonths[0] ?? nextMonth);
     setMonth(clampedMonth); setYear(nextYear); setSearchActive(false); setLoadedMonthCount(1); setSelectedRows([]);
-  }, [transactions]);
+  }, [periodRange]);
   const goToday = useCallback(() => {
     const today = new Date();
     selectPeriod(today.getMonth(), today.getFullYear());
@@ -818,9 +819,9 @@ export default function App() {
   }
 
   async function deleteSelectedRows() {
-    const selected = transactions.filter((tx) => selectedRows.includes(tx.rowId)).sort((a, b) => b.rowId - a.rowId);
+    const selectedIds = new Set(selectedRows);
+    const selected = transactions.filter((tx) => selectedIds.has(tx.rowId)).sort((a, b) => b.rowId - a.rowId);
     if (!selected.length) return;
-    const selectedIds = new Set(selected.map((tx) => tx.rowId));
     const next = renumberTransactions(transactions.filter((item) => !selectedIds.has(item.rowId)));
     const nextSummaries = calculateSummaries(next, freqIncome);
     setTransactions(next); setSummaries(nextSummaries);
@@ -1029,7 +1030,7 @@ export default function App() {
     const pageSubtitle = targetTab === "expenses" ? `${uiMonthNames[month]} ${year}` : targetTab === "summary" ? copy.summarySubtitle : copy.settingsSubtitle;
     const isCurrent = targetTab === tab;
     const screenColors = colors;
-    const screenIsDark = screenColors.bg === dark.bg;
+    const screenIsDark = theme === "dark";
 
     return (
       <View
@@ -1038,15 +1039,14 @@ export default function App() {
         importantForAccessibility={isCurrent ? "auto" : "no-hide-descendants"}
         style={{ width: tabWidth, height: "100%", position: "relative" }}
       >
-        {targetTab === "expenses" || targetTab === "summary" ? (
-          <View style={{ flex: 1 }}>
-            {(loading || syncStatusText) && (
-              <View style={styles.loadingBar}>
-                {(loading || isSyncing) && <ActivityIndicator color={screenColors.primary} />}
-                <Text style={{ color: screenColors.muted }}>{syncStatusText || copy.syncing}</Text>
-              </View>
-            )}
-            {targetTab === "expenses" ? (
+        <View style={[{ flex: 1 }, targetTab === "settings" && { paddingTop: contentTopInset }]}>
+          {(loading || syncStatusText) && (
+            <View style={styles.loadingBar}>
+              {(loading || isSyncing) && <ActivityIndicator color={screenColors.primary} />}
+              <Text style={{ color: screenColors.muted }}>{syncStatusText || copy.syncing}</Text>
+            </View>
+          )}
+          {targetTab === "expenses" ? (
               <ExpensesView
                 colors={screenColors} summary={currentSummary} transactions={visibleTransactions}
                 searchActive={searchActive} searchText={searchFilters.text} selectedRows={selectedRows}
@@ -1061,18 +1061,9 @@ export default function App() {
                 topInset={contentTopInset}
                 tagsList={tagsList}
               />
-            ) : (
-              <SummaryView colors={screenColors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
-            )}
-          </View>
-        ) : (
-          <View style={{ paddingTop: contentTopInset, flex: 1 }}>
-            {(loading || syncStatusText) && (
-              <View style={styles.loadingBar}>
-                {(loading || isSyncing) && <ActivityIndicator color={screenColors.primary} />}
-                <Text style={{ color: screenColors.muted }}>{syncStatusText || copy.syncing}</Text>
-              </View>
-            )}
+          ) : targetTab === "summary" ? (
+            <SummaryView colors={screenColors} copy={copy} summaries={summaries} transactions={transactions} freqIncome={freqIncome} availableYears={availableYears} topInset={contentTopInset} currencySymbol={currencySymbol} />
+          ) : (
             <SettingsView colors={screenColors} copy={copy} accountInfo={accountInfo}
               language={language} currencySymbol={currencySymbol} fontPreference={fontPreference}
               colorSchemeLabel={colorSchemeLabel}
@@ -1082,8 +1073,8 @@ export default function App() {
               onOpenPin={handlePinOpen} onOpenTags={openTagEditor}
               onSwitch={openAccountManager} onDisconnect={requestDisconnectGoogle} onOpenExport={openExport}
             />
-          </View>
-        )}
+          )}
+        </View>
 
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }} pointerEvents="box-none">
           {(targetTab === "expenses" || targetTab === "summary") && <HeaderFade color={screenColors.bg} height={headerFadeHeight} />}

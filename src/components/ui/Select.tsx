@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Animated, Easing, Keyboard, Modal, Pressable, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
 import { useModalTransition } from "./useModalTransition";
