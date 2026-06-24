@@ -72,11 +72,10 @@ The script in `scripts/run-android.ps1` sets Java and Android SDK paths and targ
 Before committing app changes, run:
 
 ```powershell
-npm test
-npx tsc --noEmit
+npm run ci
 ```
 
-For cleanup work, also run `npx tsc --noEmit --noUnusedLocals --noUnusedParameters` and verify every deleted file is unreachable from `index.ts` or an Expo config/build entry.
+`npm run ci` checks formatting, unused symbols, strict types, tests, and coverage thresholds. For cleanup work, also verify every deleted file is unreachable from `index.ts` or an Expo config/build entry.
 
 When possible, also install/run on a real Android device.
 

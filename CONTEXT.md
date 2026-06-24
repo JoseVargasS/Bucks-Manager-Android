@@ -43,10 +43,10 @@ Bucks Manager is an Expo/React Native client with no custom backend. Google Sign
 ## Verification
 
 ```powershell
-npm test
-npx tsc --noEmit
-npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+npm run ci
 git diff --check
 ```
+
+The critical non-UI test suite uses Node's built-in runner and coverage. Native UI rendering, gestures, Google Sign-In, and animation timing still require device validation.
 
 Use `npm run android` for a physical ADB-authorized phone. For performance work, capture one focused flow with `gfxinfo`, Perfetto, or Simpleperf; do not treat a broad or unstable emulator run as timing evidence.

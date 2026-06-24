@@ -75,23 +75,36 @@ Supported transaction types:
 
 ## Commands
 
-Install dependencies:
+Use Node.js 24, matching CI. Install the exact locked dependencies:
 
 ```powershell
-npm install
+npm ci
 ```
 
-Type-check:
+Install the tracked pre-commit hook once per clone:
 
 ```powershell
-npx tsc --noEmit
+npm run hooks:install
 ```
 
-Run the focused domain/network regression checks:
+Run the full validation required before a commit or pull request:
+
+```powershell
+npm run ci
+```
+
+Individual checks:
 
 ```powershell
 npm test
+npm run test:watch
+npm run test:coverage
+npm run lint
+npm run typecheck
+npm run format:check
 ```
+
+`test:coverage` enforces the initial critical-code thresholds: 85% lines, 75% branches, and 85% functions. See [TESTING.md](./TESTING.md) for scope, conventions, and known limits.
 
 Install/run on a physical Android phone:
 
@@ -143,7 +156,11 @@ src/components/                 Screens, layout, modals, and reusable UI
 src/styles/globalStyles.ts      Shared React Native style definitions
 src/theme/colors.ts             Light/dark palette tokens
 tests/performance.test.mjs      Focused order, range, and request-count checks
+tests/google-workspace.test.mjs Google API parsing, errors, creation, and write flows
+tests/native-storage.test.mjs   SecureStore and FileSystem persistence flows
+.github/workflows/ci.yml        Push and pull-request validation
 scripts/run-android.ps1         Physical-device Android run helper
+scripts/check-format.mjs        Dependency-free source whitespace check
 CONTEXT.md                      Runtime map and performance invariants
 ```
 
