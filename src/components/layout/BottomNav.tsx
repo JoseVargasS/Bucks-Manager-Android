@@ -102,19 +102,21 @@ const BottomNavItem = memo(function BottomNavItem({
   const text = useColor("text");
 
   const pressed = useRef(new Animated.Value(0)).current;
-  const activeAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const localActive = useRef(new Animated.Value(active ? 1 : 0)).current;
   const prevActive = useRef(active);
 
-  // Animate active state only when it changes
+  // Sync local active with prop when parent updates
   if (active !== prevActive.current) {
     prevActive.current = active;
-    Animated.timing(activeAnim, {
-      toValue: active ? 1 : 0,
-      duration: 100,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
+    localActive.stopAnimation();
+    localActive.setValue(active ? 1 : 0);
   }
+
+  const handlePress = useCallback(() => {
+    localActive.stopAnimation();
+    localActive.setValue(1);
+    onPress();
+  }, [localActive, onPress]);
 
   const handlePressIn = useCallback(() => {
     Animated.timing(pressed, {
@@ -134,13 +136,8 @@ const BottomNavItem = memo(function BottomNavItem({
     }).start();
   }, [pressed]);
 
-  const activeOpacity = activeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-
-  const iconColor = active ? primary : muted;
-  const textColor = active ? text : muted;
+  const iconColor = useColor(active ? "primary" : "muted");
+  const textColor = useColor(active ? "text" : "muted");
 
   return (
     <Animated.View
@@ -162,7 +159,7 @@ const BottomNavItem = memo(function BottomNavItem({
       }}
     >
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         style={styles.bottomNavItem}
@@ -177,7 +174,7 @@ const BottomNavItem = memo(function BottomNavItem({
             left: 0,
             borderRadius: 14,
             backgroundColor: primarySoft,
-            opacity: activeOpacity,
+            opacity: localActive,
           }}
         />
         <Animated.View
@@ -207,7 +204,7 @@ const BottomNavItem = memo(function BottomNavItem({
             borderRadius: 2,
             backgroundColor: primary,
             marginTop: -2,
-            opacity: activeOpacity,
+            opacity: localActive,
           }}
         />
       </Pressable>

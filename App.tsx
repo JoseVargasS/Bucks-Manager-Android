@@ -1898,7 +1898,7 @@ function AppContent() {
         <BottomFade color={colors.bg} height={bottomFadeHeight} />
         <BottomNav
           copy={copy}
-          tab={tab}
+          tab={tabRef.current}
           setTab={changeTab}
           onAdd={openAdd}
           onSearch={openSearch}
