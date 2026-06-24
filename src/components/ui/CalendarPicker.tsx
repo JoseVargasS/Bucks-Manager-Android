@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Animated, Modal, TouchableOpacity, View, StyleSheet } from "react-native";
+import { Animated, Modal, ScrollView, TouchableOpacity, View, StyleSheet } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
 import { Palette } from "../../theme/colors";
@@ -18,6 +18,8 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
   const [viewYear, setViewYear] = useState(parsed.getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed.getMonth());
   const [selectedDay, setSelectedDay] = useState(parsed.getDate());
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const pendingSelection = useRef<string | null>(null);
   const transition = useModalTransition(visible, 10, 0.985, () => {
     const next = pendingSelection.current;
@@ -30,6 +32,8 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
     setViewYear(parsed.getFullYear());
     setViewMonth(parsed.getMonth());
     setSelectedDay(parsed.getDate());
+    setShowYearPicker(false);
+    setShowMonthPicker(false);
   }, [value, visible]);
 
   if (!transition.modalVisible) return null;
@@ -53,6 +57,8 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
   const dayLabels = english ? DAY_LABELS_EN : DAY_LABELS;
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstDayOfWeek = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+
+  const yearOptions = Array.from({ length: maxYear - minYear + 1 }, (_, i) => maxYear - i);
 
   const isDayDisabled = (day: number) => {
     const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -82,24 +88,28 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
     <Modal visible={transition.modalVisible} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }, transition.containerStyle]}>
         <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[{ width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20, zIndex: 9999 }, transition.panelStyle]}>
+        <Animated.View style={[{ width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20 }, transition.panelStyle]}>
         <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderColor: colors.border }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: mode === "date" ? 14 : 0 }}>
             <TouchableOpacity onPress={() => canGoBackYear && setViewYear(viewYear - 1)} disabled={!canGoBackYear}>
               <MaterialCommunityIcons name="chevron-left" size={26} color={canGoBackYear ? colors.text : colors.disabled} />
             </TouchableOpacity>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>{viewYear}</Text>
+            <TouchableOpacity onPress={() => { setShowYearPicker(true); setShowMonthPicker(false); }}>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>{viewYear}</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => canGoForwardYear && setViewYear(viewYear + 1)} disabled={!canGoForwardYear}>
               <MaterialCommunityIcons name="chevron-right" size={26} color={canGoForwardYear ? colors.text : colors.disabled} />
             </TouchableOpacity>
           </View>
           {mode === "date" && (
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <TouchableOpacity onPress={() => canGoBackMonth && setViewMonth(Math.max(0, viewMonth - 1))} disabled={!canGoBackMonth}>
+              <TouchableOpacity onPress={() => canGoBackMonth && setViewMonth(viewMonth - 1)} disabled={!canGoBackMonth}>
                 <MaterialCommunityIcons name="chevron-left" size={22} color={canGoBackMonth ? colors.muted : colors.disabled} />
               </TouchableOpacity>
-              <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "900" }}>{monthName}</Text>
-              <TouchableOpacity onPress={() => canGoForwardMonth && setViewMonth(Math.min(11, viewMonth + 1))} disabled={!canGoForwardMonth}>
+              <TouchableOpacity onPress={() => { setShowMonthPicker(true); setShowYearPicker(false); }}>
+                <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "900" }}>{monthName}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => canGoForwardMonth && setViewMonth(viewMonth + 1)} disabled={!canGoForwardMonth}>
                 <MaterialCommunityIcons name="chevron-right" size={22} color={canGoForwardMonth ? colors.muted : colors.disabled} />
               </TouchableOpacity>
             </View>
@@ -132,7 +142,7 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
                   <Text key={`${d}-${index}`} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 11, fontWeight: "900" }}>{d}</Text>
                 ))}
               </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", minHeight: 288 }}>
                 {Array.from({ length: firstDayOfWeek }).map((_, i) => <View key={`e-${i}`} style={{ width: `${100 / 7}%` }} />)}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
@@ -142,7 +152,7 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
                   return (
                     <TouchableOpacity key={day} onPress={() => { if (!disabled) { setSelectedDay(day); handleSelect(viewYear, viewMonth, day); } }} disabled={disabled} style={{ width: `${100 / 7}%`, paddingVertical: 6, alignItems: "center" }}>
                       <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : isToday ? colors.primarySoft : "transparent", alignItems: "center", justifyContent: "center", borderWidth: isToday && !isSelected ? 1 : 0, borderColor: colors.primary, opacity: disabled ? 0.3 : 1 }}>
-                        <Text style={{ color: isSelected ? colors.onPrimary : isToday ? colors.primary : colors.text, fontSize: 13, fontWeight: isSelected ? "900" : "700" }}>{day}</Text>
+                        <Text style={{ color: isSelected ? colors.onPrimary : isToday ? colors.primary : colors.text, fontSize: 13, fontWeight: isSelected ? "700" : "600" }}>{day}</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -165,6 +175,53 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
             <Text style={{ color: colors.muted, fontWeight: "900", fontSize: 14 }}>{copy.erase}</Text>
           </TouchableOpacity>
         </View>
+
+        {showYearPicker && (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowYearPicker(false)} />
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, maxHeight: 250, width: "72%", elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
+                {yearOptions.map((y) => (
+                  <TouchableOpacity
+                    key={y}
+                    onPress={() => { setViewYear(y); setShowYearPicker(false); }}
+                    style={{ paddingVertical: 11, paddingHorizontal: 20, marginHorizontal: 12, marginVertical: 2, borderRadius: 10, backgroundColor: y === viewYear ? colors.primarySoft : "transparent", alignItems: "center" }}
+                  >
+                    <Text style={{ color: y === viewYear ? colors.primary : colors.text, fontSize: 17, fontWeight: y === viewYear ? "700" : "500" }}>{y}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        )}
+
+        {showMonthPicker && (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowMonthPicker(false)} />
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, paddingVertical: 20, paddingHorizontal: 6, width: "94%", elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }}>
+              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 12 }}>{viewYear}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {(english ? MONTH_NAMES_EN : MONTH_NAMES).map((name, i) => {
+                  const isSelected = i === viewMonth;
+                  const disabled = isMonthDisabled(i);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => { if (!disabled) { setViewMonth(i); setShowMonthPicker(false); } }}
+                      disabled={disabled}
+                      style={{ width: "33.33%", paddingVertical: 8, alignItems: "center" }}
+                    >
+                      <View style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: isSelected ? colors.primary : "transparent", opacity: disabled ? 0.3 : 1 }}>
+                        <Text numberOfLines={1} style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: isSelected ? "700" : "500" }}>{name}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        )}
+
         </Animated.View>
       </Animated.View>
     </Modal>
