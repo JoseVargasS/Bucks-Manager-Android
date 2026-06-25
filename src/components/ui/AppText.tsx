@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { memo, useSyncExternalStore } from "react";
 import {
   Text as NativeText,
   TextInput as NativeTextInput,
@@ -44,12 +44,15 @@ export function useAppFontFamily() {
   );
 }
 
-export function Text({ style, ...props }: TextProps) {
+function TextImpl({ style, ...props }: TextProps) {
   const family = useAppFontFamily();
   return <NativeText {...props} style={[{ fontFamily: family }, style]} />;
 }
 
-export function TextInput({ style, ...props }: TextInputProps) {
+function TextInputImpl({ style, ...props }: TextInputProps) {
   const family = useAppFontFamily();
   return <NativeTextInput {...props} style={[{ fontFamily: family }, style]} />;
 }
+
+export const Text = memo(TextImpl);
+export const TextInput = memo(TextInputImpl);

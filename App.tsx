@@ -138,6 +138,10 @@ const GOOGLE_WORKSPACE_SCOPES = [
   "https://www.googleapis.com/auth/drive.metadata.readonly",
   "https://www.googleapis.com/auth/spreadsheets",
 ];
+// ponytail: module-level promise chain serializes every Sheets mutation so a
+// fast edit cannot race with the reconcile read of an earlier edit. The chain
+// holds the in-flight task only; UI state lives in pendingSyncRef/setPendingSync.
+let syncQueue: Promise<void> = Promise.resolve();
 
 const emptySearch: SearchFilters = {
   text: "",
@@ -386,15 +390,15 @@ function AppContent() {
     if (!bootstrapping) SplashScreen.hideAsync().catch(() => undefined);
   }, [bootstrapping]);
 
+  // ponytail: only realign the pager when the window width changes; never on tab
+  // flips (which would cancel the in-flight Animated.timing mid-gesture).
+  const lastTabWidthRef = useRef(tabWidth);
   useEffect(() => {
+    if (lastTabWidthRef.current === tabWidth) return;
+    lastTabWidthRef.current = tabWidth;
     pagerTranslateX.stopAnimation();
     pagerTranslateX.setValue(-TAB_ORDER.indexOf(tabRef.current) * tabWidth);
   }, [pagerTranslateX, tabWidth]);
-
-  useEffect(() => {
-    setAppFontPreference(fontPreference);
-  }, [fontPreference]);
-
   useEffect(() => {
     freqIncomeRef.current = freqIncome;
   }, [freqIncome]);
@@ -551,8 +555,10 @@ function AppContent() {
       await SecureStore.setItemAsync(TOKEN_KEY, activeToken);
       await reloadFromGoogle(activeToken, sheetId, false);
     } catch (error) {
-      if (isAuthError(error)) setAuthError(getErrorMessage(error));
-      if (shouldRescanForSheetError(error)) {
+      if (isAuthError(error)) {
+        setAuthError(getErrorMessage(error));
+        if (!hadCache) await disconnectGoogle();
+      } else if (shouldRescanForSheetError(error)) {
         await connectGoogleWorkspace(activeToken, "", true);
       } else if (!hadCache) {
         setSyncError(getErrorMessage(error));
@@ -1166,7 +1172,9 @@ function AppContent() {
     setIsSyncing(true);
     setPendingSync(true);
     setSyncError("");
-    task()
+    syncQueue = syncQueue
+      .catch(() => undefined)
+      .then(() => task())
       .then(() => {
         pendingSyncRef.current = false;
         setPendingSync(false);
@@ -1178,7 +1186,6 @@ function AppContent() {
       })
       .finally(() => setIsSyncing(false));
   }
-
   const requestDelete = useCallback((tx: Transaction) => {
     setConfirmConfig({ kind: "delete", tx });
   }, []);

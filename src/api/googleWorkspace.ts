@@ -624,15 +624,18 @@ export async function readTransactions(token: string, spreadsheetId: string) {
       if (!date) return null;
       const type = normalizeType(String(row[3] || ""));
       if (!type) return null;
+      const createdAt = parseCreatedAt(row[4]);
       return {
         rowId: index + 1,
         date: formatDateForSheet(date),
         rawDate: date.toISOString(),
+        rawDateMs: date.getTime(),
+        createdAtMs: Date.parse(createdAt) || 0,
         amount: parseNumber(row[1]),
         detail: String(row[2] || ""),
         formula: parseAmountFormula(formulaData.values?.[index]?.[1], type),
         type,
-        createdAt: parseCreatedAt(row[4]),
+        createdAt,
         tags: parseTags(row[5]),
       };
     })

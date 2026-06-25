@@ -18,8 +18,8 @@ export function sortTransactionsDesc(
     .map((tx, index) => ({
       tx,
       index,
-      date: Date.parse(tx.rawDate),
-      createdAt: tx.createdAt ? Date.parse(tx.createdAt) : 0,
+      date: tx.rawDateMs ?? Date.parse(tx.rawDate),
+      createdAt: tx.createdAtMs ?? (tx.createdAt ? Date.parse(tx.createdAt) : 0),
     }))
     .sort(
       (a, b) =>
@@ -42,7 +42,7 @@ export function filterTransactionsByRollingPeriod(
     1,
   ).getTime();
   return transactions.filter((tx) => {
-    const time = new Date(tx.rawDate).getTime();
+    const time = tx.rawDateMs ?? Date.parse(tx.rawDate);
     return time >= start && time < end;
   });
 }
@@ -56,7 +56,7 @@ export function groupTransactionsByDate(
     [];
   const groupsByDate = new Map<string, (typeof groups)[number]>();
   transactions.forEach((tx) => {
-    const key = formatDateToISO(new Date(tx.rawDate));
+    const key = tx.date || formatDateToISO(new Date(tx.rawDate));
     let group = groupsByDate.get(key);
     if (!group) {
       group = { key, label: formatDateGroupLabel(tx.rawDate, copy), items: [] };

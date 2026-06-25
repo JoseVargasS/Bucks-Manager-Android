@@ -331,19 +331,20 @@ export const ExpensesView = memo(function ExpensesView({
     });
     return map;
   }, [tagsList]);
-
+  // ponytail: stable id from rowId+date+created time. Avoids remounting rows when
+  // the Sheet normalizes the amount or detail string back into a slightly different value.
   const keyExtractor = useCallback(
     (tx: Transaction) =>
-      `${tx.rowId}-${tx.rawDate}-${tx.createdAt || ""}-${tx.amount}-${tx.detail}`,
+      `${tx.rowId}-${tx.rawDate}-${tx.createdAtMs ?? tx.createdAt ?? ""}`,
     [],
   );
+
   const closeTagBubble = useCallback(() => setTagBubble(null), []);
+  const currentTagBubble = tagBubble || displayTagBubble;
 
   useLayoutEffect(() => {
     if (tagBubble) setDisplayTagBubble(tagBubble);
   }, [tagBubble]);
-
-  const currentTagBubble = tagBubble || displayTagBubble;
 
   const renderListHeader = useCallback(
     () => (

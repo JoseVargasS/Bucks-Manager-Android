@@ -122,42 +122,47 @@ export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number
   if (!isValidTransactionDraft(draft)) throw new Error("Invalid transaction draft");
   const date = new Date(`${draft.date}T00:00:00`);
   const amount = normalizeDraftAmount(draft);
+  const createdAt = draft.createdAt || new Date().toISOString();
   return {
     rowId,
     date: formatDateForSheet(date),
     rawDate: date.toISOString(),
+    rawDateMs: date.getTime(),
+    createdAtMs: Date.parse(createdAt) || 0,
     amount,
     formula: isMathExpression(draft.amount) ? normalizeAmountExpression(draft.amount) : "",
     detail: draft.detail.trim(),
     type: draft.type,
-    createdAt: draft.createdAt || new Date().toISOString(),
+    createdAt,
     tags: draft.type.startsWith("GASTO") ? draft.tags : [],
   };
 }
 
-/** Inserta una transacción en orden cronológico y renumera todos los rowId */
+/** Inserta una transacci�n en orden cronol�gico y renumera todos los rowId */
 export function insertChronologically(transactions: Transaction[], tx: Transaction): Transaction[] {
   const next = [...transactions];
-  const target = new Date(tx.rawDate).setHours(0, 0, 0, 0);
-  const index = next.findIndex((item) => new Date(item.rawDate).setHours(0, 0, 0, 0) > target);
+  const targetMs = tx.rawDateMs ?? Date.parse(tx.rawDate);
+  const target = targetMs - (targetMs % 86400000);
+  const index = next.findIndex((item) => {
+    const itemMs = item.rawDateMs ?? Date.parse(item.rawDate);
+    return itemMs - (itemMs % 86400000) > target;
+  });
   if (index === -1) next.push(tx);
   else next.splice(index, 0, tx);
   return next.map((item, idx) => ({ ...item, rowId: idx + 2 }));
 }
-
-/** Aplica filtros de búsqueda avanzada (texto, montos, fechas). Límite 150 resultados. */
 export function applySearch(transactions: Transaction[], filters: SearchFilters): Transaction[] {
   const text = filters.text.toLowerCase().trim();
   const tag = (filters.tag || "").trim();
   const min = filters.minAmount ? Number(filters.minAmount) : null;
   const max = filters.maxAmount ? Number(filters.maxAmount) : null;
-  const start = filters.startDate ? new Date(`${filters.startDate}T00:00:00`) : null;
-  const end = filters.endDate ? new Date(`${filters.endDate}T23:59:59`) : null;
+  const start = filters.startDate ? Date.parse(`${filters.startDate}T00:00:00`) : null;
+  const end = filters.endDate ? Date.parse(`${filters.endDate}T23:59:59`) : null;
 
   return transactions
     .filter((tx) => {
       const abs = Math.abs(Number(tx.amount) || 0);
-      const date = new Date(tx.rawDate);
+      const date = tx.rawDateMs ?? Date.parse(tx.rawDate);
       const haystack = `${tx.detail} ${tx.type} ${(tx.tags || []).join(" ")}`.toLowerCase();
       if (text && !haystack.includes(text)) return false;
       if (tag && !(tx.tags || []).includes(tag)) return false;
@@ -167,7 +172,7 @@ export function applySearch(transactions: Transaction[], filters: SearchFilters)
       if (end && date > end) return false;
       return true;
     })
-    .sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime() || b.rowId - a.rowId)
+    .sort((a, b) => (b.rawDateMs ?? Date.parse(b.rawDate)) - (a.rawDateMs ?? Date.parse(a.rawDate)) || b.rowId - a.rowId)
     .slice(0, 150);
 }
 
@@ -177,7 +182,7 @@ export function calculateSummaries(transactions: Transaction[], freqIncomeByMont
   transactions.forEach((tx) => {
     const date = new Date(tx.rawDate);
     const key = getMonthYear(date);
-    const current = byMonth.get(key) || {
+    const current: SummaryRow = byMonth.get(key) || {
       monthYear: key, freqIncome: 0, nonFreqIncome: 0,
       totalIncome: 0, freqExpense: 0, nonFreqExpense: 0,
       totalExpense: 0, netMonthly: 0, netNoFreq: 0,
@@ -192,7 +197,6 @@ export function calculateSummaries(transactions: Transaction[], freqIncomeByMont
   Object.keys(freqIncomeByMonth).forEach((key) => {
     const current = byMonth.get(key);
     if (current && current.freqIncome === 0) {
-      current.freqIncome = freqIncomeByMonth[key];
     } else if (!current) {
       byMonth.set(key, {
         monthYear: key, freqIncome: freqIncomeByMonth[key], nonFreqIncome: 0,

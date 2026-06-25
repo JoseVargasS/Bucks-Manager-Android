@@ -8,6 +8,8 @@ export type Transaction = {
   rowId: number;
   date: string;
   rawDate: string;
+  rawDateMs?: number;
+  createdAtMs?: number;
   amount: number;
   formula?: string;
   detail: string;
