@@ -5,6 +5,7 @@ export const SHEET_NAMES = {
   summary: "RESUMEN POR MES",
 };
 
+// Sheets locale controls formula names/separators; app language and currency are device-detected separately.
 export const DEFAULT_SPREADSHEET_LOCALE = "es_PE";
 
 export const TRANSACTION_TYPES: TransactionType[] = [
