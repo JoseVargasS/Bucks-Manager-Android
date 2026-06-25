@@ -10,6 +10,7 @@ Bucks Manager Android is the React Native/Expo Android version of the Bucks Mana
 - If there is no Google session, show the minimal Bucks Manager login screen with only Google sign-in.
 - Treat Google Drive data as private user data. Read or write Drive/Sheets only through the app runtime or when the user explicitly authorizes it.
 - Do not commit `.env`, OAuth secrets, spreadsheet IDs, `.expo/`, logs, `dist/`, build outputs, or `node_modules/`.
+- Keep deployment-specific IDs such as `EAS_PROJECT_ID` in `.env` or build environment variables, not hardcoded in source.
 - Treat `DESIGN.md` as a local design brief, not a durable repo contract. Fold lasting decisions into this file and `README.md` instead.
 - Keep the Google Sheets transaction contract unchanged. UI chrome can switch between Spanish and English from Settings, while user-entered transaction descriptions must stay exactly as typed.
 - Display money with the selected currency symbol from Settings, defaulting from the device locale when no preference is saved.

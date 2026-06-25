@@ -81,11 +81,6 @@
         }
       ]
     ],
-    "owner": "jose-vass",
-    "extra": {
-      "eas": {
-        "projectId": "3d5e761d-91e2-455f-993f-be80f182ea36"
-      }
-    }
+    "owner": "jose-vass"
   }
 }

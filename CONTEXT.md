@@ -6,6 +6,8 @@ Bucks Manager is an Expo/React Native client with no custom backend. Google Sign
 
 `App.tsx` intentionally owns the cross-cutting runtime state: session restore, preferences, cache hydration, Google synchronization, optimistic writes, pager state, and modal refs. The three main pages stay mounted inside one animated pager. Primary interaction modals open through refs so opening them does not require a root visibility-state round trip.
 
+Deployment-specific Expo values, including `EAS_PROJECT_ID`, come from `.env` or the build environment.
+
 ## Startup and Sync
 
 1. Restore preferences, PIN state, token, and spreadsheet ID concurrently.

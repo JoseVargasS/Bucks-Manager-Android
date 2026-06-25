@@ -5,6 +5,8 @@ export const SHEET_NAMES = {
   summary: "RESUMEN POR MES",
 };
 
+export const DEFAULT_SPREADSHEET_LOCALE = "es_PE";
+
 export const TRANSACTION_TYPES: TransactionType[] = [
   "INGRESO FRECUENTE",
   "INGRESO NO FRECUENTE",

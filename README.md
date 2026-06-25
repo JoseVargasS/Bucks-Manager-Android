@@ -130,6 +130,7 @@ Environment variables are loaded from `.env`:
 
 - `GOOGLE_ANDROID_CLIENT_ID`
 - `GOOGLE_WEB_CLIENT_ID`
+- `EAS_PROJECT_ID`
 
 Required scopes:
 

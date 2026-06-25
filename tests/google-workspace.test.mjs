@@ -187,6 +187,39 @@ test("saving frequent income refreshes the frequent-income summary formula", asy
   assert.match(formulaWrite.body.values[0][0], /INGRESO FRECUENTE/);
 });
 
+test("saving a transaction creates a missing monthly summary row with default locale formulas", async (t) => {
+  const requests = [];
+  installFetch(t, async (input, init = {}) => {
+    const url = decodeURIComponent(String(input));
+    const body = init.body ? JSON.parse(init.body) : null;
+    requests.push({ url, method: init.method || "GET", body });
+    if (url.includes("fields=sheets.properties(sheetId,title)")) {
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+    }
+    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({});
+    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+      return json({ values: [["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"]] });
+    }
+    if (url.includes("fields=properties.locale")) return json({ properties: {} });
+    return json({});
+  });
+
+  await saveTransaction("token", "write-sheet", {
+    date: "2026-02-15",
+    amount: "25",
+    detail: "Extra",
+    type: "INGRESO NO FRECUENTE",
+    createdAt: "11:22:33",
+    tags: [],
+  });
+
+  const summaryWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2:I2") && method === "PUT");
+  assert.equal(summaryWrite.body.values[0][0], "2026-02-01");
+  assert.match(summaryWrite.body.values[0][1], /SUMAR\.SI\.CONJUNTO/);
+  assert.match(summaryWrite.body.values[0][1], /FIN\.MES/);
+});
+
 test("Google API failures expose status and response details", async (t) => {
   installFetch(t, async () => json({ error: { message: "invalid token" } }, 401));
   await assert.rejects(findCompatibleSheets("token"), /Google API 401:.*invalid token/);

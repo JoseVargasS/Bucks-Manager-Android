@@ -5,7 +5,9 @@ import type {
   TransactionDraft,
 } from "../types";
 import {
+  DEFAULT_SPREADSHEET_LOCALE,
   SHEET_NAMES,
+  TRANSACTION_TYPES,
   buildTransactionFromDraft,
   formatDateForSheet,
   formatDateToISO,
@@ -557,7 +559,10 @@ export async function createBucksSpreadsheet(token: string) {
   const created = await googleFetch<{ spreadsheetId: string }>(token, SHEETS, {
     method: "POST",
     body: JSON.stringify({
-      properties: { title: SHEET_NAMES.transactions, locale: "es_PE" },
+      properties: {
+        title: SHEET_NAMES.transactions,
+        locale: DEFAULT_SPREADSHEET_LOCALE,
+      },
       sheets: [
         { properties: { title: SHEET_NAMES.transactions } },
         { properties: { title: SHEET_NAMES.summary } },
@@ -905,7 +910,7 @@ async function getSpreadsheetLocale(token: string, spreadsheetId: string) {
     token,
     `${SHEETS}/${spreadsheetId}?fields=properties.locale`,
   );
-  return meta.properties?.locale || "es_PE";
+  return meta.properties?.locale || DEFAULT_SPREADSHEET_LOCALE;
 }
 
 function formulaDialect(locale: string): FormulaDialect {
@@ -926,11 +931,11 @@ function buildSummaryRowFormulas(
     `=${dialect.sumifs}(${txSheet}!$B:$B${dialect.sep}${txSheet}!$A:$A${dialect.sep}">="&$A${rowNumber}${dialect.sep}${txSheet}!$A:$A${dialect.sep}"<="&${dialect.eomonth}($A${rowNumber}${dialect.sep}0)${dialect.sep}${txSheet}!$D:$D${dialect.sep}"${type}")`;
   return [
     firstDay,
-    sumByType("INGRESO FRECUENTE"),
-    sumByType("INGRESO NO FRECUENTE"),
+    sumByType(TRANSACTION_TYPES[0]),
+    sumByType(TRANSACTION_TYPES[1]),
     `=B${rowNumber}+C${rowNumber}`,
-    sumByType("GASTO FRECUENTE"),
-    sumByType("GASTO NO FRECUENTE"),
+    sumByType(TRANSACTION_TYPES[2]),
+    sumByType(TRANSACTION_TYPES[3]),
     `=E${rowNumber}+F${rowNumber}`,
     `=D${rowNumber}+G${rowNumber}`,
     `=H${rowNumber}-B${rowNumber}`,
@@ -1091,11 +1096,7 @@ function parseCreatedAt(value: unknown) {
 
 function normalizeType(value: string): Transaction["type"] | null {
   const upper = value.trim().toUpperCase();
-  if (upper === "INGRESO FRECUENTE") return "INGRESO FRECUENTE";
-  if (upper === "INGRESO NO FRECUENTE") return "INGRESO NO FRECUENTE";
-  if (upper === "GASTO FRECUENTE") return "GASTO FRECUENTE";
-  if (upper === "GASTO NO FRECUENTE") return "GASTO NO FRECUENTE";
-  return null;
+  return TRANSACTION_TYPES.find((type) => type === upper) || null;
 }
 
 function parseTags(value: unknown): string[] {
