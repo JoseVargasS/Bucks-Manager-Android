@@ -1,4 +1,9 @@
-import type { SheetCandidate, SummaryRow, Transaction, TransactionDraft } from "../types";
+import type {
+  SheetCandidate,
+  SummaryRow,
+  Transaction,
+  TransactionDraft,
+} from "../types";
 import {
   SHEET_NAMES,
   buildTransactionFromDraft,
@@ -18,60 +23,119 @@ const TAG_HEADER = "ETIQUETAS";
 const tagsColumnReady = new Set<string>();
 
 const SUMMARY_HEADERS = [
-  "MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS",
-  "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS",
-  "NETO MENSUAL", "NETO SIN ING FRECUENTE",
+  "MES",
+  "INGRESO FRECUENTE",
+  "INGRESO NO FRECUENTE",
+  "TOTAL INGRESOS",
+  "GASTO FRECUENTE",
+  "GASTO NO FRECUENTE",
+  "TOTAL GASTOS",
+  "NETO MENSUAL",
+  "NETO SIN ING FRECUENTE",
 ];
 
-const TRANSACTION_HEADERS = ["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACIÓN", "Etiquetas"];
+const TRANSACTION_HEADERS = [
+  "Fecha",
+  "Monto",
+  "Detalle",
+  "Tipo",
+  "HORA DE CREACIÓN",
+  "Etiquetas",
+];
 
 type FormulaDialect = { sumifs: string; eomonth: string; sep: string };
 
 // --- Single-row operation helpers (match GAS insertRecordChronologically / editTransaction / deleteRow) ---
 
 async function getTransactionSheetId(token: string, spreadsheetId: string) {
-  const meta = await googleFetch<{ sheets?: { properties?: { sheetId?: number; title?: string } }[] }>(
+  const meta = await googleFetch<{
+    sheets?: { properties?: { sheetId?: number; title?: string } }[];
+  }>(
     token,
     `${SHEETS}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
   );
-  const sheetId = meta.sheets?.find((s) => s.properties?.title === SHEET_NAMES.transactions)?.properties?.sheetId;
-  if (sheetId == null) throw new Error("No se encontro la hoja de transacciones");
+  const sheetId = meta.sheets?.find(
+    (s) => s.properties?.title === SHEET_NAMES.transactions,
+  )?.properties?.sheetId;
+  if (sheetId == null)
+    throw new Error("No se encontro la hoja de transacciones");
   return sheetId;
 }
 
 function transactionRowFormatRequests(sheetId: number, rowIndex: number) {
-  const blackBorder = { style: "SOLID", width: 1, color: { red: 0, green: 0, blue: 0 } };
+  const blackBorder = {
+    style: "SOLID",
+    width: 1,
+    color: { red: 0, green: 0, blue: 0 },
+  };
   return [
     {
       repeatCell: {
-        range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 6 },
-        cell: { userEnteredFormat: { textFormat: { fontFamily: "Lexend", fontSize: 10 } } },
+        range: {
+          sheetId,
+          startRowIndex: rowIndex,
+          endRowIndex: rowIndex + 1,
+          startColumnIndex: 0,
+          endColumnIndex: 6,
+        },
+        cell: {
+          userEnteredFormat: {
+            textFormat: { fontFamily: "Lexend", fontSize: 10 },
+          },
+        },
         fields: "userEnteredFormat.textFormat",
       },
     },
     {
       repeatCell: {
-        range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 3, endColumnIndex: 5 },
-        cell: { userEnteredFormat: { textFormat: { fontFamily: "Roboto", fontSize: 10 } } },
+        range: {
+          sheetId,
+          startRowIndex: rowIndex,
+          endRowIndex: rowIndex + 1,
+          startColumnIndex: 3,
+          endColumnIndex: 5,
+        },
+        cell: {
+          userEnteredFormat: {
+            textFormat: { fontFamily: "Roboto", fontSize: 10 },
+          },
+        },
         fields: "userEnteredFormat.textFormat",
       },
     },
     {
       updateBorders: {
-        range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 6 },
+        range: {
+          sheetId,
+          startRowIndex: rowIndex,
+          endRowIndex: rowIndex + 1,
+          startColumnIndex: 0,
+          endColumnIndex: 6,
+        },
         innerVertical: blackBorder,
         right: blackBorder,
       },
     },
     {
       updateBorders: {
-        range: { sheetId, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 4, endColumnIndex: 5 },
+        range: {
+          sheetId,
+          startRowIndex: rowIndex,
+          endRowIndex: rowIndex + 1,
+          startColumnIndex: 4,
+          endColumnIndex: 5,
+        },
         right: blackBorder,
       },
     },
     {
       updateDimensionProperties: {
-        range: { sheetId, dimension: "ROWS", startIndex: rowIndex, endIndex: rowIndex + 1 },
+        range: {
+          sheetId,
+          dimension: "ROWS",
+          startIndex: rowIndex,
+          endIndex: rowIndex + 1,
+        },
         properties: { pixelSize: 20 },
         fields: "pixelSize",
       },
@@ -79,7 +143,12 @@ function transactionRowFormatRequests(sheetId: number, rowIndex: number) {
   ];
 }
 
-async function insertBlankRow(token: string, spreadsheetId: string, sheetId: number, rowNumber: number) {
+async function insertBlankRow(
+  token: string,
+  spreadsheetId: string,
+  sheetId: number,
+  rowNumber: number,
+) {
   const rowIndex = rowNumber - 1;
   await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
     method: "POST",
@@ -87,7 +156,12 @@ async function insertBlankRow(token: string, spreadsheetId: string, sheetId: num
       requests: [
         {
           insertDimension: {
-            range: { sheetId, dimension: "ROWS", startIndex: rowIndex, endIndex: rowIndex + 1 },
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1,
+            },
             inheritFromBefore: rowNumber > 2,
           },
         },
@@ -97,15 +171,27 @@ async function insertBlankRow(token: string, spreadsheetId: string, sheetId: num
   });
 }
 
-async function deleteSheetRow(token: string, spreadsheetId: string, sheetId: number, rowNumber: number) {
+async function deleteSheetRow(
+  token: string,
+  spreadsheetId: string,
+  sheetId: number,
+  rowNumber: number,
+) {
   await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({
-      requests: [{
-        deleteDimension: {
-          range: { sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber },
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: rowNumber - 1,
+              endIndex: rowNumber,
+            },
+          },
         },
-      }],
+      ],
     }),
   });
 }
@@ -121,22 +207,42 @@ function buildTransactionRow(tx: Transaction) {
   ];
 }
 
-async function writeRow(token: string, spreadsheetId: string, rowNumber: number, values: unknown[]) {
+async function writeRow(
+  token: string,
+  spreadsheetId: string,
+  rowNumber: number,
+  values: unknown[],
+) {
   await ensureTransactionTagsColumn(token, spreadsheetId);
   const range = `${SHEET_NAMES.transactions}!A${rowNumber}:F${rowNumber}`;
-  await googleFetch(token, `${valuesUrl(spreadsheetId, range)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({ values: [values] }),
-  });
+  await googleFetch(
+    token,
+    `${valuesUrl(spreadsheetId, range)}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [values] }),
+    },
+  );
 }
 
-async function readSingleRow(token: string, spreadsheetId: string, rowNumber: number) {
+async function readSingleRow(
+  token: string,
+  spreadsheetId: string,
+  rowNumber: number,
+) {
   const range = `${SHEET_NAMES.transactions}!A${rowNumber}:F${rowNumber}`;
-  const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range));
+  const data = await googleFetch<{ values?: unknown[][] }>(
+    token,
+    readValuesUrl(spreadsheetId, range),
+  );
   return data.values?.[0] || [];
 }
 
-async function ensureTransactionTagsColumn(token: string, spreadsheetId: string, knownHeader?: unknown) {
+async function ensureTransactionTagsColumn(
+  token: string,
+  spreadsheetId: string,
+  knownHeader?: unknown,
+) {
   if (tagsColumnReady.has(spreadsheetId)) return;
   let header = knownHeader;
   if (header === undefined) {
@@ -151,38 +257,74 @@ async function ensureTransactionTagsColumn(token: string, spreadsheetId: string,
     return;
   }
   const sheetId = await getTransactionSheetId(token, spreadsheetId);
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1`)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({ values: [[TAG_HEADER]] }),
-  });
+  await googleFetch(
+    token,
+    `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F1`)}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [[TAG_HEADER]] }),
+    },
+  );
   await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({
       requests: [
         {
           copyPaste: {
-            source: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 4, endColumnIndex: 5 },
-            destination: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 5, endColumnIndex: 6 },
+            source: {
+              sheetId,
+              startRowIndex: 0,
+              endRowIndex: 1,
+              startColumnIndex: 4,
+              endColumnIndex: 5,
+            },
+            destination: {
+              sheetId,
+              startRowIndex: 0,
+              endRowIndex: 1,
+              startColumnIndex: 5,
+              endColumnIndex: 6,
+            },
             pasteType: "PASTE_FORMAT",
           },
         },
         {
           copyPaste: {
-            source: { sheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
-            destination: { sheetId, startRowIndex: 1, startColumnIndex: 5, endColumnIndex: 6 },
+            source: {
+              sheetId,
+              startRowIndex: 1,
+              startColumnIndex: 2,
+              endColumnIndex: 3,
+            },
+            destination: {
+              sheetId,
+              startRowIndex: 1,
+              startColumnIndex: 5,
+              endColumnIndex: 6,
+            },
             pasteType: "PASTE_FORMAT",
           },
         },
         {
           repeatCell: {
             range: { sheetId, startColumnIndex: 5, endColumnIndex: 6 },
-            cell: { userEnteredFormat: { wrapStrategy: "CLIP", verticalAlignment: "MIDDLE" } },
+            cell: {
+              userEnteredFormat: {
+                wrapStrategy: "CLIP",
+                verticalAlignment: "MIDDLE",
+              },
+            },
             fields: "userEnteredFormat(wrapStrategy,verticalAlignment)",
           },
         },
         {
           updateDimensionProperties: {
-            range: { sheetId, dimension: "COLUMNS", startIndex: 5, endIndex: 6 },
+            range: {
+              sheetId,
+              dimension: "COLUMNS",
+              startIndex: 5,
+              endIndex: 6,
+            },
             properties: { pixelSize: 150 },
             fields: "pixelSize",
           },
@@ -196,25 +338,56 @@ async function ensureTransactionTagsColumn(token: string, spreadsheetId: string,
 
 async function normalizeExistingTagCells(token: string, spreadsheetId: string) {
   const range = `${SHEET_NAMES.transactions}!F2:F`;
-  const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range));
+  const data = await googleFetch<{ values?: unknown[][] }>(
+    token,
+    readValuesUrl(spreadsheetId, range),
+  );
   const rows = data.values || [];
-  if (!rows.some((row) => String(row[0] || "").includes(",") || String(row[0] || "").includes("\n"))) return;
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F2:F${rows.length + 1}`)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({ values: rows.map((row) => [parseTags(row[0]).join(TAG_SEPARATOR)]) }),
-  });
+  if (
+    !rows.some(
+      (row) =>
+        String(row[0] || "").includes(",") ||
+        String(row[0] || "").includes("\n"),
+    )
+  )
+    return;
+  await googleFetch(
+    token,
+    `${valuesUrl(spreadsheetId, `${SHEET_NAMES.transactions}!F2:F${rows.length + 1}`)}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        values: rows.map((row) => [parseTags(row[0]).join(TAG_SEPARATOR)]),
+      }),
+    },
+  );
 }
 
-async function findChronologicalInsertionRow(token: string, spreadsheetId: string, dateObj: Date) {
+async function findChronologicalInsertionRow(
+  token: string,
+  spreadsheetId: string,
+  dateObj: Date,
+) {
   const range = `${SHEET_NAMES.transactions}!A2:A`;
   try {
-    const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range));
+    const data = await googleFetch<{ values?: unknown[][] }>(
+      token,
+      readValuesUrl(spreadsheetId, range),
+    );
     const rows = data.values || [];
-    const targetMs = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime();
+    const targetMs = new Date(
+      dateObj.getFullYear(),
+      dateObj.getMonth(),
+      dateObj.getDate(),
+    ).getTime();
     for (let i = 0; i < rows.length; i += 1) {
       const rowDate = parseSheetDate(rows[i]?.[0]);
       if (rowDate) {
-        const rowMs = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate()).getTime();
+        const rowMs = new Date(
+          rowDate.getFullYear(),
+          rowDate.getMonth(),
+          rowDate.getDate(),
+        ).getTime();
         if (rowMs > targetMs) return i + 2;
       }
     }
@@ -226,7 +399,11 @@ async function findChronologicalInsertionRow(token: string, spreadsheetId: strin
 
 // ---
 
-async function googleFetch<T>(token: string, url: string, init: RequestInit = {}): Promise<T> {
+async function googleFetch<T>(
+  token: string,
+  url: string,
+  init: RequestInit = {},
+): Promise<T> {
   const res = await fetch(url, {
     ...init,
     headers: {
@@ -258,44 +435,71 @@ function formulaValuesUrl(spreadsheetId: string, range: string) {
 }
 
 export async function findCompatibleSheets(token: string) {
-  const query = encodeURIComponent(`mimeType='${GOOGLE_SHEET_MIME}' and trashed=false`);
+  const query = encodeURIComponent(
+    `mimeType='${GOOGLE_SHEET_MIME}' and trashed=false`,
+  );
   const url = `${DRIVE}/files?q=${query}&pageSize=100&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`;
   const list = await googleFetch<{ files: SheetCandidate[] }>(token, url);
   const compatible: SheetCandidate[] = [];
 
   const files = list.files || [];
   for (let index = 0; index < files.length; index += SHEET_SCAN_BATCH_SIZE) {
-    const batch = await Promise.all(files.slice(index, index + SHEET_SCAN_BATCH_SIZE).map(async (file) => {
-      try {
-        return await validateSpreadsheetStructure(token, file.id) ? file : null;
-      } catch {
-        return null;
-      }
-    }));
-    compatible.push(...batch.filter((file): file is SheetCandidate => file !== null));
+    const batch = await Promise.all(
+      files.slice(index, index + SHEET_SCAN_BATCH_SIZE).map(async (file) => {
+        try {
+          return (await validateSpreadsheetStructure(token, file.id))
+            ? file
+            : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    compatible.push(
+      ...batch.filter((file): file is SheetCandidate => file !== null),
+    );
   }
   return compatible;
 }
 
-async function validateSpreadsheetStructure(token: string, spreadsheetId: string) {
-  const meta = await googleFetch<{ sheets?: { properties?: { title?: string } }[] }>(
-    token,
-    `${SHEETS}/${spreadsheetId}?fields=sheets.properties.title`,
+async function validateSpreadsheetStructure(
+  token: string,
+  spreadsheetId: string,
+) {
+  const meta = await googleFetch<{
+    sheets?: { properties?: { title?: string } }[];
+  }>(token, `${SHEETS}/${spreadsheetId}?fields=sheets.properties.title`);
+  const titles = new Set(
+    (meta.sheets || []).map((sheet) => sheet.properties?.title || ""),
   );
-  const titles = new Set((meta.sheets || []).map((sheet) => sheet.properties?.title || ""));
-  if (!titles.has(SHEET_NAMES.transactions) || !titles.has(SHEET_NAMES.summary)) return false;
+  if (!titles.has(SHEET_NAMES.transactions) || !titles.has(SHEET_NAMES.summary))
+    return false;
 
-  const ranges = [`${SHEET_NAMES.transactions}!A1:F${HEADER_SCAN_ROWS}`, `${SHEET_NAMES.summary}!A1:I${HEADER_SCAN_ROWS}`];
+  const ranges = [
+    `${SHEET_NAMES.transactions}!A1:F${HEADER_SCAN_ROWS}`,
+    `${SHEET_NAMES.summary}!A1:I${HEADER_SCAN_ROWS}`,
+  ];
   const url = `${SHEETS}/${spreadsheetId}/values:batchGet?ranges=${ranges.map(encodeURIComponent).join("&ranges=")}`;
-  const data = await googleFetch<{ valueRanges: { values?: string[][] }[] }>(token, url);
-  const txHeaderRow = findHeaderIndex(data.valueRanges?.[0]?.values || [], TRANSACTION_HEADERS.slice(0, 4));
-  const summaryHeaderRow = findHeaderIndex(data.valueRanges?.[1]?.values || [], SUMMARY_HEADERS);
+  const data = await googleFetch<{ valueRanges: { values?: string[][] }[] }>(
+    token,
+    url,
+  );
+  const txHeaderRow = findHeaderIndex(
+    data.valueRanges?.[0]?.values || [],
+    TRANSACTION_HEADERS.slice(0, 4),
+  );
+  const summaryHeaderRow = findHeaderIndex(
+    data.valueRanges?.[1]?.values || [],
+    SUMMARY_HEADERS,
+  );
   return txHeaderRow >= 0 && summaryHeaderRow >= 0;
 }
 
 function hasHeaders(actual: string[], expected: string[]) {
   const normalized = actual.map(normalizeHeader);
-  return expected.every((header, index) => headerMatches(normalized[index], header));
+  return expected.every((header, index) =>
+    headerMatches(normalized[index], header),
+  );
 }
 
 function findHeaderIndex(rows: unknown[][], expected: string[]) {
@@ -324,7 +528,8 @@ function headerMatches(actual: string, expected: string) {
 function headerAliases(expected: string) {
   const base = normalizeHeader(expected);
   const compactBase = compactHeader(base);
-  if (compactBase.startsWith("HORADECREACI")) return ["HORA DE CREACION", "HORA CREACION"];
+  if (compactBase.startsWith("HORADECREACI"))
+    return ["HORA DE CREACION", "HORA CREACION"];
   const aliases: Record<string, string[]> = {
     FECHA: ["FECHA"],
     MONTO: ["MONTO"],
@@ -339,7 +544,11 @@ function headerAliases(expected: string) {
     "GASTO NO FRECUENTE": ["GASTO NO FRECUENTE"],
     "TOTAL GASTOS": ["TOTAL GASTOS"],
     "NETO MENSUAL": ["NETO MENSUAL"],
-    "NETO SIN ING FRECUENTE": ["NETO SIN ING FRECUENTE", "TOTAL SIN INGRESO FRECUENTE", "TOTAL SIN ING FRECUENTE"],
+    "NETO SIN ING FRECUENTE": [
+      "NETO SIN ING FRECUENTE",
+      "TOTAL SIN INGRESO FRECUENTE",
+      "TOTAL SIN ING FRECUENTE",
+    ],
   };
   return aliases[base] || [base];
 }
@@ -368,8 +577,17 @@ async function initializeSpreadsheet(token: string, spreadsheetId: string) {
     body: JSON.stringify({
       valueInputOption: "USER_ENTERED",
       data: [
-        { range: `${SHEET_NAMES.transactions}!A1:F1`, values: [TRANSACTION_HEADERS] },
-        { range: `${SHEET_NAMES.summary}!A1:I2`, values: [SUMMARY_HEADERS, buildSummaryRowFormulas(2, firstDay, locale)] },
+        {
+          range: `${SHEET_NAMES.transactions}!A1:F1`,
+          values: [TRANSACTION_HEADERS],
+        },
+        {
+          range: `${SHEET_NAMES.summary}!A1:I2`,
+          values: [
+            SUMMARY_HEADERS,
+            buildSummaryRowFormulas(2, firstDay, locale),
+          ],
+        },
       ],
     }),
   });
@@ -379,12 +597,21 @@ async function initializeSpreadsheet(token: string, spreadsheetId: string) {
 export async function readTransactions(token: string, spreadsheetId: string) {
   const range = `${SHEET_NAMES.transactions}!A1:F`;
   const [data, formulaData] = await Promise.all([
-    googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, range)),
-    googleFetch<{ values?: unknown[][] }>(token, formulaValuesUrl(spreadsheetId, range)),
+    googleFetch<{ values?: unknown[][] }>(
+      token,
+      readValuesUrl(spreadsheetId, range),
+    ),
+    googleFetch<{ values?: unknown[][] }>(
+      token,
+      formulaValuesUrl(spreadsheetId, range),
+    ),
   ]);
   const rows = data.values || [];
   await ensureTransactionTagsColumn(token, spreadsheetId, rows[0]?.[5] ?? "");
-  const headerIndex = Math.max(0, findHeaderIndex(rows, TRANSACTION_HEADERS.slice(0, 4)));
+  const headerIndex = Math.max(
+    0,
+    findHeaderIndex(rows, TRANSACTION_HEADERS.slice(0, 4)),
+  );
   return (data.values || [])
     .map((row, index): Transaction | null => {
       if (index <= headerIndex) return null;
@@ -408,7 +635,10 @@ export async function readTransactions(token: string, spreadsheetId: string) {
 }
 
 export async function readSummaries(token: string, spreadsheetId: string) {
-  const data = await googleFetch<{ values?: unknown[][] }>(token, readValuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A1:I`));
+  const data = await googleFetch<{ values?: unknown[][] }>(
+    token,
+    readValuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A1:I`),
+  );
   const rows = data.values || [];
   const headerIndex = Math.max(0, findHeaderIndex(rows, SUMMARY_HEADERS));
   return rows
@@ -431,60 +661,126 @@ export async function readSummaries(token: string, spreadsheetId: string) {
     .filter(Boolean) as SummaryRow[];
 }
 
-export async function saveTransaction(token: string, spreadsheetId: string, draft: TransactionDraft) {
+export async function saveTransaction(
+  token: string,
+  spreadsheetId: string,
+  draft: TransactionDraft,
+) {
   const tx = buildTransactionFromDraft(draft, 0);
   const dateObj = new Date(tx.rawDate);
   const sheetId = await getTransactionSheetId(token, spreadsheetId);
-  const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, dateObj);
+  const targetRow = await findChronologicalInsertionRow(
+    token,
+    spreadsheetId,
+    dateObj,
+  );
   await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
   await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
-  await ensureMonthlySummaryRowByDate(token, spreadsheetId, dateObj, tx.type === "INGRESO FRECUENTE");
+  await ensureMonthlySummaryRowByDate(
+    token,
+    spreadsheetId,
+    dateObj,
+    tx.type === "INGRESO FRECUENTE",
+  );
   return { ...tx, rowId: targetRow };
 }
 
-export async function insertTransactionAtRow(token: string, spreadsheetId: string, draft: TransactionDraft, targetRow: number) {
+export async function insertTransactionAtRow(
+  token: string,
+  spreadsheetId: string,
+  draft: TransactionDraft,
+  targetRow: number,
+) {
   const tx = buildTransactionFromDraft(draft, targetRow);
   const dateObj = new Date(tx.rawDate);
   const sheetId = await getTransactionSheetId(token, spreadsheetId);
   const safeRow = Math.max(2, targetRow);
   await insertBlankRow(token, spreadsheetId, sheetId, safeRow);
   await writeRow(token, spreadsheetId, safeRow, buildTransactionRow(tx));
-  await ensureMonthlySummaryRowByDate(token, spreadsheetId, dateObj, tx.type === "INGRESO FRECUENTE");
+  await ensureMonthlySummaryRowByDate(
+    token,
+    spreadsheetId,
+    dateObj,
+    tx.type === "INGRESO FRECUENTE",
+  );
   return { ...tx, rowId: safeRow };
 }
 
-export async function updateTransaction(token: string, spreadsheetId: string, rowId: number, draft: TransactionDraft) {
+export async function updateTransaction(
+  token: string,
+  spreadsheetId: string,
+  rowId: number,
+  draft: TransactionDraft,
+) {
   const tx = buildTransactionFromDraft(draft, rowId);
   const newDateObj = new Date(tx.rawDate);
 
   const oldRow = await readSingleRow(token, spreadsheetId, rowId);
   const oldDate = parseSheetDate(oldRow[0]);
   const oldType = normalizeType(String(oldRow[3] || ""));
-  const oldMs = oldDate ? new Date(oldDate.getFullYear(), oldDate.getMonth(), oldDate.getDate()).getTime() : 0;
-  const newMs = new Date(newDateObj.getFullYear(), newDateObj.getMonth(), newDateObj.getDate()).getTime();
+  const oldMs = oldDate
+    ? new Date(
+        oldDate.getFullYear(),
+        oldDate.getMonth(),
+        oldDate.getDate(),
+      ).getTime()
+    : 0;
+  const newMs = new Date(
+    newDateObj.getFullYear(),
+    newDateObj.getMonth(),
+    newDateObj.getDate(),
+  ).getTime();
 
   if (oldDate && oldMs !== newMs) {
     const sheetId = await getTransactionSheetId(token, spreadsheetId);
     await deleteSheetRow(token, spreadsheetId, sheetId, rowId);
-    const targetRow = await findChronologicalInsertionRow(token, spreadsheetId, newDateObj);
+    const targetRow = await findChronologicalInsertionRow(
+      token,
+      spreadsheetId,
+      newDateObj,
+    );
     await insertBlankRow(token, spreadsheetId, sheetId, targetRow);
     await writeRow(token, spreadsheetId, targetRow, buildTransactionRow(tx));
-    await ensureMonthlySummaryRowByDate(token, spreadsheetId, newDateObj, tx.type === "INGRESO FRECUENTE");
-    await ensureMonthlySummaryRowByDate(token, spreadsheetId, oldDate, oldType === "INGRESO FRECUENTE");
+    await ensureMonthlySummaryRowByDate(
+      token,
+      spreadsheetId,
+      newDateObj,
+      tx.type === "INGRESO FRECUENTE",
+    );
+    await ensureMonthlySummaryRowByDate(
+      token,
+      spreadsheetId,
+      oldDate,
+      oldType === "INGRESO FRECUENTE",
+    );
     return { ...tx, rowId: targetRow };
   }
 
   await writeRow(token, spreadsheetId, rowId, buildTransactionRow(tx));
-  await ensureMonthlySummaryRowByDate(token, spreadsheetId, newDateObj, tx.type === "INGRESO FRECUENTE" || oldType === "INGRESO FRECUENTE");
+  await ensureMonthlySummaryRowByDate(
+    token,
+    spreadsheetId,
+    newDateObj,
+    tx.type === "INGRESO FRECUENTE" || oldType === "INGRESO FRECUENTE",
+  );
   return { ...tx, rowId };
 }
 
-export async function deleteTransaction(token: string, spreadsheetId: string, rowId: number) {
+export async function deleteTransaction(
+  token: string,
+  spreadsheetId: string,
+  rowId: number,
+) {
   const sheetId = await getTransactionSheetId(token, spreadsheetId);
   await deleteSheetRow(token, spreadsheetId, sheetId, rowId);
 }
 
-export async function moveTransaction(token: string, spreadsheetId: string, rowId: number, direction: "up" | "down") {
+export async function moveTransaction(
+  token: string,
+  spreadsheetId: string,
+  rowId: number,
+  direction: "up" | "down",
+) {
   const targetRowId = direction === "up" ? rowId - 1 : rowId + 1;
   if (targetRowId < 2) return;
   const [row1, row2] = await Promise.all([
@@ -502,7 +798,8 @@ function formatCreatedAtForSheet(value?: string) {
   const raw = String(value || "").trim();
   if (!raw || raw === "Invalid Date") return "";
   const timeMatch = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (timeMatch) return `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}:${timeMatch[3] || "00"}`;
+  if (timeMatch)
+    return `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}:${timeMatch[3] || "00"}`;
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return raw;
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
@@ -515,7 +812,9 @@ function formatAmountForSheet(tx: Transaction) {
     const value = expression.replace(/^-/, "");
     return tx.type.startsWith("GASTO") ? `=-${value}` : `=${value}`;
   }
-  return tx.type.startsWith("GASTO") ? `=-ABS(${expression})` : `=ABS(${expression})`;
+  return tx.type.startsWith("GASTO")
+    ? `=-ABS(${expression})`
+    : `=ABS(${expression})`;
 }
 
 function sanitizeAmountExpression(value: string) {
@@ -541,13 +840,22 @@ function unwrapAmountFormula(expression: string, type: Transaction["type"]) {
   const negativeAbsMatch = trimmed.match(/^-ABS\((.*)\)$/i);
   if (negativeAbsMatch) return negativeAbsMatch[1];
   const negativeWrappedMatch = trimmed.match(/^-\((.*)\)$/);
-  if (type.startsWith("GASTO") && negativeWrappedMatch) return negativeWrappedMatch[1];
+  if (type.startsWith("GASTO") && negativeWrappedMatch)
+    return negativeWrappedMatch[1];
   return trimmed;
 }
 
-async function ensureMonthlySummaryRowByDate(token: string, spreadsheetId: string, date: Date, refreshFrequentIncome = false) {
+async function ensureMonthlySummaryRowByDate(
+  token: string,
+  spreadsheetId: string,
+  date: Date,
+  refreshFrequentIncome = false,
+) {
   const [data, locale] = await Promise.all([
-    googleFetch<{ values?: unknown[][] }>(token, valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A1:I`)),
+    googleFetch<{ values?: unknown[][] }>(
+      token,
+      valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A1:I`),
+    ),
     getSpreadsheetLocale(token, spreadsheetId),
   ]);
   const rows = data.values || [];
@@ -559,35 +867,65 @@ async function ensureMonthlySummaryRowByDate(token: string, spreadsheetId: strin
       const rowNumber = i + 1;
       const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
       const startColumn = refreshFrequentIncome ? "B" : "C";
-      const formulas = buildSummaryRowFormulas(rowNumber, firstDay, locale).slice(refreshFrequentIncome ? 1 : 2);
-      await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!${startColumn}${rowNumber}:I${rowNumber}`)}?valueInputOption=USER_ENTERED`, {
-        method: "PUT",
-        body: JSON.stringify({ values: [formulas] }),
-      });
+      const formulas = buildSummaryRowFormulas(
+        rowNumber,
+        firstDay,
+        locale,
+      ).slice(refreshFrequentIncome ? 1 : 2);
+      await googleFetch(
+        token,
+        `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A${rowNumber}`)}?valueInputOption=USER_ENTERED`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ values: [[firstDay]] }),
+        },
+      );
+      await googleFetch(
+        token,
+        `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!${startColumn}${rowNumber}:I${rowNumber}`)}?valueInputOption=USER_ENTERED`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ values: [formulas] }),
+        },
+      );
       return rowNumber;
     }
   }
   const rowNumber = Math.max(rows.length + 1, headerIndex + 2);
   const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
-  await googleFetch(token, `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A${rowNumber}:I${rowNumber}`)}?valueInputOption=USER_ENTERED`, {
-    method: "PUT",
-    body: JSON.stringify({ values: [buildSummaryRowFormulas(rowNumber, firstDay, locale)] }),
-  });
+  await googleFetch(
+    token,
+    `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A${rowNumber}:I${rowNumber}`)}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        values: [buildSummaryRowFormulas(rowNumber, firstDay, locale)],
+      }),
+    },
+  );
   return rowNumber;
 }
 
 async function getSpreadsheetLocale(token: string, spreadsheetId: string) {
-  const meta = await googleFetch<{ properties?: { locale?: string } }>(token, `${SHEETS}/${spreadsheetId}?fields=properties.locale`);
+  const meta = await googleFetch<{ properties?: { locale?: string } }>(
+    token,
+    `${SHEETS}/${spreadsheetId}?fields=properties.locale`,
+  );
   return meta.properties?.locale || "es_PE";
 }
 
 function formulaDialect(locale: string): FormulaDialect {
   const normalized = locale.toLowerCase();
-  if (normalized.startsWith("es")) return { sumifs: "SUMAR.SI.CONJUNTO", eomonth: "FIN.MES", sep: ";" };
+  if (normalized.startsWith("es"))
+    return { sumifs: "SUMAR.SI.CONJUNTO", eomonth: "FIN.MES", sep: ";" };
   return { sumifs: "SUMIFS", eomonth: "EOMONTH", sep: "," };
 }
 
-function buildSummaryRowFormulas(rowNumber: number, firstDay: string, locale: string) {
+function buildSummaryRowFormulas(
+  rowNumber: number,
+  firstDay: string,
+  locale: string,
+) {
   const dialect = formulaDialect(locale);
   const txSheet = `'${SHEET_NAMES.transactions}'`;
   const sumByType = (type: string) =>
@@ -606,12 +944,18 @@ function buildSummaryRowFormulas(rowNumber: number, firstDay: string, locale: st
 }
 
 async function formatSpreadsheet(token: string, spreadsheetId: string) {
-  const meta = await googleFetch<{ sheets?: { properties?: { sheetId?: number; title?: string } }[] }>(
+  const meta = await googleFetch<{
+    sheets?: { properties?: { sheetId?: number; title?: string } }[];
+  }>(
     token,
     `${SHEETS}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
   );
-  const txSheetId = meta.sheets?.find((sheet) => sheet.properties?.title === SHEET_NAMES.transactions)?.properties?.sheetId;
-  const summarySheetId = meta.sheets?.find((sheet) => sheet.properties?.title === SHEET_NAMES.summary)?.properties?.sheetId;
+  const txSheetId = meta.sheets?.find(
+    (sheet) => sheet.properties?.title === SHEET_NAMES.transactions,
+  )?.properties?.sheetId;
+  const summarySheetId = meta.sheets?.find(
+    (sheet) => sheet.properties?.title === SHEET_NAMES.summary,
+  )?.properties?.sheetId;
   const requests: unknown[] = [txSheetId, summarySheetId]
     .filter((sheetId): sheetId is number => typeof sheetId === "number")
     .flatMap((sheetId) => [
@@ -625,12 +969,19 @@ async function formatSpreadsheet(token: string, spreadsheetId: string) {
               backgroundColor: { red: 0.78, green: 1, blue: 0 },
             },
           },
-          fields: "userEnteredFormat(textFormat,horizontalAlignment,backgroundColor)",
+          fields:
+            "userEnteredFormat(textFormat,horizontalAlignment,backgroundColor)",
         },
       },
-      { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } },
+      {
+        updateSheetProperties: {
+          properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+          fields: "gridProperties.frozenRowCount",
+        },
+      },
     ]);
-  if (typeof txSheetId === "number") requests.push(...transactionRowFormatRequests(txSheetId, 1));
+  if (typeof txSheetId === "number")
+    requests.push(...transactionRowFormatRequests(txSheetId, 1));
   if (requests.length) {
     await googleFetch(token, `${SHEETS}/${spreadsheetId}:batchUpdate`, {
       method: "POST",
@@ -659,12 +1010,19 @@ function parseSheetDate(value: unknown) {
 }
 
 function parseNumericDate(value: string) {
-  const match = value.trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+.*)?$/);
+  const match = value
+    .trim()
+    .match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+.*)?$/);
   if (!match) return null;
   const first = Number(match[1]);
   const second = Number(match[2]);
   let year = Number(match[3]);
-  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(year)) return null;
+  if (
+    !Number.isFinite(first) ||
+    !Number.isFinite(second) ||
+    !Number.isFinite(year)
+  )
+    return null;
   if (year < 100) year += 2000;
 
   const day = first > 12 ? first : second > 12 ? second : first;
@@ -672,7 +1030,11 @@ function parseNumericDate(value: string) {
   if (day < 1 || day > 31 || month < 1 || month > 12) return null;
 
   const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date
+    : null;
 }
 
 function parseMonthYear(value: string) {
@@ -691,7 +1053,9 @@ function parseMonthYear(value: string) {
     ["NOVIEMBRE", "NOV"],
     ["DICIEMBRE", "DIC"],
   ];
-  const month = months.findIndex((names) => names.some((name) => clean.startsWith(name)));
+  const month = months.findIndex((names) =>
+    names.some((name) => clean.startsWith(name)),
+  );
   const yearMatch = clean.match(/\b(20\d{2}|19\d{2})\b/);
   if (month < 0 || !yearMatch) return null;
   return new Date(Number(yearMatch[1]), month, 1);
@@ -718,13 +1082,12 @@ function normalizeNumberString(value: string) {
   }
   if (hasComma) {
     const [integer = "", decimal = ""] = value.split(",");
-    if (decimal.length > 0 && decimal.length <= 2) return `${integer.replace(/\./g, "")}.${decimal}`;
+    if (decimal.length > 0 && decimal.length <= 2)
+      return `${integer.replace(/\./g, "")}.${decimal}`;
     return value.replace(/,/g, "");
   }
   return value;
 }
-
-
 
 function parseCreatedAt(value: unknown) {
   if (!value) return "";
@@ -744,5 +1107,8 @@ function normalizeType(value: string): Transaction["type"] | null {
 function parseTags(value: unknown): string[] {
   const raw = String(value || "").trim();
   if (!raw) return [];
-  return raw.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);
+  return raw
+    .split(/[,\n]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
 }

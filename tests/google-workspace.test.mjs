@@ -145,6 +145,8 @@ test("saving a transaction inserts the row chronologically and refreshes its mon
     "Casa, Comida",
   ]);
   const formulaWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!C2:I2") && method === "PUT");
+  const dateWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2") && method === "PUT");
+  assert.deepEqual(dateWrite.body.values[0], ["2026-01-01"]);
   assert.match(formulaWrite.body.values[0][0], /SUMAR\.SI\.CONJUNTO/);
 });
 
@@ -179,6 +181,8 @@ test("saving frequent income refreshes the frequent-income summary formula", asy
   });
 
   const formulaWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!B2:I2") && method === "PUT");
+  const dateWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2") && method === "PUT");
+  assert.deepEqual(dateWrite.body.values[0], ["2026-01-01"]);
   assert.match(formulaWrite.body.values[0][0], /INGRESO FRECUENTE/);
 });
 

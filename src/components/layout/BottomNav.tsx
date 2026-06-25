@@ -63,6 +63,7 @@ export const BottomNav = memo(function BottomNav({
         />
         <BottomNavItem
           active={false}
+          optimisticActive={false}
           icon="magnify"
           label={copy.search}
           onPress={onSearch}
@@ -87,11 +88,13 @@ export const BottomNav = memo(function BottomNav({
 
 const BottomNavItem = memo(function BottomNavItem({
   active,
+  optimisticActive = true,
   icon,
   label,
   onPress,
 }: {
   active: boolean;
+  optimisticActive?: boolean;
   icon: MaterialIconName;
   label: string;
   onPress: () => void;
@@ -112,9 +115,9 @@ const BottomNavItem = memo(function BottomNavItem({
 
   const handlePress = useCallback(() => {
     localActive.stopAnimation();
-    localActive.setValue(1);
+    if (optimisticActive) localActive.setValue(1);
     onPress();
-  }, [localActive, onPress]);
+  }, [localActive, onPress, optimisticActive]);
 
   const handlePressIn = useCallback(() => {
     Animated.timing(pressed, {

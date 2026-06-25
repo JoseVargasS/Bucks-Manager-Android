@@ -1,8 +1,9 @@
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
   FlatList,
+  Keyboard,
   Modal,
   TouchableOpacity,
   View,
@@ -36,8 +37,26 @@ export function TagEditorModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState("");
   const [editingColor, setEditingColor] = useState("");
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const persistQueue = useRef(Promise.resolve());
   const transition = useModalTransition(visible, 12, 0.985);
+
+  useEffect(() => {
+    if (!visible) {
+      setKeyboardOffset(0);
+      return;
+    }
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setKeyboardOffset(Math.min(e.endCoordinates.height * 0.45, 180));
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardOffset(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
 
   const commitTags = useCallback(
     (next: Tag[]) => {
@@ -110,120 +129,132 @@ export function TagEditorModal({
           activeOpacity={1}
           onPress={onClose}
         />
-        <Animated.View
-          style={[
-            styles.recordModal,
-            { backgroundColor: colors.card },
-            transition.panelStyle,
-          ]}
+        <View
+          pointerEvents="box-none"
+          style={{
+            flex: 1,
+            width: "100%",
+            justifyContent: "center",
+            alignItems: "center",
+            transform: [{ translateY: -keyboardOffset }],
+          }}
         >
-          <View style={[styles.recordHeader, { borderColor: colors.border }]}>
-            <Text style={[styles.recordTitle, { color: colors.text }]}>
-              <MaterialCommunityIcons
-                name="tag-multiple"
-                size={19}
-                color={colors.primary}
-              />{" "}
-              {copy.tagsTitle || "Etiquetas"}
-            </Text>
-            <TouchableOpacity
-              style={[styles.closeBtn, { backgroundColor: colors.input }]}
-              onPress={onClose}
-            >
-              <MaterialCommunityIcons
-                name="close"
-                size={22}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ padding: 14, gap: 10 }}>
-            <View
-              style={{ flexDirection: "row", gap: 8, alignItems: "center" }}
-            >
-              <TextInput
-                value={newLabel}
-                onChangeText={setNewLabel}
-                placeholder={copy.tagsNewPlaceholder || "Nueva etiqueta"}
-                placeholderTextColor={colors.muted}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.input,
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  minHeight: 40,
-                  color: colors.text,
-                  fontWeight: "600",
-                }}
-                onSubmitEditing={handleAdd}
-              />
+          <Animated.View
+            style={[
+              styles.recordModal,
+              { backgroundColor: colors.card },
+              transition.panelStyle,
+            ]}
+          >
+            <View style={[styles.recordHeader, { borderColor: colors.border }]}>
+              <Text style={[styles.recordTitle, { color: colors.text }]}>
+                <MaterialCommunityIcons
+                  name="tag-multiple"
+                  size={19}
+                  color={colors.primary}
+                />{" "}
+                {copy.tagsTitle || "Etiquetas"}
+              </Text>
               <TouchableOpacity
-                onPress={handleAdd}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: colors.primary,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                style={[styles.closeBtn, { backgroundColor: colors.input }]}
+                onPress={onClose}
               >
                 <MaterialCommunityIcons
-                  name="plus"
+                  name="close"
                   size={22}
-                  color={colors.onPrimary}
+                  color={colors.text}
                 />
               </TouchableOpacity>
             </View>
 
-            <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
-              {colors.tagColors.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => setNewColor(c)}
+            <View style={{ padding: 14, gap: 10 }}>
+              <View
+                style={{ flexDirection: "row", gap: 8, alignItems: "center" }}
+              >
+                <TextInput
+                  value={newLabel}
+                  onChangeText={setNewLabel}
+                  placeholder={copy.tagsNewPlaceholder || "Nueva etiqueta"}
+                  placeholderTextColor={colors.muted}
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor: c,
-                    borderWidth: 2,
-                    borderColor: newColor === c ? colors.text : "transparent",
+                    flex: 1,
+                    backgroundColor: colors.input,
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    minHeight: 40,
+                    color: colors.text,
+                    fontWeight: "600",
                   }}
+                  onSubmitEditing={handleAdd}
                 />
-              ))}
-            </View>
+                <TouchableOpacity
+                  onPress={handleAdd}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: colors.primary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name="plus"
+                    size={22}
+                    color={colors.onPrimary}
+                  />
+                </TouchableOpacity>
+              </View>
 
-            {tags.length > 0 && (
-              <View style={{ height: 0.5, backgroundColor: colors.border }} />
-            )}
+              <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                {colors.tagColors.map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setNewColor(c)}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: c,
+                      borderWidth: 2,
+                      borderColor: newColor === c ? colors.text : "transparent",
+                    }}
+                  />
+                ))}
+              </View>
 
-            <FlatList
-              data={tags}
-              keyExtractor={(t) => t.id}
-              style={{ maxHeight: 260 }}
-              renderItem={({ item }) => (
-                <TagRow
-                  tag={item}
-                  colors={colors}
-                  editing={editingId === item.id}
-                  editingLabel={
-                    editingId === item.id ? editingLabel : undefined
-                  }
-                  editingColor={
-                    editingId === item.id ? editingColor : undefined
-                  }
-                  onStartEdit={startEdit}
-                  onChangeLabel={setEditingLabel}
-                  onChangeColor={setEditingColor}
-                  onSave={editingId === item.id ? saveEdit : undefined}
-                  onCancel={editingId === item.id ? cancelEdit : undefined}
-                  onDelete={handleDelete}
-                />
+              {tags.length > 0 && (
+                <View style={{ height: 0.5, backgroundColor: colors.border }} />
               )}
-            />
-          </View>
-        </Animated.View>
+
+              <FlatList
+                data={tags}
+                keyExtractor={(t) => t.id}
+                style={{ maxHeight: 260 }}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TagRow
+                    tag={item}
+                    colors={colors}
+                    editing={editingId === item.id}
+                    editingLabel={
+                      editingId === item.id ? editingLabel : undefined
+                    }
+                    editingColor={
+                      editingId === item.id ? editingColor : undefined
+                    }
+                    onStartEdit={startEdit}
+                    onChangeLabel={setEditingLabel}
+                    onChangeColor={setEditingColor}
+                    onSave={editingId === item.id ? saveEdit : undefined}
+                    onCancel={editingId === item.id ? cancelEdit : undefined}
+                    onDelete={handleDelete}
+                  />
+                )}
+              />
+            </View>
+          </Animated.View>
+        </View>
       </Animated.View>
     </Modal>
   );

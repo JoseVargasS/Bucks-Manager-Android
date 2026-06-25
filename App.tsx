@@ -1578,6 +1578,9 @@ function AppContent() {
     const isCurrent = targetTab === tab;
     const screenColors = colors;
     const screenIsDark = theme === "dark";
+    const showStatus = Boolean(
+      loading || (syncStatusText && !pendingSync && !isSyncing),
+    );
 
     return (
       <View
@@ -1592,8 +1595,14 @@ function AppContent() {
             targetTab === "settings" && { paddingTop: contentTopInset },
           ]}
         >
-          {(loading || syncStatusText) && (
-            <View style={styles.loadingBar}>
+          {showStatus && (
+            <View
+              style={[
+                styles.loadingBar,
+                styles.loadingOverlay,
+                { backgroundColor: screenColors.card },
+              ]}
+            >
               {(loading || isSyncing) && (
                 <ActivityIndicator color={screenColors.primary} />
               )}
