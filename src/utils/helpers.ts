@@ -2,62 +2,19 @@ import type { Transaction } from "../types";
 import type { ExportConfig } from "../components/modals/ExportModal";
 import { MONTH_NAMES } from "../domain/bucksLogic";
 
-export function getLatestTransactionDate(transactions: Transaction[]) {
-  const today = new Date();
-  return transactions.reduce<Date | null>((latest, tx) => {
-    const date = new Date(tx.rawDate);
-    if (Number.isNaN(date.getTime()) || date > today) return latest;
-    if (!latest || date.getTime() > latest.getTime()) return date;
-    return latest;
-  }, null);
-}
-
-export function parseLocalDateTime(value: string, endOfDay: boolean) {
-  const parts = value.split("-");
-  if (parts.length !== 3) return Number.NaN;
-  const [year, month, day] = parts.map(Number);
-  if (!Number.isInteger(year) || year < 1 || !Number.isInteger(month) || !Number.isInteger(day)) return Number.NaN;
-  const date = new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return Number.NaN;
-  return date.getTime();
-}
-
-export function parseMonthKey(value: string) {
-  const parts = value.split("-");
-  if (parts.length !== 2) return Number.NaN;
-  const [year, month] = parts.map(Number);
-  if (!Number.isInteger(year) || year < 1 || !Number.isInteger(month) || month < 1 || month > 12) return Number.NaN;
-  return year * 12 + (month - 1);
-}
-
 export function buildExportFileName(cfg: ExportConfig) {
-  const range = cfg.rangeMode === "months"
-    ? buildRangeFilePart(cfg.startDate, cfg.endDate, formatMonthFilePart)
-    : buildRangeFilePart(cfg.startDate, cfg.endDate);
+  const fmtDate = (value: string) => value;
+  const fmtMonth = (value: string) => {
+    const [year, month] = value.split("-").map(Number);
+    if (!year || !month) return "mes";
+    const name = (MONTH_NAMES[month - 1] || "mes").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return `${name}-${year}`;
+  };
+  const fmt = cfg.rangeMode === "months" ? fmtMonth : fmtDate;
+  const start = cfg.startDate ? `desde_${fmt(cfg.startDate)}` : "";
+  const end = cfg.endDate ? `hasta_${fmt(cfg.endDate)}` : "";
+  const range = cfg.startDate && cfg.endDate ? `${fmt(cfg.startDate)}_a_${fmt(cfg.endDate)}` : start || end || "todo";
   return `bucks-manager_${range}`;
-}
-
-function buildRangeFilePart(start: string, end: string, formatter?: (value: string) => string) {
-  const fmt = formatter || ((v: string) => v);
-  if (start && end) return `${fmt(start)}_a_${fmt(end)}`;
-  if (start) return `desde_${fmt(start)}`;
-  if (end) return `hasta_${fmt(end)}`;
-  return "todo";
-}
-
-function formatMonthFilePart(value: string) {
-  const [year, month] = value.split("-").map(Number);
-  if (!year || !month) return "mes";
-  return `${slugify(MONTH_NAMES[month - 1] || "mes")}-${year}`;
-}
-
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 export function getPeriodRange(transactions: Transaction[]) {
@@ -121,3 +78,4 @@ export function detectDeviceCurrencySymbol() {
   };
   return map[region || ""] || "S/";
 }
+

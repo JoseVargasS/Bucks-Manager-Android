@@ -4,7 +4,7 @@ import { fileSystemMock, secureStoreMock } from "./setup.mjs";
 
 const { addHistoryEntry, loadHistory, removeHistoryEntry } = await import("../src/utils/history.ts");
 const { clearPin, isPinEnabled, savePin, verifyPin } = await import("../src/utils/pin.ts");
-const { abbreviateTag, loadTags, saveTags, tagTextColor, migrateTagReferences, slugifyTagLabel, labelForTagId, findTagById } = await import("../src/utils/tags.ts");
+const { abbreviateTag, loadTags, saveTags, tagTextColor, migrateTagReferences, migrateTransactionTags, slugifyTagLabel, labelForTagId, findTagById } = await import("../src/utils/tags.ts");
 const { deleteFinancialCache, loadFinancialCache, saveFinancialCache } = await import("../src/data/localCache.ts");
 
 beforeEach(() => {
@@ -44,7 +44,7 @@ test("history ignores expired or corrupt entries and persists add/remove flows",
   ]));
 
   assert.deepEqual((await loadHistory()).map(({ id }) => id), ["valid"]);
-  const added = await addHistoryEntry({ action: "create", transaction });
+  const added = await addHistoryEntry({ action: "delete", transaction });
   assert.match(added.id, /^[0-9a-f-]{36}$/i);
   assert.deepEqual((await loadHistory()).map(({ id }) => id), [added.id, "valid"]);
 
@@ -192,3 +192,24 @@ test("findTagById returns the tag or undefined", () => {
   assert.deepEqual(findTagById("default-comida", tagsCatalog), tagsCatalog[0]);
   assert.equal(findTagById("ghost", tagsCatalog), undefined);
 });
+
+test("migrateTransactionTags resolves legacy labels to ids without touching unrelated rows", () => {
+  const txs = [
+    { rowId: 1, date: "", rawDate: "", amount: 0, detail: "A", type: "GASTO FRECUENTE", createdAt: "", tags: ["Comida"] },
+    { rowId: 2, date: "", rawDate: "", amount: 0, detail: "B", type: "GASTO FRECUENTE", createdAt: "", tags: ["default-comida"] },
+    { rowId: 3, date: "", rawDate: "", amount: 0, detail: "C", type: "INGRESO FRECUENTE", createdAt: "" },
+  ];
+  const migrated = migrateTransactionTags(txs, tagsCatalog);
+  assert.equal(migrated[0].tags[0], "default-comida");
+  assert.equal(migrated[1].tags[0], "default-comida");
+  assert.equal(migrated[2].tags, undefined);
+});
+
+test("migrateTransactionTags returns the same array when nothing changes", () => {
+  const txs = [
+    { rowId: 1, date: "", rawDate: "", amount: 0, detail: "A", type: "GASTO FRECUENTE", createdAt: "", tags: ["default-comida"] },
+  ];
+  assert.strictEqual(migrateTransactionTags(txs, tagsCatalog), txs);
+});
+
+

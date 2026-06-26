@@ -50,7 +50,7 @@ function isHistoryEntry(value: unknown): value is HistoryEntry {
   const tx = entry.transaction as Partial<Transaction> | undefined;
   return typeof entry.id === "string"
     && typeof entry.timestamp === "string"
-    && (entry.action === "create" || entry.action === "edit" || entry.action === "delete")
+    && entry.action === "delete"
     && !!tx
     && Number.isFinite(tx.rowId)
     && typeof tx.rawDate === "string"

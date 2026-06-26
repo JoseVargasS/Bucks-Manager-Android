@@ -1,3 +1,5 @@
+import type { ComponentProps } from "react";
+
 export type TransactionType =
   | "INGRESO FRECUENTE"
   | "INGRESO NO FRECUENTE"
@@ -61,11 +63,16 @@ export type SheetCandidate = {
 };
 
 export type ExportFormat = "xlsx" | "pdf";
-export type MaterialIconName = React.ComponentProps<
+export type MaterialIconName = ComponentProps<
   typeof import("@expo/vector-icons/MaterialCommunityIcons").default
 >["name"];
 
-type HistoryAction = "create" | "edit" | "delete";
+export type HistoryEntry = {
+  id: string;
+  timestamp: string;
+  action: "delete";
+  transaction: Transaction;
+};
 
 export type Tab = "expenses" | "summary" | "settings";
 export type ThemeMode = "dark" | "light";
@@ -79,11 +86,3 @@ export type FontPreference =
   | "casual"
   | "cursive"
   | "smallcaps";
-
-export interface HistoryEntry {
-  id: string;
-  timestamp: string;
-  action: HistoryAction;
-  transaction: Transaction;
-  previousTransaction?: Transaction;
-}
