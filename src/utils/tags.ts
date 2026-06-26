@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import type { LanguageMode, Tag } from "../types";
+import type { LanguageMode, Tag, Transaction } from "../types";
 import { dark } from "../theme/colors";
 
 const TAGS_KEY = "bucks_tags";
@@ -86,14 +86,6 @@ export function labelForTagId(id: string, tagsList: Tag[]): string {
   return findTagById(id, tagsList)?.label ?? id;
 }
 
-export function colorForTagId(
-  id: string,
-  tagsList: Tag[],
-  fallback: string,
-): string {
-  return findTagById(id, tagsList)?.color ?? fallback;
-}
-
 export function migrateTagReferences(
   refs: string[],
   tagsList: Tag[],
@@ -137,4 +129,20 @@ export function migrateTagReferences(
     }
   });
   return migrated;
+}
+
+export function migrateTransactionTags(transactions: Transaction[], tagsList: Tag[]): Transaction[] {
+  if (!transactions.length || !tagsList.length) return transactions;
+  let changed = false;
+  const next = transactions.map((tx) => {
+    if (!tx.tags?.length) return tx;
+    const migrated = migrateTagReferences(tx.tags, tagsList);
+    const isSame =
+      migrated.length === tx.tags.length
+      && migrated.every((id, index) => id === tx.tags![index]);
+    if (isSame) return tx;
+    changed = true;
+    return { ...tx, tags: migrated };
+  });
+  return changed ? next : transactions;
 }

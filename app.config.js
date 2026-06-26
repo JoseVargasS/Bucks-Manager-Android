@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const easProjectId = process.env.EAS_PROJECT_ID || "";
 
 export default ({ config }) => ({
