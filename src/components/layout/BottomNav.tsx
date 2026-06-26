@@ -1,12 +1,46 @@
-import { memo, useRef, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useRef } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
-import { useColor } from "../../theme/ThemeContext";
+import { useColors } from "../../theme/ThemeContext";
 import { dark } from "../../theme/colors";
 import { Tab, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 import { Text } from "../ui/AppText";
+
+function usePressAnimation(durationIn = 70, durationOut = 110) {
+  const pressed = useRef(new Animated.Value(0)).current;
+  const onPressIn = useCallback(() => {
+    Animated.timing(pressed, {
+      toValue: 1,
+      duration: durationIn,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressed, durationIn]);
+  const onPressOut = useCallback(() => {
+    Animated.timing(pressed, {
+      toValue: 0,
+      duration: durationOut,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [pressed, durationOut]);
+  return { pressed, onPressIn, onPressOut };
+}
+
+function withAlpha(hex: string, alpha: number) {
+  if (!hex.startsWith("#") || (hex.length !== 7 && hex.length !== 4)) return hex;
+  const expanded =
+    hex.length === 4
+      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+      : hex;
+  const value = Number.parseInt(expanded.slice(1), 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export const BottomNav = memo(function BottomNav({
   copy,
@@ -21,11 +55,8 @@ export const BottomNav = memo(function BottomNav({
   onAdd: () => void;
   onSearch: () => void;
 }) {
-  const card = useColor("card");
-  const borderStrong = useColor("borderStrong");
-  const bg = useColor("bg");
+  const { card, borderStrong, bg } = useColors();
   const isDark = useMemo(() => bg === dark.bg, [bg]);
-
   const glassSurface = useMemo(
     () => (isDark ? withAlpha(card, 0.72) : withAlpha(card, 0.96)),
     [isDark, card],
@@ -99,14 +130,12 @@ const BottomNavItem = memo(function BottomNavItem({
   label: string;
   onPress: () => void;
 }) {
-  const primary = useColor("primary");
-  const primarySoft = useColor("primarySoft");
-
-  const pressed = useRef(new Animated.Value(0)).current;
+  const { primary, primarySoft, muted, text } = useColors();
+  const accent = active ? primary : muted;
+  const { pressed, onPressIn, onPressOut } = usePressAnimation();
   const localActive = useRef(new Animated.Value(active ? 1 : 0)).current;
   const prevActive = useRef(active);
 
-  // Sync local active with prop when parent updates
   if (active !== prevActive.current) {
     prevActive.current = active;
     localActive.stopAnimation();
@@ -118,27 +147,6 @@ const BottomNavItem = memo(function BottomNavItem({
     if (optimisticActive) localActive.setValue(1);
     onPress();
   }, [localActive, onPress, optimisticActive]);
-
-  const handlePressIn = useCallback(() => {
-    Animated.timing(pressed, {
-      toValue: 1,
-      duration: 70,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [pressed]);
-
-  const handlePressOut = useCallback(() => {
-    Animated.timing(pressed, {
-      toValue: 0,
-      duration: 110,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [pressed]);
-
-  const iconColor = useColor(active ? "primary" : "muted");
-  const textColor = useColor(active ? "text" : "muted");
 
   return (
     <Animated.View
@@ -161,8 +169,8 @@ const BottomNavItem = memo(function BottomNavItem({
     >
       <Pressable
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         style={styles.bottomNavItem}
       >
         <Animated.View
@@ -191,10 +199,10 @@ const BottomNavItem = memo(function BottomNavItem({
             opacity: pressed,
           }}
         />
-        <MaterialCommunityIcons name={icon} size={21} color={iconColor} />
+        <MaterialCommunityIcons name={icon} size={21} color={accent} />
         <Text
           numberOfLines={1}
-          style={[styles.bottomNavLabel, { color: textColor }]}
+          style={[styles.bottomNavLabel, { color: active ? text : muted }]}
         >
           {label}
         </Text>
@@ -213,28 +221,9 @@ const BottomNavItem = memo(function BottomNavItem({
   );
 });
 
-function BottomAddButton({ onPress }: { onPress: () => void }) {
-  const primary = useColor("primary");
-  const onPrimary = useColor("onPrimary");
-  const pressed = useRef(new Animated.Value(0)).current;
-
-  const handlePressIn = useCallback(() => {
-    Animated.timing(pressed, {
-      toValue: 1,
-      duration: 70,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [pressed]);
-
-  const handlePressOut = useCallback(() => {
-    Animated.timing(pressed, {
-      toValue: 0,
-      duration: 110,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [pressed]);
+const BottomAddButton = memo(function BottomAddButton({ onPress }: { onPress: () => void }) {
+  const { primary, onPrimary } = useColors();
+  const { pressed, onPressIn, onPressOut } = usePressAnimation();
 
   return (
     <Animated.View
@@ -260,8 +249,8 @@ function BottomAddButton({ onPress }: { onPress: () => void }) {
     >
       <Pressable
         onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         style={{
           width: "100%",
           height: "100%",
@@ -274,18 +263,5 @@ function BottomAddButton({ onPress }: { onPress: () => void }) {
       </Pressable>
     </Animated.View>
   );
-}
+});
 
-function withAlpha(hex: string, alpha: number) {
-  if (!hex.startsWith("#") || (hex.length !== 7 && hex.length !== 4))
-    return hex;
-  const expanded =
-    hex.length === 4
-      ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
-      : hex;
-  const value = Number.parseInt(expanded.slice(1), 16);
-  const r = (value >> 16) & 255;
-  const g = (value >> 8) & 255;
-  const b = value & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
