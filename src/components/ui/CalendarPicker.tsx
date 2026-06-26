@@ -1,5 +1,5 @@
-import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Animated, Modal, ScrollView, TouchableOpacity, View, StyleSheet } from "react-native";
+import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Animated, Modal, ScrollView, TouchableOpacity, View, StyleSheet, type ViewStyle } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
 import { Palette } from "../../theme/colors";
@@ -177,49 +177,38 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
         </View>
 
         {showYearPicker && (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowYearPicker(false)} />
-            <View style={{ backgroundColor: colors.card, borderRadius: 16, maxHeight: 250, width: "72%", elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }}>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
-                {yearOptions.map((y) => (
-                  <TouchableOpacity
-                    key={y}
-                    onPress={() => { setViewYear(y); setShowYearPicker(false); }}
-                    style={{ paddingVertical: 11, paddingHorizontal: 20, marginHorizontal: 12, marginVertical: 2, borderRadius: 10, backgroundColor: y === viewYear ? colors.primarySoft : "transparent", alignItems: "center" }}
-                  >
-                    <Text style={{ color: y === viewYear ? colors.primary : colors.text, fontSize: 17, fontWeight: y === viewYear ? "700" : "500" }}>{y}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
+          <PickerSheet onClose={() => setShowYearPicker(false)} colors={colors} width="72%" maxHeight={250}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
+              {yearOptions.map((y) => (
+                <PickerRow
+                  key={y}
+                  label={String(y)}
+                  selected={y === viewYear}
+                  colors={colors}
+                  fontSize={17}
+                  onPress={() => { setViewYear(y); setShowYearPicker(false); }}
+                />
+              ))}
+            </ScrollView>
+          </PickerSheet>
         )}
 
         {showMonthPicker && (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setShowMonthPicker(false)} />
-            <View style={{ backgroundColor: colors.card, borderRadius: 16, paddingVertical: 20, paddingHorizontal: 6, width: "94%", elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }}>
-              <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 12 }}>{viewYear}</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                {(english ? MONTH_NAMES_EN : MONTH_NAMES).map((name, i) => {
-                  const isSelected = i === viewMonth;
-                  const disabled = isMonthDisabled(i);
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      onPress={() => { if (!disabled) { setViewMonth(i); setShowMonthPicker(false); } }}
-                      disabled={disabled}
-                      style={{ width: "33.33%", paddingVertical: 8, alignItems: "center" }}
-                    >
-                      <View style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: isSelected ? colors.primary : "transparent", opacity: disabled ? 0.3 : 1 }}>
-                        <Text numberOfLines={1} style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: isSelected ? "700" : "500" }}>{name}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          <PickerSheet onClose={() => setShowMonthPicker(false)} colors={colors} width="94%" contentStyle={{ paddingVertical: 20, paddingHorizontal: 6 }}>
+            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 12 }}>{viewYear}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {(english ? MONTH_NAMES_EN : MONTH_NAMES).map((name, i) => (
+                <PickerChip
+                  key={i}
+                  label={name}
+                  selected={i === viewMonth}
+                  disabled={isMonthDisabled(i)}
+                  colors={colors}
+                  onPress={() => { setViewMonth(i); setShowMonthPicker(false); }}
+                />
+              ))}
             </View>
-          </View>
+          </PickerSheet>
         )}
 
         </Animated.View>
@@ -227,3 +216,46 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
     </Modal>
   );
 });
+
+function PickerSheet({ children, onClose, colors, width, maxHeight, contentStyle }: {
+  children: ReactNode;
+  onClose: () => void;
+  colors: Palette;
+  width: ViewStyle["width"];
+  maxHeight?: number;
+  contentStyle?: ViewStyle;
+}) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+      <View style={[{ backgroundColor: colors.card, borderRadius: 16, width, elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }, maxHeight ? { maxHeight } : null, contentStyle]}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
+function PickerRow({ label, selected, colors, fontSize = 14, onPress }: { label: string; selected: boolean; colors: Palette; fontSize?: number; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{ paddingVertical: 11, paddingHorizontal: 20, marginHorizontal: 12, marginVertical: 2, borderRadius: 10, backgroundColor: selected ? colors.primarySoft : "transparent", alignItems: "center" }}
+    >
+      <Text style={{ color: selected ? colors.primary : colors.text, fontSize, fontWeight: selected ? "700" : "500" }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function PickerChip({ label, selected, disabled, colors, onPress }: { label: string; selected: boolean; disabled: boolean; colors: Palette; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={() => { if (!disabled) onPress(); }}
+      disabled={disabled}
+      style={{ width: "33.33%", paddingVertical: 8, alignItems: "center" }}
+    >
+      <View style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: selected ? colors.primary : "transparent", opacity: disabled ? 0.3 : 1 }}>
+        <Text numberOfLines={1} style={{ color: disabled ? colors.disabled : selected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: selected ? "700" : "500" }}>{label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
