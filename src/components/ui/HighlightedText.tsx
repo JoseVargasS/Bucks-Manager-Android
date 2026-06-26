@@ -1,7 +1,8 @@
+import { memo } from "react";
 import { TextStyle } from "react-native";
 import { Text } from "./AppText";
 
-export function HighlightedText({ text, query, style, highlightStyle }: { text: string; query: string; style: TextStyle | TextStyle[]; highlightStyle: TextStyle }) {
+export const HighlightedText = memo(function HighlightedText({ text, query, style, highlightStyle }: { text: string; query: string; style: TextStyle | TextStyle[]; highlightStyle: TextStyle }) {
   const value = String(text || "");
   const needle = String(query || "").trim();
   if (!needle) return <Text numberOfLines={1} style={style}>{value}</Text>;
@@ -26,4 +27,5 @@ export function HighlightedText({ text, query, style, highlightStyle }: { text: 
       ))}
     </Text>
   );
-}
+});
+

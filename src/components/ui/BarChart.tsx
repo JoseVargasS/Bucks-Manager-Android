@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 
 import { MONTH_NAMES } from "../../domain/bucksLogic";
@@ -6,7 +7,7 @@ import { Palette } from "../../theme/colors";
 import { SummaryRow } from "../../types";
 import { useAppFontFamily } from "./AppText";
 
-export function BarChart({ rows, colors, language }: { rows: SummaryRow[]; colors: Palette; language: "es" | "en" }) {
+export const BarChart = memo(function BarChart({ rows, colors, language }: { rows: SummaryRow[]; colors: Palette; language: "es" | "en" }) {
   const fontFamily = useAppFontFamily();
   const displayRows = rows.slice(-12);
   const max = Math.max(1, ...displayRows.map((row) => Math.max(row.totalIncome, Math.abs(row.totalExpense))));
@@ -52,7 +53,7 @@ export function BarChart({ rows, colors, language }: { rows: SummaryRow[]; color
       })}
     </Svg>
   );
-}
+});
 
 function compact(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;

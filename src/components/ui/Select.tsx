@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { Animated, Easing, Keyboard, Modal, Pressable, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
@@ -8,7 +8,7 @@ import { Text } from "./AppText";
 
 type SelectOption = { label: string; value: string; color?: string; softBg?: string };
 
-export function Select({ value, options, onSelect, colors, placeholder, style, title }: {
+export const Select = memo(function Select({ value, options, onSelect, colors, placeholder, style, title }: {
   value: string; options: SelectOption[]; onSelect: (v: string) => void; colors: Palette;
   placeholder?: string; style?: ViewStyle; title?: string;
 }) {
@@ -120,4 +120,4 @@ export function Select({ value, options, onSelect, colors, placeholder, style, t
       </Modal>}
     </View>
   );
-}
+});

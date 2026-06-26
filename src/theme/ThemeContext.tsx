@@ -5,11 +5,24 @@ import {
   useCallback,
   useState,
   memo,
+  type ReactNode,
 } from "react";
 import { getPalette, Palette, ColorSchemePreference } from "./colors";
 import { ThemeMode } from "../types";
 
-interface ThemeContextValue {
+const ThemeModeContext = createContext<{
+  theme: ThemeMode;
+  toggleTheme: () => void;
+} | null>(null);
+
+const ColorSchemeContext = createContext<{
+  colorScheme: ColorSchemePreference;
+  setColorScheme: (scheme: ColorSchemePreference) => void;
+} | null>(null);
+
+const PaletteContext = createContext<Palette | null>(null);
+
+interface LegacyThemeValue {
   theme: ThemeMode;
   colorScheme: ColorSchemePreference;
   colors: Palette;
@@ -17,17 +30,12 @@ interface ThemeContextValue {
   setColorScheme: (scheme: ColorSchemePreference) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const LegacyThemeContext = createContext<LegacyThemeValue | null>(null);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [colorScheme, setColorSchemeState] =
     useState<ColorSchemePreference>("lime");
-
-  const colors = useMemo(
-    () => getPalette(theme, colorScheme),
-    [theme, colorScheme],
-  );
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
@@ -37,56 +45,94 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setColorSchemeState(scheme);
   }, []);
 
-  const value = useMemo(
-    () => ({ theme, colorScheme, colors, toggleTheme, setColorScheme }),
-    [theme, colorScheme, colors, toggleTheme, setColorScheme],
+  const themeModeValue = useMemo(
+    () => ({ theme, toggleTheme }),
+    [theme, toggleTheme],
+  );
+
+  const colorSchemeValue = useMemo(
+    () => ({ colorScheme, setColorScheme }),
+    [colorScheme, setColorScheme],
+  );
+
+  const palette = useMemo(
+    () => getPalette(theme, colorScheme),
+    [theme, colorScheme],
+  );
+
+  const legacyValue = useMemo<LegacyThemeValue>(
+    () => ({ theme, colorScheme, colors: palette, toggleTheme, setColorScheme }),
+    [theme, colorScheme, palette, toggleTheme, setColorScheme],
   );
 
   return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+    <LegacyThemeContext.Provider value={legacyValue}>
+      <ThemeModeContext.Provider value={themeModeValue}>
+        <ColorSchemeContext.Provider value={colorSchemeValue}>
+          <PaletteContext.Provider value={palette}>{children}</PaletteContext.Provider>
+        </ColorSchemeContext.Provider>
+      </ThemeModeContext.Provider>
+    </LegacyThemeContext.Provider>
   );
 }
 
-export function useTheme() {
-  const context = useContext(ThemeContext);
+export function useTheme(): LegacyThemeValue {
+  const context = useContext(LegacyThemeContext);
   if (!context) {
     throw new Error("useTheme must be used within ThemeProvider");
   }
   return context;
 }
 
-export function useColors() {
-  const context = useContext(ThemeContext);
+export function useColors(): Palette {
+  const context = useContext(PaletteContext);
   if (!context) {
     throw new Error("useColors must be used within ThemeProvider");
   }
-  return context.colors;
+  return context;
 }
 
-export function useThemeToggle() {
-  const context = useContext(ThemeContext);
+export function useThemeToggle(): () => void {
+  const context = useContext(ThemeModeContext);
   if (!context) {
     throw new Error("useThemeToggle must be used within ThemeProvider");
   }
   return context.toggleTheme;
 }
 
-export function useColor<K extends keyof Palette>(key: K): Palette[K] {
-  const context = useContext(ThemeContext);
+export function useThemeMode(): ThemeMode {
+  const context = useContext(ThemeModeContext);
   if (!context) {
-    throw new Error("useColor must be used within ThemeProvider");
+    throw new Error("useThemeMode must be used within ThemeProvider");
   }
-  return context.colors[key];
+  return context.theme;
+}
+
+export function useColorScheme(): ColorSchemePreference {
+  const context = useContext(ColorSchemeContext);
+  if (!context) {
+    throw new Error("useColorScheme must be used within ThemeProvider");
+  }
+  return context.colorScheme;
+}
+
+export function useSetColorScheme(): (scheme: ColorSchemePreference) => void {
+  const context = useContext(ColorSchemeContext);
+  if (!context) {
+    throw new Error("useSetColorScheme must be used within ThemeProvider");
+  }
+  return context.setColorScheme;
+}
+
+export function useColor<K extends keyof Palette>(key: K): Palette[K] {
+  return useColors()[key];
 }
 
 export const ThemeConsumer = memo(function ThemeConsumer({
   children,
 }: {
-  children: (value: ThemeContextValue) => React.ReactNode;
+  children: (value: LegacyThemeValue) => ReactNode;
 }) {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("ThemeConsumer must be used within ThemeProvider");
-  }
-  return <>{children(context)}</>;
+  return <>{children(useTheme())}</>;
 });
+

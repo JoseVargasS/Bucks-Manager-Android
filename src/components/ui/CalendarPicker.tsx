@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Animated, Modal, ScrollView, TouchableOpacity, View, StyleSheet } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { formatDateToISO, MONTH_NAMES } from "../../domain/bucksLogic";
@@ -13,7 +13,7 @@ const MONTH_NAMES_EN = ["January", "February", "March", "April", "May", "June", 
 const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 const DAY_LABELS_EN = ["M", "T", "W", "T", "F", "S", "S"];
 
-export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy = UI_COPY.es, mode = "date", minDate, maxDate }: { visible: boolean; value: string; onSelect: (v: string) => void; onClose: () => void; colors: Palette; copy?: UiCopy; mode?: "date" | "month"; minDate?: string; maxDate?: string }) {
+export const CalendarPicker = memo(function CalendarPicker({ visible, value, onSelect, onClose, colors, copy = UI_COPY.es, mode = "date", minDate, maxDate }: { visible: boolean; value: string; onSelect: (v: string) => void; onClose: () => void; colors: Palette; copy?: UiCopy; mode?: "date" | "month"; minDate?: string; maxDate?: string }) {
   const parsed = value ? new Date(value + (value.length <= 7 ? "-15T12:00:00" : "T12:00:00")) : new Date();
   const [viewYear, setViewYear] = useState(parsed.getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed.getMonth());
@@ -226,4 +226,4 @@ export function CalendarPicker({ visible, value, onSelect, onClose, colors, copy
       </Animated.View>
     </Modal>
   );
-}
+});

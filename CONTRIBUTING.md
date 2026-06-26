@@ -5,6 +5,8 @@
 - Read `AGENTS.md` and `CONTEXT.md` before touching startup, sync, transaction order, navigation, or modal ownership.
 - Preserve the Google Sheets names, legacy headers, exact transaction types, local-first behavior, and incremental OAuth scopes.
 - Keep changes small. Do not introduce a state layer, backend, test framework, or native dependency without measured need.
+- New UI primitives ship memoized. If you split or re-merge the theme contexts, justify the change with measured render counts.
+- New transaction-tag work must use stable ids; never read or write the free-form label as the on-disk reference.
 
 Install dependencies and enable the tracked hook:
 

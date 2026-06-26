@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
@@ -5,7 +6,7 @@ import { Palette } from "../../theme/colors";
 import { MaterialIconName } from "../../types";
 import { Text } from "./AppText";
 
-export function Kpi({ title, value, icon, color, colors }: { title: string; value: string; icon: MaterialIconName; color: string; colors: Palette }) {
+export const Kpi = memo(function Kpi({ title, value, icon, color, colors }: { title: string; value: string; icon: MaterialIconName; color: string; colors: Palette }) {
   return (
     <View style={[styles.kpi, { backgroundColor: colors.card }]}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -15,4 +16,5 @@ export function Kpi({ title, value, icon, color, colors }: { title: string; valu
       <Text numberOfLines={1} style={[styles.kpiValue, { color, fontVariant: ["tabular-nums"] }]}>{value}</Text>
     </View>
   );
-}
+});
+

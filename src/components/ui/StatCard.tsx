@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
@@ -5,7 +6,7 @@ import { Palette } from "../../theme/colors";
 import { MaterialIconName } from "../../types";
 import { Text } from "./AppText";
 
-export function StatCard({ title, value, icon, tone, colors, action }: { title: string; value: string; icon: MaterialIconName; tone: "income" | "expense" | "warn" | "balance"; colors: Palette; action?: () => void }) {
+export const StatCard = memo(function StatCard({ title, value, icon, tone, colors, action }: { title: string; value: string; icon: MaterialIconName; tone: "income" | "expense" | "warn" | "balance"; colors: Palette; action?: () => void }) {
   const color = tone === "income" ? colors.green : tone === "warn" ? colors.yellow : tone === "balance" ? colors.blue : colors.red;
   const softBg = tone === "income" ? colors.incomeSoft : tone === "warn" ? colors.warnSoft : tone === "balance" ? colors.infoSoft : colors.expenseSoft;
   return (
@@ -24,4 +25,4 @@ export function StatCard({ title, value, icon, tone, colors, action }: { title: 
       )}
     </View>
   );
-}
+});

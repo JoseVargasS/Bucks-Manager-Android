@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
@@ -5,7 +6,7 @@ import { Palette } from "../../theme/colors";
 import { MaterialIconName } from "../../types";
 import { Text, TextInput } from "./AppText";
 
-export function Field({ label, value, onChangeText, onFocus, onBlur, colors, placeholder = "", rightIcon }: { label: string; value: string; onChangeText: (v: string) => void; onFocus?: () => void; onBlur?: () => void; colors: Palette; placeholder?: string; rightIcon?: MaterialIconName }) {
+export const Field = memo(function Field({ label, value, onChangeText, onFocus, onBlur, colors, placeholder = "", rightIcon }: { label: string; value: string; onChangeText: (v: string) => void; onFocus?: () => void; onBlur?: () => void; colors: Palette; placeholder?: string; rightIcon?: MaterialIconName }) {
   return (
     <View style={{ flex: 1, marginBottom: 12 }}>
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
@@ -15,4 +16,4 @@ export function Field({ label, value, onChangeText, onFocus, onBlur, colors, pla
       </View>
     </View>
   );
-}
+});

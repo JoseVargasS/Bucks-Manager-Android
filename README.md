@@ -176,6 +176,11 @@ CONTEXT.md                      Runtime map and performance invariants
 - Keep Drive compatibility scans bounded rather than sequential or unbounded.
 - Import `MaterialCommunityIcons` from its direct module so Metro does not bundle unused icon-font families.
 - Preserve the mounted pager and ref-driven primary modals unless device evidence justifies a different architecture.
+- The theme is split into three contexts (`ThemeModeContext`, `ColorSchemeContext`, `PaletteContext`); a toggle of one does not rerender the others' subscribers. Do not re-merge them.
+- The shell background and `HeaderShell` overlay animate from light to dark over 180ms when the theme toggles. The two SVG header fades snap because they accept a string colour prop.
+- `getPalette` memoizes the result for each `(theme, scheme)` pair in a small LRU. Do not remove that cache.
+- Transaction tags store stable ids, not labels. Custom tags keep the label the user typed; default tags are translated through the catalogue and keep their colour. `migrateTagReferences` rewrites legacy label refs to ids once when the tag catalogue finishes loading.
+- Every reusable UI primitive is `React.memo`-wrapped. New UI primitives must be memoized at creation time.
 
 ## Repository Hygiene
 

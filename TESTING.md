@@ -50,8 +50,10 @@ Highest protection is expected for:
 
 - `src/domain/bucksLogic.ts`: money, dates, search, row order, and summaries.
 - `src/utils/transactions.ts`: rolling periods, stable sort, and grouping.
-- `src/data/localCache.ts`: cache ownership and corrupted-data rejection.
+- `src/data/localCache.ts`: cache ownership and corrupted-data rejection; `CACHE_VERSION` migration.
 - `src/api/googleWorkspace.ts`: legacy headers, locale values/formulas, exact tab names, bounded Drive scans, and row mutations.
-- `App.tsx`: optimistic state, `pendingSyncRef`, deduplicated reloads, and modal/navigation ownership. This orchestration remains primarily device-tested because it directly owns native modules and mounted UI.
+- `src/utils/tags.ts`: stable id generation, legacy label migration, and orphan id resolution across both Spanish and English defaults.
+- `src/theme/ThemeContext.tsx`: split-context wiring, palette LRU, and provider nesting.
+- `App.tsx`: optimistic state, `pendingSyncRef`, deduplicated reloads, modal/navigation ownership, and the in-memory `migrateTransactionTags` pass. This orchestration remains primarily device-tested because it directly owns native modules and mounted UI.
 
 The coverage table reports only critical non-UI TypeScript modules selected by `test:coverage`. It must not be interpreted as whole-app UI coverage.
