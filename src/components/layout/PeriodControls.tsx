@@ -1,7 +1,6 @@
 import { memo } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { styles } from "../../styles/globalStyles";
 import { Select } from "../ui/Select";
 import { Palette } from "../../theme/colors";
 import { UiCopy, UI_MONTH_NAMES } from "../../i18n";
@@ -63,3 +62,10 @@ export const PeriodControls = memo(function PeriodControls({
     </View>
   );
 });
+
+const styles = StyleSheet.create({
+  periodControls: { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 0, gap: 8 },
+  periodActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  periodToday: { width: 42, height: 42, borderRadius: 10, borderWidth: 0, alignItems: "center", justifyContent: "center" },
+});
+

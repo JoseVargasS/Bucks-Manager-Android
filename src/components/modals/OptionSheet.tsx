@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
-import { Animated, Modal, TouchableOpacity, View, ScrollView } from "react-native";
+import { Animated, Modal, StyleSheet, TouchableOpacity, View, ScrollView } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -34,7 +34,7 @@ export const OptionSheet = forwardRef<OptionSheetHandle, { colors: Palette }>(fu
     <Modal visible={transition.modalVisible} transparent animationType="none" onRequestClose={close}>
       <Animated.View style={[styles.optionOverlay, { backgroundColor: colors.overlay }, transition.containerStyle]}>
         <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={close} />
-        <Animated.View style={[styles.optionSheet, { backgroundColor: colors.card }, transition.panelStyle]}>
+        <Animated.View style={[optionStyles.sheet, { backgroundColor: colors.card }, transition.panelStyle]}>
           <View style={[styles.optionHeader, { borderColor: colors.border }]}>
             <Text style={[styles.optionTitle, { color: colors.text }]}>{config.title}</Text>
             <TouchableOpacity style={[styles.optionClose, { backgroundColor: colors.input }]} onPress={close}>
@@ -70,4 +70,8 @@ export const OptionSheet = forwardRef<OptionSheetHandle, { colors: Palette }>(fu
       </Animated.View>
     </Modal>
   );
+});
+
+const optionStyles = StyleSheet.create({
+  sheet: { width: "100%", maxHeight: "70%", borderTopWidth: 0, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" },
 });

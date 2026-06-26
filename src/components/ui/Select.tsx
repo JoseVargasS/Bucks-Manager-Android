@@ -1,5 +1,5 @@
 import { memo, useCallback, useRef, useState } from "react";
-import { Animated, Easing, Keyboard, Modal, Pressable, ScrollView, TouchableOpacity, useWindowDimensions, View, ViewStyle } from "react-native";
+import { Animated, Easing, Keyboard, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, View, type ViewStyle } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
@@ -57,20 +57,20 @@ export const Select = memo(function Select({ value, options, onSelect, colors, p
     <View ref={triggerRef} collapsable={false} onLayout={measureMenu} style={style}>
       <Animated.View style={{ opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.82] }), transform: [{ scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 0.985] }) }] }}>
         <Pressable
-          style={[styles.selectButton, { backgroundColor: colors.input, borderColor: colors.border }]}
+          style={[selectStyles.button, { backgroundColor: colors.input, borderColor: colors.border }]}
           onPress={openMenu}
           onPressIn={() => animatePress(1, 70)}
           onPressOut={() => animatePress(0, 110)}
           accessibilityLabel={title || placeholder || label}
         >
           {selected?.color && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: selected.color }} />}
-          <Text numberOfLines={1} style={[styles.selectButtonText, { color: selected?.color || (selected ? colors.text : colors.muted) }]}>{label}</Text>
+          <Text numberOfLines={1} style={[selectStyles.buttonText, { color: selected?.color || (selected ? colors.text : colors.muted) }]}>{label}</Text>
           <MaterialCommunityIcons name="chevron-down" size={18} color={colors.muted} />
         </Pressable>
       </Animated.View>
 
       {transition.modalVisible && <Modal visible transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Animated.View style={[styles.selectModalOverlay, transition.containerStyle]}>
+        <Animated.View style={[selectStyles.modalOverlay, transition.containerStyle]}>
           <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={() => setOpen(false)} />
           <Animated.View
             style={[
@@ -121,3 +121,10 @@ export const Select = memo(function Select({ value, options, onSelect, colors, p
     </View>
   );
 });
+
+const selectStyles = StyleSheet.create({
+  button: { borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, borderWidth: 1 },
+  buttonText: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: "600" },
+  modalOverlay: { flex: 1 },
+});
+
