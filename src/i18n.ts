@@ -153,6 +153,8 @@ export const UI_COPY = {
     pinIncorrect: "PIN incorrecto",
     amountPlaceholder: "Ej: (100+50)*25-10/2",
     datePlaceholder: "YYYY-MM-DD",
+    errorTitle: "Bucks Manager",
+    errorMessage: "Algo salió mal. Reinicia la app.",
   },
   en: {
     languageCode: "en",
@@ -308,6 +310,8 @@ export const UI_COPY = {
     pinIncorrect: "Incorrect PIN",
     amountPlaceholder: "Eg: (100+50)*25-10/2",
     datePlaceholder: "YYYY-MM-DD",
+    errorTitle: "Bucks Manager",
+    errorMessage: "Something went wrong. Restart the app.",
   },
 } as const;
 

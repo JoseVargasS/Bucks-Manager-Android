@@ -47,6 +47,9 @@ graphify-out/
 # codegraph knowledge graph (regenerable)
 .codegraph/
 
+# commandcode excluded
+.commandcode/
+
 # typescript
 *.tsbuildinfo
 

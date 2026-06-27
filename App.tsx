@@ -10,22 +10,17 @@ import {
   setOptions as setSplashOptions,
   hideAsync,
 } from "expo-splash-screen";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   AppState,
   Easing,
-  Image,
-  Pressable,
   useWindowDimensions,
   View,
   StatusBar as NativeStatusBar,
 } from "react-native";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import Svg, { Defs, LinearGradient, Mask, Rect, Stop } from "react-native-svg";
 
 import {
   applySearch,
@@ -50,7 +45,7 @@ import {
   deleteTransaction as deleteGoogleTransaction,
   removeTagFromAllRows,
 } from "./src/api/googleWorkspace";
-import { ColorSchemePreference, getPalette, Palette } from "./src/theme/colors";
+import { ColorSchemePreference, getPalette } from "./src/theme/colors";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import {
   getBlankDraft,
@@ -71,11 +66,7 @@ import {
 } from "./src/data/localCache";
 import { styles } from "./src/styles/globalStyles";
 import { BottomNav } from "./src/components/layout/BottomNav";
-import { PeriodControls } from "./src/components/layout/PeriodControls";
 import { LoginScreen } from "./src/components/screens/LoginScreen";
-import { ExpensesView } from "./src/components/screens/ExpensesView";
-import { SummaryView } from "./src/components/screens/SummaryView";
-import { SettingsView } from "./src/components/screens/SettingsView";
 import { PinScreen } from "./src/components/screens/PinScreen";
 import {
   TransactionModal,
@@ -104,15 +95,12 @@ import {
 } from "./src/components/modals/OptionSheet";
 import {
   getAppFontFamily,
-  Text,
 } from "./src/components/ui/AppText";
 import {
   HistoryEntry,
   SearchFilters,
   SummaryRow,
   Tab,
-  LanguageMode,
-  FontPreference,
   MaterialIconName,
   Tag,
   Transaction,
@@ -122,20 +110,25 @@ import {
   getPeriodRange,
   getAvailableMonthsForYear,
 } from "./src/utils/helpers";
-import { UiCopy } from "./src/i18n";
 import {
   ANIM_SPLASH_DURATION,
   ANIM_TAB_PAGER,
-  ANIM_HEADER_BTN_IN,
-  ANIM_HEADER_BTN_OUT,
   PIN_DELAY_MS,
-  SPLASH_BG,
-  SPLASH_SPINNER,
-  SPLASH_INDICATOR_OFFSET,
+  TOKEN_KEY,
+  SHEET_KEY,
+  GOOGLE_WORKSPACE_SCOPES,
+  TAB_ORDER,
 } from "./src/theme/constants";
 import { usePreferences, CURRENCY_OPTIONS } from "./src/hooks/usePreferences";
 import { useExport } from "./src/hooks/useExport";
 import { useErrorHelpers } from "./src/hooks/useErrorHelpers";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import {
+  StartupSplash,
+  BottomFade,
+  TabPage,
+  HeaderShell,
+} from "./src/components/AppShell";
 
 preventAutoHideAsync().catch(() => undefined);
 setSplashOptions({ duration: ANIM_SPLASH_DURATION, fade: true });
@@ -144,12 +137,6 @@ const GOOGLE_ANDROID_CLIENT_ID =
   Constants.expoConfig?.extra?.googleAndroidClientId || "";
 const GOOGLE_WEB_CLIENT_ID =
   Constants.expoConfig?.extra?.googleWebClientId || "";
-const TOKEN_KEY = "bucks_google_access_token";
-const SHEET_KEY = "bucks_spreadsheet_id";
-const GOOGLE_WORKSPACE_SCOPES = [
-  "https://www.googleapis.com/auth/drive.metadata.readonly",
-  "https://www.googleapis.com/auth/spreadsheets",
-];
 // ponytail: module-level promise chain serializes every Sheets mutation so a
 // fast edit cannot race with the reconcile read of an earlier edit. The chain
 // holds the in-flight task only; UI state lives in pendingSyncRef/setPendingSync.
@@ -186,7 +173,6 @@ const COLOR_SCHEME_OPTIONS: Array<{
     icon: "circle-half-full",
   },
 ];
-const TAB_ORDER: Tab[] = ["expenses", "summary", "settings"];
 
 function deriveSyncStatus(args: {
   authError: string;
@@ -1801,527 +1787,12 @@ function AppContent() {
   );
 }
 
-function StartupSplash() {
-  return (
-    <View style={{ flex: 1, backgroundColor: SPLASH_BG }}>
-      <NativeStatusBar barStyle="light-content" backgroundColor={SPLASH_BG} />
-      <Image
-        source={require("./assets/splash-bucks.png")}
-        resizeMode="cover"
-        style={{ width: "100%", height: "100%" }}
-      />
-      <ActivityIndicator
-        color={SPLASH_SPINNER}
-        style={{ position: "absolute", bottom: SPLASH_INDICATOR_OFFSET, alignSelf: "center" }}
-      />
-    </View>
-  );
-}
-
-const HeaderActionButton = memo(function HeaderActionButton({
-  colors,
-  icon,
-  iconColor,
-  onPress,
-}: {
-  colors: Palette;
-  icon: MaterialIconName;
-  iconColor: string;
-  onPress: () => void;
-}) {
-  const pressed = useRef(new Animated.Value(0)).current;
-  const animate = (toValue: number, duration: number) => {
-    pressed.stopAnimation();
-    Animated.timing(pressed, {
-      toValue,
-      duration,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
-  return (
-    <Animated.View
-      style={{
-        opacity: pressed.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 0.8],
-        }),
-        transform: [
-          {
-            scale: pressed.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, 0.94],
-            }),
-          },
-        ],
-      }}
-    >
-      <Pressable
-        onPressIn={() => {
-          animate(1, ANIM_HEADER_BTN_IN);
-          onPress();
-        }}
-        onPressOut={() => animate(0, ANIM_HEADER_BTN_OUT)}
-        accessibilityRole="button"
-        hitSlop={6}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          backgroundColor: colors.input,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
-      </Pressable>
-    </Animated.View>
-  );
-});
-
-const HeaderFade = memo(function HeaderFade({
-  color,
-  height,
-}: {
-  color: string;
-  height: number;
-}) {
-  return (
-    <Svg
-      pointerEvents="none"
-      width="100%"
-      height={height}
-      style={{ position: "absolute", top: 0, left: 0, right: 0 }}
-    >
-      <Defs>
-        <LinearGradient id="headerFade" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="0.55" />
-          <Stop offset="0.38" stopColor={color} stopOpacity="0.35" />
-          <Stop offset="0.72" stopColor={color} stopOpacity="0.10" />
-          <Stop offset="1" stopColor={color} stopOpacity="0" />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerFade)" />
-    </Svg>
-  );
-});
-
-const HeaderTitleFade = memo(function HeaderTitleFade({
-  color,
-}: {
-  color: string;
-}) {
-  return (
-    <Svg
-      pointerEvents="none"
-      width="92%"
-      height={70}
-      style={styles.headerTitleFade}
-    >
-      <Defs>
-        <LinearGradient
-          id="headerTitleFadeHorizontal"
-          x1="0"
-          y1="0"
-          x2="1"
-          y2="0"
-        >
-          <Stop offset="0" stopColor={color} stopOpacity="0.45" />
-          <Stop offset="0.58" stopColor={color} stopOpacity="0.30" />
-          <Stop offset="1" stopColor={color} stopOpacity="0" />
-        </LinearGradient>
-        <LinearGradient
-          id="headerTitleFadeVertical"
-          x1="0"
-          y1="0"
-          x2="0"
-          y2="1"
-        >
-          <Stop offset="0" stopColor="#ffffff" stopOpacity="0" />
-          <Stop offset="0.18" stopColor="#ffffff" stopOpacity="1" />
-          <Stop offset="0.82" stopColor="#ffffff" stopOpacity="1" />
-          <Stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </LinearGradient>
-        <Mask id="headerTitleFadeMask">
-          <Rect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            fill="url(#headerTitleFadeVertical)"
-          />
-        </Mask>
-      </Defs>
-      <Rect
-        x="0"
-        y="0"
-        width="100%"
-        height="100%"
-        fill="url(#headerTitleFadeHorizontal)"
-        mask="url(#headerTitleFadeMask)"
-      />
-    </Svg>
-  );
-});
-
-const BottomFade = memo(function BottomFade({
-  color,
-  height,
-}: {
-  color: string;
-  height: number;
-}) {
-  return (
-    <Svg
-      pointerEvents="none"
-      width="100%"
-      height={height}
-      style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10 }}
-    >
-      <Defs>
-        <LinearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={color} stopOpacity="0" />
-          <Stop offset="0.36" stopColor={color} stopOpacity="0.16" />
-          <Stop offset="0.70" stopColor={color} stopOpacity="0.58" />
-          <Stop offset="1" stopColor={color} stopOpacity="0.86" />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#bottomFade)" />
-    </Svg>
-  );
-});
-
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }
-
-type ExpensesTabProps = {
-  contentTopInset: number;
-  colors: Palette;
-  summary: SummaryRow;
-  transactions: Transaction[];
-  searchActive: boolean;
-  searchText: string;
-  selectedRows: number[];
-  currencySymbol: string;
-  copy: UiCopy;
-  onExitSearch: () => void;
-  onOpenDetail: (tx: Transaction) => void;
-  onEdit: (tx: Transaction) => void;
-  onDeleteSelected: () => void;
-  onMove: (tx: Transaction) => void;
-  onToggleSelection: (tx: Transaction) => void;
-  onLoadOlder: () => void;
-  tagsList: Tag[];
-};
-
-type SummaryTabProps = {
-  contentTopInset: number;
-  colors: Palette;
-  copy: UiCopy;
-  summaries: SummaryRow[];
-  transactions: Transaction[];
-  freqIncome: Record<string, number>;
-  availableYears: number[];
-  currencySymbol: string;
-};
-
-type SettingsTabProps = {
-  contentTopInset: number;
-  colors: Palette;
-  copy: UiCopy;
-  language: LanguageMode;
-  accountInfo: { name?: string; email?: string } | null;
-  currencySymbol: string;
-  fontPreference: FontPreference;
-  colorSchemeLabel: string;
-  pinEnabled: boolean;
-  tagsCount: number;
-  onOpenLanguage: () => void;
-  onOpenCurrency: () => void;
-  onOpenFont: () => void;
-  onOpenColorScheme: () => void;
-  onOpenPin: () => void;
-  onOpenTags: () => void;
-  onSwitch: () => void;
-  onDisconnect: () => void;
-  onOpenExport: () => void;
-};
-
-type LoadingBarProps = {
-  visible: boolean;
-  syncing: boolean;
-  cardColor: string;
-  primaryColor: string;
-  mutedColor: string;
-  text: string;
-};
-
-type TabPageProps =
-  | {
-      tab: "expenses";
-      isCurrent: boolean;
-      props: ExpensesTabProps;
-      loadingBar: LoadingBarProps;
-      tabWidth: number;
-    }
-  | {
-      tab: "summary";
-      isCurrent: boolean;
-      props: SummaryTabProps;
-      loadingBar: LoadingBarProps;
-      tabWidth: number;
-    }
-  | {
-      tab: "settings";
-      isCurrent: boolean;
-      props: SettingsTabProps;
-      loadingBar: LoadingBarProps;
-      tabWidth: number;
-    };
-
-function TabPageImpl(props: TabPageProps) {
-  const { tab, isCurrent, props: tabProps, loadingBar, tabWidth } = props;
-  const showSettingsTopPad = tab === "settings";
-  return (
-    <View
-      pointerEvents={isCurrent ? "auto" : "none"}
-      importantForAccessibility={isCurrent ? "auto" : "no-hide-descendants"}
-      style={{ width: tabWidth, height: "100%", position: "relative" }}
-    >
-      <View
-        style={[
-          { flex: 1 },
-          showSettingsTopPad && { paddingTop: tabProps.contentTopInset },
-        ]}
-      >
-        {loadingBar.visible && (
-          <View
-            style={[
-              styles.loadingBar,
-              styles.loadingOverlay,
-              { backgroundColor: loadingBar.cardColor },
-            ]}
-          >
-            {loadingBar.syncing && (
-              <ActivityIndicator color={loadingBar.primaryColor} />
-            )}
-            <Text style={{ color: loadingBar.mutedColor }}>{loadingBar.text}</Text>
-          </View>
-        )}
-        {tab === "expenses" ? (
-          <ExpensesView
-            colors={tabProps.colors}
-            summary={tabProps.summary}
-            transactions={tabProps.transactions}
-            searchActive={tabProps.searchActive}
-            searchText={tabProps.searchText}
-            selectedRows={tabProps.selectedRows}
-            currencySymbol={tabProps.currencySymbol}
-            copy={tabProps.copy}
-            onExitSearch={tabProps.onExitSearch}
-            onOpenDetail={tabProps.onOpenDetail}
-            onEdit={tabProps.onEdit}
-            onDeleteSelected={tabProps.onDeleteSelected}
-            onMove={tabProps.onMove}
-            onToggleSelection={tabProps.onToggleSelection}
-            onLoadOlder={tabProps.onLoadOlder}
-            topInset={tabProps.contentTopInset}
-            tagsList={tabProps.tagsList}
-          />
-        ) : tab === "summary" ? (
-          <SummaryView
-            colors={tabProps.colors}
-            copy={tabProps.copy}
-            summaries={tabProps.summaries}
-            transactions={tabProps.transactions}
-            freqIncome={tabProps.freqIncome}
-            availableYears={tabProps.availableYears}
-            topInset={tabProps.contentTopInset}
-            currencySymbol={tabProps.currencySymbol}
-          />
-        ) : (
-          <SettingsView
-            colors={tabProps.colors}
-            copy={tabProps.copy}
-            language={tabProps.language}
-            accountInfo={tabProps.accountInfo}
-            currencySymbol={tabProps.currencySymbol}
-            fontPreference={tabProps.fontPreference}
-            colorSchemeLabel={tabProps.colorSchemeLabel}
-            pinEnabled={tabProps.pinEnabled}
-            tagsCount={tabProps.tagsCount}
-            onOpenLanguage={tabProps.onOpenLanguage}
-            onOpenCurrency={tabProps.onOpenCurrency}
-            onOpenFont={tabProps.onOpenFont}
-            onOpenColorScheme={tabProps.onOpenColorScheme}
-            onOpenPin={tabProps.onOpenPin}
-            onOpenTags={tabProps.onOpenTags}
-            onSwitch={tabProps.onSwitch}
-            onDisconnect={tabProps.onDisconnect}
-            onOpenExport={tabProps.onOpenExport}
-          />
-        )}
-      </View>
-    </View>
-  );
-}
-
-const TabPage = memo(TabPageImpl);
-
-type HeaderShellProps = {
-  tab: Tab;
-  bg: string;
-  isDark: boolean;
-  headerTopInset: number;
-  headerFadeHeight: number;
-  expensesSubtitle: string;
-  expensesAvailableYears: number[];
-  expensesAvailableMonths: number[];
-  expensesYear: number;
-  expensesMonth: number;
-  historyTint: string;
-  onToggleTheme: () => void;
-  onOpenHistory: () => void;
-  onSelectPeriod: (month: number, year: number) => void;
-  goToday: () => void;
-  goPrevMonth: () => void;
-  goNextMonth: () => void;
-  copy: UiCopy;
-};
-
-function HeaderShellImpl(
-  props: HeaderShellProps & {
-    colors: Palette;
-  },
-) {
-  const {
-    tab,
-    bg,
-    isDark,
-    headerTopInset,
-    headerFadeHeight,
-    expensesSubtitle,
-    historyTint,
-    onToggleTheme,
-    onOpenHistory,
-    copy,
-    colors,
-  } = props;
-  const pageTitle =
-    tab === "expenses"
-      ? copy.expenses
-      : tab === "summary"
-        ? copy.summary
-        : copy.settings;
-  const pageSubtitle =
-    tab === "expenses"
-      ? expensesSubtitle
-      : tab === "summary"
-        ? copy.summarySubtitle
-        : copy.settingsSubtitle;
-  const showHeaderFade = tab === "expenses" || tab === "summary";
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 30,
-      }}
-      pointerEvents="box-none"
-    >
-      {showHeaderFade && <HeaderFade color={bg} height={headerFadeHeight} />}
-      <View pointerEvents="box-none" style={{ paddingTop: headerTopInset }}>
-        <View
-          style={[
-            styles.topBar,
-            styles.topBarMobile,
-            { backgroundColor: "transparent" },
-          ]}
-        >
-          <HeaderTitleFade color={bg} />
-          <View style={styles.headerLeft}>
-            <View
-              style={[
-                styles.headerLogo,
-                { backgroundColor: colors.primary },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="sack"
-                size={19}
-                color={colors.onPrimary}
-              />
-            </View>
-            <View style={styles.titleBlock}>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.pageTitle,
-                  styles.pageTitleMobile,
-                  isDark
-                    ? styles.headerReadableTextDark
-                    : styles.headerReadableTextLight,
-                  { color: colors.text, textShadowColor: colors.shadow },
-                ]}
-              >
-                {pageTitle}
-              </Text>
-              {!!pageSubtitle && (
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.pageSub,
-                    styles.pageSubMobile,
-                    isDark
-                      ? styles.headerReadableTextDark
-                      : styles.headerReadableTextLight,
-                    { color: colors.muted, textShadowColor: colors.shadow },
-                  ]}
-                >
-                  {pageSubtitle}
-                </Text>
-              )}
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <HeaderActionButton
-              colors={colors}
-              icon={isDark ? "weather-night" : "white-balance-sunny"}
-              iconColor={colors.yellow}
-              onPress={onToggleTheme}
-            />
-            <HeaderActionButton
-              colors={colors}
-              icon="history"
-              iconColor={historyTint}
-              onPress={onOpenHistory}
-            />
-          </View>
-        </View>
-        {tab === "expenses" && (
-          <PeriodControls
-            colors={colors}
-            copy={copy}
-            year={props.expensesYear}
-            month={props.expensesMonth}
-            availableYears={props.expensesAvailableYears}
-            availableMonths={props.expensesAvailableMonths}
-            onSelectPeriod={props.onSelectPeriod}
-            goToday={props.goToday}
-            goPrevMonth={props.goPrevMonth}
-            goNextMonth={props.goNextMonth}
-          />
-        )}
-      </View>
-    </Animated.View>
-  );
-}
-
-const HeaderShell = memo(HeaderShellImpl);

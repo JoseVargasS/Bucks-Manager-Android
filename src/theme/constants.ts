@@ -15,3 +15,13 @@ export const Z_INDEX_SEARCH = 1002;
 export const SPLASH_BG = "#050E0B";
 export const SPLASH_SPINNER = "#C8FF00";
 export const SPLASH_INDICATOR_OFFSET = 72;
+
+export const TOKEN_KEY = "bucks_google_access_token";
+export const SHEET_KEY = "bucks_spreadsheet_id";
+
+export const GOOGLE_WORKSPACE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.metadata.readonly",
+  "https://www.googleapis.com/auth/spreadsheets",
+];
+
+export const TAB_ORDER: ("expenses" | "summary" | "settings")[] = ["expenses", "summary", "settings"];
