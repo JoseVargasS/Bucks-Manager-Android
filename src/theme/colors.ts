@@ -18,6 +18,7 @@ export const dark = {
   warnSoft: "rgba(224,168,75,0.12)",
   blue: "#75d7ff",
   infoSoft: "rgba(117,215,255,0.13)",
+  periodBg: "rgba(117,215,255,0.50)",
   disabled: "#2a2f40",
   switchTrack: "#1e2333",
   editBg: "#17280f",
@@ -63,6 +64,7 @@ export const light = {
   warnSoft: "rgba(155,108,34,0.12)",
   blue: "#77910f",
   infoSoft: "rgba(138,184,0,0.18)",
+  periodBg: "rgba(119,145,15,0.45)",
   disabled: "#d9cebf",
   switchTrack: "#e3d8ca",
   editBg: "#e8f5b8",
@@ -227,19 +229,33 @@ const accents: Record<
 const paletteCache = new Map<string, Palette>();
 const PALETTE_CACHE_LIMIT = 12;
 
+function cacheGet(key: string): Palette | undefined {
+  const value = paletteCache.get(key);
+  if (value !== undefined) {
+    paletteCache.delete(key);
+    paletteCache.set(key, value);
+  }
+  return value;
+}
+
+function cacheSet(key: string, value: Palette): void {
+  if (paletteCache.has(key)) paletteCache.delete(key);
+  if (paletteCache.size >= PALETTE_CACHE_LIMIT) {
+    const oldest = paletteCache.keys().next().value;
+    if (oldest !== undefined) paletteCache.delete(oldest);
+  }
+  paletteCache.set(key, value);
+}
+
 export function getPalette(
   theme: "dark" | "light",
   scheme: ColorSchemePreference,
 ): Palette {
   const cacheKey = `${theme}|${scheme}`;
-  const cached = paletteCache.get(cacheKey);
+  const cached = cacheGet(cacheKey);
   if (cached) return cached;
   const base = theme === "dark" ? dark : light;
   const palette = { ...base, ...accents[scheme][theme] } as Palette;
-  if (paletteCache.size >= PALETTE_CACHE_LIMIT) {
-    const firstKey = paletteCache.keys().next().value;
-    if (firstKey !== undefined) paletteCache.delete(firstKey);
-  }
-  paletteCache.set(cacheKey, palette);
+  cacheSet(cacheKey, palette);
   return palette;
 }

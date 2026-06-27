@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import type { LanguageMode, Tag, Transaction } from "../types";
-import { dark } from "../theme/colors";
+import { dark, type Palette } from "../theme/colors";
 import { logError } from "./errorHandler";
 
 const TAGS_KEY = "bucks_tags";
@@ -69,15 +69,15 @@ export function abbreviateTag(label: string): string {
   return label.slice(0, 5) + ".";
 }
 
-export function tagTextColor(color: string): string {
+export function tagTextColor(color: string, palette?: Palette): string {
+  const darkText = palette?.tagTextDark ?? dark.tagTextDark;
+  const lightText = palette?.tagTextLight ?? dark.tagTextLight;
   const hex = color.replace("#", "");
-  if (hex.length !== 6) return dark.tagTextLight;
+  if (hex.length !== 6) return lightText;
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150
-    ? dark.tagTextDark
-    : dark.tagTextLight;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? darkText : lightText;
 }
 
 export function findTagById(id: string, tagsList: Tag[]): Tag | undefined {
