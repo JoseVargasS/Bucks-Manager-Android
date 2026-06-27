@@ -1,10 +1,6 @@
 import Constants from "expo-constants";
 import { BlurView } from "expo-blur";
-import {
-  getItemAsync,
-  setItemAsync,
-  deleteItemAsync,
-} from "expo-secure-store";
+import { getItemAsync, setItemAsync, deleteItemAsync } from "expo-secure-store";
 import {
   preventAutoHideAsync,
   setOptions as setSplashOptions,
@@ -23,12 +19,10 @@ import {
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import {
-  applySearch,
   buildTransactionFromDraft,
   calculateSummaries,
   formatDateToISO,
   insertChronologically,
-  MONTH_NAMES,
   recalculateSummariesForMonths,
   SHEET_NAMES,
   uniqueMonthKeys,
@@ -47,11 +41,7 @@ import {
 } from "./src/api/googleWorkspace";
 import { ColorSchemePreference, getPalette } from "./src/theme/colors";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
-import {
-  getBlankDraft,
-  sortTransactionsDesc,
-  filterTransactionsByRollingPeriod,
-} from "./src/utils/transactions";
+import { getBlankDraft } from "./src/utils/transactions";
 import {
   loadHistory,
   addHistoryEntry,
@@ -62,7 +52,6 @@ import { loadTags, migrateTransactionTags } from "./src/utils/tags";
 import {
   deleteFinancialCache,
   loadFinancialCache,
-  saveFinancialCache,
 } from "./src/data/localCache";
 import { styles } from "./src/styles/globalStyles";
 import { BottomNav } from "./src/components/layout/BottomNav";
@@ -93,23 +82,17 @@ import {
   OptionSheet,
   OptionSheetHandle,
 } from "./src/components/modals/OptionSheet";
-import {
-  getAppFontFamily,
-} from "./src/components/ui/AppText";
+import { getAppFontFamily } from "./src/components/ui/AppText";
 import {
   HistoryEntry,
   SearchFilters,
-  SummaryRow,
   Tab,
   MaterialIconName,
   Tag,
   Transaction,
   TransactionDraft,
 } from "./src/types";
-import {
-  getPeriodRange,
-  getAvailableMonthsForYear,
-} from "./src/utils/helpers";
+
 import {
   ANIM_SPLASH_DURATION,
   ANIM_TAB_PAGER,
@@ -119,6 +102,7 @@ import {
   GOOGLE_WORKSPACE_SCOPES,
   TAB_ORDER,
 } from "./src/theme/constants";
+import { useFinancialState } from "./src/hooks/useFinancialState";
 import { usePreferences, CURRENCY_OPTIONS } from "./src/hooks/usePreferences";
 import { useExport } from "./src/hooks/useExport";
 import { useErrorHelpers } from "./src/hooks/useErrorHelpers";
@@ -184,27 +168,45 @@ function deriveSyncStatus(args: {
   savedDataText: string;
   syncingLabel: string;
 }): string {
-  const { authError, syncError, pendingSync, isSyncing, hasLocalData, isEn, savedDataText, syncingLabel } = args;
+  const {
+    authError,
+    syncError,
+    pendingSync,
+    isSyncing,
+    hasLocalData,
+    isEn,
+    savedDataText,
+    syncingLabel,
+  } = args;
   if (authError) return authError;
-  if (syncError) return hasLocalData ? (isEn ? "Showing saved data" : "Mostrando datos guardados") : syncError;
+  if (syncError)
+    return hasLocalData
+      ? isEn
+        ? "Showing saved data"
+        : "Mostrando datos guardados"
+      : syncError;
   if (pendingSync) return isEn ? "Pending sync" : "Pendiente de sincronizar";
-  if (isSyncing) return hasLocalData ? `${savedDataText} · ${syncingLabel.toLowerCase()}` : syncingLabel;
+  if (isSyncing)
+    return hasLocalData
+      ? `${savedDataText} · ${syncingLabel.toLowerCase()}`
+      : syncingLabel;
   return "";
 }
 
-function renumberTransactions(items: Transaction[]) {
-  return items.map((item, idx) => ({ ...item, rowId: idx + 2 }));
-}
-
 function AppContent() {
-  const { colors, theme, colorScheme, toggleTheme } =
-    useTheme();
+  const { colors, theme, colorScheme, toggleTheme } = useTheme();
   const themeProgress = useRef(
     new Animated.Value(theme === "dark" ? 1 : 0),
   ).current;
   const themeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
-  const themeBgDark = useMemo(() => getPalette("dark", colorScheme).bg, [colorScheme]);
-  const themeBgLight = useMemo(() => getPalette("light", colorScheme).bg, [colorScheme]);
+  const themeBgDark = useMemo(
+    () => getPalette("dark", colorScheme).bg,
+    [colorScheme],
+  );
+  const themeBgLight = useMemo(
+    () => getPalette("light", colorScheme).bg,
+    [colorScheme],
+  );
   const themeProgressBg = useMemo(
     () =>
       themeProgress.interpolate({
@@ -240,33 +242,56 @@ function AppContent() {
   } = usePreferences();
   const { getErrorMessage, isAuthError, shouldRescanForSheetError } =
     useErrorHelpers(copy.syncError);
+  const [tagsList, setTagsList] = useState<Tag[]>([]);
+  const [tagEditorVisible, setTagEditorVisible] = useState(false);
+  const fin = useFinancialState(tagsList);
+  const {
+    transactions,
+    summaries,
+    freqIncome,
+    freqIncomeRef,
+    hasLocalData,
+    hasLocalDataRef,
+    month,
+    year,
+    searchFilters,
+    searchActive,
+    selectedRows,
+    setTransactions,
+    setSummaries,
+    setSearchFilters,
+    setSearchActive,
+    setSelectedRows,
+    availableYears,
+    availableMonths,
+    currentSummary,
+    visibleTransactions,
+    applyFinancialState,
+    persistFinancialState,
+    resetFinancial,
+    renumberTransactions,
+    selectPeriod,
+    goToday,
+    goPrevMonth,
+    goNextMonth,
+    loadOlder,
+    toggleSelection,
+  } = fin;
   const [tab, setTab] = useState<Tab>("expenses");
-  const [month, setMonth] = useState(new Date().getMonth());
-  const [year, setYear] = useState(new Date().getFullYear());
   const [accessToken, setAccessToken] = useState("");
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [bootstrapping, setBootstrapping] = useState(true);
   const [loading, setLoading] = useState(false);
   const [accountTransition, setAccountTransition] = useState(false);
-  const [hasLocalData, setHasLocalData] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFirstRemoteLoad, setIsFirstRemoteLoad] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [authError, setAuthError] = useState("");
   const [pendingSync, setPendingSync] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summaries, setSummaries] = useState<SummaryRow[]>([]);
-  const [freqIncome, setFreqIncome] = useState<Record<string, number>>({});
   const [accountInfo, setAccountInfo] = useState<{
     name?: string;
     email?: string;
   } | null>(null);
-  const [searchFilters, setSearchFilters] =
-    useState<SearchFilters>(emptySearchFilters);
-  const [searchActive, setSearchActive] = useState(false);
-  const [loadedMonthCount, setLoadedMonthCount] = useState(1);
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyVisible, setHistoryVisible] = useState(false);
   const {
@@ -286,17 +311,12 @@ function AppContent() {
   const [pinLoading, setPinLoading] = useState(true);
   const [pinSetupVisible, setPinSetupVisible] = useState(false);
   const [pinWrong, setPinWrong] = useState(false);
-  const [tagsList, setTagsList] = useState<Tag[]>([]);
-  const [tagEditorVisible, setTagEditorVisible] = useState(false);
   const pinLockedRef = useRef(false);
   const transactionModalRef = useRef<TransactionModalHandle>(null);
   const detailModalRef = useRef<DetailModalHandle>(null);
   const searchModalRef = useRef<SearchModalHandle>(null);
   const optionSheetRef = useRef<OptionSheetHandle>(null);
-  const didSetInitialPeriodRef = useRef(false);
   const reloadPromiseRef = useRef<Promise<void> | null>(null);
-  const freqIncomeRef = useRef<Record<string, number>>({});
-  const hasLocalDataRef = useRef(false);
   const pendingSyncRef = useRef(false);
   const tabRef = useRef<Tab>(tab);
   const pagerTranslateX = useRef(new Animated.Value(0)).current;
@@ -359,13 +379,15 @@ function AppContent() {
           return migrated.map((tx) => {
             if (!tx.tags?.length) return tx;
             const cleaned = tx.tags.filter((t) => validIds.has(t));
-            return cleaned.length === tx.tags.length ? tx : { ...tx, tags: cleaned };
+            return cleaned.length === tx.tags.length
+              ? tx
+              : { ...tx, tags: cleaned };
           });
         });
         setSummaries((current) => current);
       })
       .catch(() => undefined);
-  }, [language]);
+  }, [language, setTransactions, setSummaries]);
 
   const prevTagsListRef = useRef<Tag[]>([]);
   useEffect(() => {
@@ -392,14 +414,12 @@ function AppContent() {
         );
       }
     }
-  }, [tagsList, accessToken, spreadsheetId]);
+  }, [tagsList, accessToken, spreadsheetId, setTransactions]);
 
   useEffect(() => {
     if (!bootstrapping) hideAsync().catch(() => undefined);
   }, [bootstrapping]);
 
-  // ponytail: only realign the pager when the window width changes; never on tab
-  // flips (which would cancel the in-flight Animated.timing mid-gesture).
   const lastTabWidthRef = useRef(tabWidth);
   useEffect(() => {
     if (lastTabWidthRef.current === tabWidth) return;
@@ -407,76 +427,7 @@ function AppContent() {
     pagerTranslateX.stopAnimation();
     pagerTranslateX.setValue(-TAB_ORDER.indexOf(tabRef.current) * tabWidth);
   }, [pagerTranslateX, tabWidth]);
-  useEffect(() => {
-    freqIncomeRef.current = freqIncome;
-  }, [freqIncome]);
 
-  useEffect(() => {
-    hasLocalDataRef.current = hasLocalData;
-  }, [hasLocalData]);
-
-  // --- Derived data ---
-  const tagLabelsById = useMemo(() => {
-    const map: Record<string, string> = {};
-    tagsList.forEach((tag) => {
-      map[tag.id] = tag.label;
-    });
-    return map;
-  }, [tagsList]);
-  const visibleTransactions = useMemo(() => {
-    const source = searchActive
-      ? applySearch(transactions, searchFilters, tagLabelsById)
-      : filterTransactionsByRollingPeriod(
-          transactions,
-          month,
-          year,
-          loadedMonthCount,
-        );
-    return sortTransactionsDesc(source);
-  }, [
-    transactions,
-    month,
-    year,
-    loadedMonthCount,
-    searchActive,
-    searchFilters,
-    tagLabelsById,
-  ]);
-
-  const currentSummary = useMemo(() => {
-    const key = `${MONTH_NAMES[month]} ${year}`;
-    return (
-      summaries.find((row) => row.monthYear === key) || {
-        monthYear: key,
-        freqIncome: freqIncome[key] || 0,
-        nonFreqIncome: 0,
-        totalIncome: freqIncome[key] || 0,
-        freqExpense: 0,
-        nonFreqExpense: 0,
-        totalExpense: 0,
-        netMonthly: freqIncome[key] || 0,
-        netNoFreq: 0,
-      }
-    );
-  }, [summaries, month, year, freqIncome]);
-
-  const periodRange = useMemo(
-    () => getPeriodRange(transactions),
-    [transactions],
-  );
-  const availableYears = useMemo(
-    () =>
-      Array.from(
-        { length: periodRange.maxYear - periodRange.minYear + 1 },
-        (_, index) => periodRange.maxYear - index,
-      ),
-    [periodRange],
-  );
-
-  const availableMonths = useMemo(
-    () => getAvailableMonthsForYear(year, periodRange),
-    [year, periodRange],
-  );
   const selectedColorScheme =
     COLOR_SCHEME_OPTIONS.find((option) => option.value === colorScheme) ||
     COLOR_SCHEME_OPTIONS[0];
@@ -773,10 +724,7 @@ function AppContent() {
         throw new Error("Google no devolvió access token.");
       if (switchingAccount) {
         setAccountTransition(true);
-        await Promise.all([
-          deleteItemAsync(SHEET_KEY),
-          deleteFinancialCache(),
-        ]);
+        await Promise.all([deleteItemAsync(SHEET_KEY), deleteFinancialCache()]);
         resetFinancialState();
       }
       await setItemAsync(TOKEN_KEY, tokens.accessToken);
@@ -787,16 +735,12 @@ function AppContent() {
       await connectGoogleWorkspace(tokens.accessToken, "", true);
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : copy.googleSignInError;
+        error instanceof Error ? error.message : copy.googleSignInError;
       const isDeveloperError =
         message.includes("DEVELOPER_ERROR") || message.includes("code: 10");
       Alert.alert(
         "Google",
-        isDeveloperError
-          ? copy.oauthConfigRejected
-          : message,
+        isDeveloperError ? copy.oauthConfigRejected : message,
       );
     } finally {
       setLoading(false);
@@ -825,84 +769,15 @@ function AppContent() {
       });
   }
 
-  function applyFinancialState(
-    nextTransactions: Transaction[],
-    nextSummaries: SummaryRow[],
-    nextFreqIncome: Record<string, number>,
-    syncedAt: string | null,
-    fromCache = false,
-  ) {
-    const summariesToUse = nextSummaries.length
-      ? nextSummaries
-      : calculateSummaries(nextTransactions, nextFreqIncome);
-    setTransactions(nextTransactions);
-    setSummaries(summariesToUse);
-    setFreqIncome(nextFreqIncome);
-    freqIncomeRef.current = nextFreqIncome;
-    setLastSyncedAt(syncedAt);
-    const nextHasLocalData = nextTransactions.length > 0 || summariesToUse.length > 0;
-    setHasLocalData(nextHasLocalData);
-    hasLocalDataRef.current = nextHasLocalData;
-    if (fromCache || nextTransactions.length)
-      updateInitialPeriod(nextTransactions);
-  }
-
-  function persistFinancialState(
-    nextTransactions: Transaction[],
-    nextSummaries: SummaryRow[],
-    nextFreqIncome: Record<string, number>,
-    syncedAt = lastSyncedAt,
-    sheetId = spreadsheetId,
-  ) {
-    const summariesToUse = nextSummaries.length
-      ? nextSummaries
-      : calculateSummaries(nextTransactions, nextFreqIncome);
-    const nextHasLocalData = nextTransactions.length > 0 || summariesToUse.length > 0;
-    setHasLocalData(nextHasLocalData);
-    hasLocalDataRef.current = nextHasLocalData;
-    if (!sheetId) return;
-    saveFinancialCache({
-      spreadsheetId: sheetId,
-      transactions: nextTransactions,
-      summaries: summariesToUse,
-      freqIncome: nextFreqIncome,
-      lastSyncedAt: syncedAt,
-    }).catch(() => undefined);
-  }
-
-  function updateInitialPeriod(source: Transaction[]) {
-    if (didSetInitialPeriodRef.current || !source.length) return;
-    const today = new Date();
-    let latest: Date | null = null;
-    for (const tx of source) {
-      const date = new Date(tx.rawDate);
-      if (Number.isNaN(date.getTime()) || date > today) continue;
-      if (!latest || date.getTime() > latest.getTime()) latest = date;
-    }
-    if (latest) {
-      setMonth(latest.getMonth());
-      setYear(latest.getFullYear());
-      setLoadedMonthCount(1);
-    }
-    didSetInitialPeriodRef.current = true;
-  }
-
   function resetFinancialState() {
+    resetFinancial();
     setSpreadsheetId("");
-    setTransactions([]);
-    setSummaries([]);
-    setFreqIncome({});
-    freqIncomeRef.current = {};
     setAccountInfo(null);
-    setHasLocalData(false);
-    hasLocalDataRef.current = false;
-    setLastSyncedAt(null);
     setSyncError("");
     setAuthError("");
     setPendingSync(false);
     setIsSyncing(false);
     pendingSyncRef.current = false;
-    didSetInitialPeriodRef.current = false;
   }
 
   async function clearGoogleSession() {
@@ -976,7 +851,9 @@ function AppContent() {
         return;
       }
       const nextFreqIncome = summary.length
-        ? Object.fromEntries(summary.map((row) => [row.monthYear, row.freqIncome]))
+        ? Object.fromEntries(
+            summary.map((row) => [row.monthYear, row.freqIncome]),
+          )
         : freqIncomeRef.current;
       const nextSummaries = summary.length
         ? summary
@@ -1007,39 +884,6 @@ function AppContent() {
     return task;
   }
 
-  const selectPeriod = useCallback(
-    (nextMonth: number, nextYear: number) => {
-      const validMonths = getAvailableMonthsForYear(nextYear, periodRange);
-      const clampedMonth = validMonths.includes(nextMonth)
-        ? nextMonth
-        : validMonths.reduce(
-            (closest, item) =>
-              Math.abs(item - nextMonth) < Math.abs(closest - nextMonth)
-                ? item
-                : closest,
-            validMonths[0] ?? nextMonth,
-          );
-      setMonth(clampedMonth);
-      setYear(nextYear);
-      setSearchActive(false);
-      setLoadedMonthCount(1);
-      setSelectedRows([]);
-    },
-    [periodRange],
-  );
-  const goToday = useCallback(() => {
-    const today = new Date();
-    selectPeriod(today.getMonth(), today.getFullYear());
-  }, [selectPeriod]);
-
-  const shiftMonth = useCallback((delta: number) => {
-    const total = month + delta;
-    const nextMonth = (total + 12) % 12;
-    selectPeriod(nextMonth, year + Math.floor(total / 12));
-  }, [month, year, selectPeriod]);
-  const goPrevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
-  const goNextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
-
   const openAdd = useCallback(() => {
     transactionModalRef.current?.open(getBlankDraft());
   }, []);
@@ -1058,7 +902,7 @@ function AppContent() {
       tx,
     );
     requestAnimationFrame(() => setSelectedRows([]));
-  }, []);
+  }, [setSelectedRows]);
 
   function syncGoogleInBackground(task: () => Promise<void>, title: string) {
     pendingSyncRef.current = true;
@@ -1176,7 +1020,7 @@ function AppContent() {
         setSelectedRows([]);
       });
     },
-    [changeTab],
+    [changeTab, setSearchActive, setSearchFilters, setSelectedRows],
   );
 
   const clearSearchFilters = useCallback(() => {
@@ -1184,7 +1028,7 @@ function AppContent() {
       setSearchFilters(emptySearchFilters);
       setSearchActive(false);
     });
-  }, []);
+  }, [setSearchFilters, setSearchActive]);
 
   async function deleteTx(tx: Transaction) {
     setSelectedRows((current) => current.filter((rowId) => rowId !== tx.rowId));
@@ -1250,14 +1094,6 @@ function AppContent() {
     }
   }
 
-  const toggleSelection = useCallback((tx: Transaction) => {
-    setSelectedRows((current) =>
-      current.includes(tx.rowId)
-        ? current.filter((r) => r !== tx.rowId)
-        : [...current, tx.rowId],
-    );
-  }, []);
-
   const handleTransactionPress = useCallback(
     (tx: Transaction) => {
       if (selectedRows.length) {
@@ -1303,9 +1139,7 @@ function AppContent() {
       } catch (error) {
         Alert.alert(
           copy.moveRecord,
-          error instanceof Error
-            ? error.message
-            : copy.moveRecordError,
+          error instanceof Error ? error.message : copy.moveRecordError,
         );
       }
     },
@@ -1335,7 +1169,14 @@ function AppContent() {
         onSelect: (direction: string) => moveTx(tx, direction as "up" | "down"),
       });
     },
-    [colors.blue, colors.yellow, copy.moveDownOnePosition, copy.moveRecord, copy.moveUpOnePosition, moveTx],
+    [
+      colors.blue,
+      colors.yellow,
+      copy.moveDownOnePosition,
+      copy.moveRecord,
+      copy.moveUpOnePosition,
+      moveTx,
+    ],
   );
 
   async function undoDeleteEntry(entry: HistoryEntry) {
@@ -1417,10 +1258,9 @@ function AppContent() {
     });
   }
 
-  const exitSearch = useCallback(() => setSearchActive(false), []);
-  const loadOlder = useCallback(
-    () => setLoadedMonthCount((count) => count + 1),
-    [],
+  const exitSearch = useCallback(
+    () => setSearchActive(false),
+    [setSearchActive],
   );
   const openTagEditor = useCallback(() => setTagEditorVisible(true), []);
   const openSearch = useCallback(
@@ -1656,13 +1496,7 @@ function AppContent() {
         translucent
         backgroundColor="transparent"
       />
-      <View
-        style={[
-          styles.shell,
-          styles.shellCompact,
-          { paddingTop: 0 },
-        ]}
-      >
+      <View style={[styles.shell, styles.shellCompact, { paddingTop: 0 }]}>
         <View
           style={[
             styles.content,
