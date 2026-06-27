@@ -527,6 +527,71 @@ test("findCompatibleSheets returns empty array when validation throws", async (t
   assert.deepEqual(result, []);
 });
 
+test("findCompatibleSheets paginates through multiple pages", async (t) => {
+  let pageCalls = 0;
+  installFetch(t, async (input) => {
+    const url = decodeURIComponent(String(input));
+    if (url.includes("drive/v3/files")) {
+      pageCalls++;
+      if (pageCalls === 1) {
+        return json({ files: [{ id: "f1", name: "S1" }], nextPageToken: "page2" });
+      }
+      return json({ files: [{ id: "f2", name: "S2" }] });
+    }
+    if (url.includes("sheets.googleapis.com")) {
+      return json({ sheets: [{ properties: { title: "INGRESOS Y GASTOS" } }] });
+    }
+    return json({ values: [["Fecha", "Monto", "Detalle", "Tipo"]] });
+  });
+
+  const result = await findCompatibleSheets("token");
+  assert.ok(Array.isArray(result));
+  assert.equal(pageCalls, 2);
+});
+
+test("removeTagFromAllRows cleans tag from column F and batch writes", async (t) => {
+  const requests = [];
+  installFetch(t, async (input, init = {}) => {
+    const url = decodeURIComponent(String(input));
+    const method = init.method || "GET";
+    requests.push({ url, method, body: init.body ? JSON.parse(init.body) : null });
+    if (url.includes("INGRESOS Y GASTOS!F2:F") && method === "GET") {
+      return json({ values: [["default-comida, custom-vivienda"], ["default-salud"], ["custom-vivienda"]] });
+    }
+    if (url.includes("values:batchUpdate")) return json({});
+    return json({});
+  });
+
+  const { removeTagFromAllRows: removeTag } = await import("../src/api/googleWorkspace.ts");
+  await removeTag("token", "sheet", "custom-vivienda");
+
+  const batchCall = requests.find((r) => r.url.includes("values:batchUpdate"));
+  assert.ok(batchCall, "should call batchUpdate");
+  const data = batchCall.body.data;
+  assert.equal(data.length, 2, "should update 2 rows that had the tag");
+  assert.deepEqual(data[0].values, [["default-comida"]]);
+  assert.deepEqual(data[1].values, [[""]]);
+});
+
+test("removeTagFromAllRows does nothing when tag not found", async (t) => {
+  let batchCalled = false;
+  installFetch(t, async (input, init = {}) => {
+    const url = decodeURIComponent(String(input));
+    if (url.includes("INGRESOS Y GASTOS!F2:F")) {
+      return json({ values: [["default-comida"], ["default-salud"]] });
+    }
+    if (url.includes("values:batchUpdate")) {
+      batchCalled = true;
+      return json({});
+    }
+    return json({});
+  });
+
+  const { removeTagFromAllRows: removeTag } = await import("../src/api/googleWorkspace.ts");
+  await removeTag("token", "sheet", "custom-vivienda");
+  assert.equal(batchCalled, false, "should not call batchUpdate when tag not found");
+});
+
 test("saveTransaction with ISO createdAt formats time correctly", async (t) => {
   const requests = [];
   installFetch(t, sharedTxHandlers(requests));
@@ -544,4 +609,77 @@ test("saveTransaction with ISO createdAt formats time correctly", async (t) => {
   assert.ok(rowWrite);
   const createdAt = rowWrite.body.values[0][4];
   assert.ok(createdAt.includes(":"), "createdAt should contain time separator");
+});
+
+test("googleFetch retries on 5xx and succeeds", async (t) => {
+  let calls = 0;
+  installFetch(t, async () => {
+    calls++;
+    if (calls === 1) return new Response("server error", { status: 500 });
+    return json({ files: [] });
+  });
+
+  const result = await findCompatibleSheets("token");
+  assert.ok(Array.isArray(result));
+  assert.equal(calls, 2);
+});
+
+test("googleFetch retries on 429 rate limit", async (t) => {
+  let calls = 0;
+  installFetch(t, async () => {
+    calls++;
+    if (calls === 1) return new Response("rate limited", { status: 429 });
+    return json({ files: [] });
+  });
+
+  const result = await findCompatibleSheets("token");
+  assert.ok(Array.isArray(result));
+  assert.equal(calls, 2);
+});
+
+test("googleFetch does not retry on 400 client errors", async (t) => {
+  let calls = 0;
+  installFetch(t, async () => {
+    calls++;
+    return new Response(JSON.stringify({ error: { message: "bad request" } }), { status: 400, headers: { "content-type": "application/json" } });
+  });
+
+  await assert.rejects(
+    () => findCompatibleSheets("token"),
+    (err) => {
+      assert.ok(err.message.includes("400"));
+      return true;
+    },
+  );
+  assert.equal(calls, 1);
+});
+
+test("googleFetch throws after exhausting retries on 5xx", async (t) => {
+  let calls = 0;
+  installFetch(t, async () => {
+    calls++;
+    return new Response("persistent error", { status: 503 });
+  });
+
+  await assert.rejects(
+    () => findCompatibleSheets("token"),
+    (err) => {
+      assert.ok(err.message.includes("503"));
+      return true;
+    },
+  );
+  assert.ok(calls >= 2, "should have retried before failing");
+});
+
+test("googleFetch handles network failures with retry", async (t) => {
+  let calls = 0;
+  installFetch(t, async () => {
+    calls++;
+    if (calls <= 1) throw new TypeError("Failed to fetch");
+    return json({ files: [] });
+  });
+
+  const result = await findCompatibleSheets("token");
+  assert.ok(Array.isArray(result));
+  assert.equal(calls, 2);
 });

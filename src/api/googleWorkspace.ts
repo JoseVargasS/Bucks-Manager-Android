@@ -401,27 +401,60 @@ async function findChronologicalInsertionRow(
 
 // ---
 
+const MAX_RETRIES = 2;
+const RETRY_BASE_MS = 400;
+
+function isTransientError(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function googleFetch<T>(
   token: string,
   url: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    const message = body.trim().startsWith("<")
-      ? "Google devolvio una pagina HTML en vez de JSON. Revisa que la URL de la API sea valida."
-      : body;
-    throw new Error(`Google API ${res.status}: ${message}`);
+  const method = (init.method || "GET").toUpperCase();
+  const isMutation = method !== "GET" && method !== "HEAD";
+  const maxAttempts = isMutation ? MAX_RETRIES + 1 : 2;
+
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await sleep(RETRY_BASE_MS * Math.pow(2, attempt - 1));
+    }
+    try {
+      const res = await fetch(url, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(init.headers || {}),
+        },
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        const message = body.trim().startsWith("<")
+          ? "Google devolvio una pagina HTML en vez de JSON. Revisa que la URL de la API sea valida."
+          : body;
+        const err = new Error(`Google API ${res.status}: ${message}`);
+        if (!isTransientError(res.status) || attempt === maxAttempts - 1) throw err;
+        lastError = err;
+        continue;
+      }
+      return (await res.json()) as T;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Google API")) {
+        throw error;
+      }
+      if (attempt === maxAttempts - 1) throw error;
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
   }
-  return (await res.json()) as T;
+  throw lastError!;
 }
 
 function valuesUrl(spreadsheetId: string, range: string) {
@@ -440,27 +473,33 @@ export async function findCompatibleSheets(token: string) {
   const query = encodeURIComponent(
     `mimeType='${GOOGLE_SHEET_MIME}' and trashed=false`,
   );
-  const url = `${DRIVE}/files?q=${query}&pageSize=100&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`;
-  const list = await googleFetch<{ files: SheetCandidate[] }>(token, url);
   const compatible: SheetCandidate[] = [];
+  let pageToken: string | undefined;
 
-  const files = list.files || [];
-  for (let index = 0; index < files.length; index += SHEET_SCAN_BATCH_SIZE) {
-    const batch = await Promise.all(
-      files.slice(index, index + SHEET_SCAN_BATCH_SIZE).map(async (file) => {
-        try {
-          return (await validateSpreadsheetStructure(token, file.id))
-            ? file
-            : null;
-        } catch {
-          return null;
-        }
-      }),
-    );
-    compatible.push(
-      ...batch.filter((file): file is SheetCandidate => file !== null),
-    );
-  }
+  do {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const url = `${DRIVE}/files?q=${query}&pageSize=100&orderBy=modifiedTime desc&fields=nextPageToken,files(id,name,modifiedTime)${tokenParam}`;
+    const list = await googleFetch<{ files?: SheetCandidate[]; nextPageToken?: string }>(token, url);
+    pageToken = list.nextPageToken;
+    const files = list.files || [];
+
+    for (let index = 0; index < files.length; index += SHEET_SCAN_BATCH_SIZE) {
+      const batch = await Promise.all(
+        files.slice(index, index + SHEET_SCAN_BATCH_SIZE).map(async (file) => {
+          try {
+            return (await validateSpreadsheetStructure(token, file.id))
+              ? file
+              : null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      compatible.push(
+        ...batch.filter((file): file is SheetCandidate => file !== null),
+      );
+    }
+  } while (pageToken);
   return compatible;
 }
 
@@ -796,10 +835,8 @@ export async function moveTransaction(
     readSingleRow(token, spreadsheetId, targetRowId),
   ]);
   if (!row1.length || !row2.length) return;
-  await Promise.all([
-    writeRow(token, spreadsheetId, rowId, row2),
-    writeRow(token, spreadsheetId, targetRowId, row1),
-  ]);
+  await writeRow(token, spreadsheetId, rowId, row2);
+  await writeRow(token, spreadsheetId, targetRowId, row1);
 }
 
 function formatCreatedAtForSheet(value?: string) {
@@ -1109,4 +1146,41 @@ function parseTags(value: unknown): string[] {
     .split(/[,\n]/)
     .map((t) => t.trim())
     .filter(Boolean);
+}
+
+export async function removeTagFromAllRows(
+  token: string,
+  spreadsheetId: string,
+  tagId: string,
+) {
+  const range = `${SHEET_NAMES.transactions}!F2:F`;
+  const data = await googleFetch<{ values?: unknown[][] }>(
+    token,
+    readValuesUrl(spreadsheetId, range),
+  );
+  const rows = data.values || [];
+  const updates: { range: string; values: string[][] }[] = [];
+  rows.forEach((row, index) => {
+    const raw = String(row[0] || "").trim();
+    if (!raw) return;
+    const tags = parseTags(raw);
+    if (!tags.includes(tagId)) return;
+    const cleaned = tags.filter((t) => t !== tagId);
+    updates.push({
+      range: `${SHEET_NAMES.transactions}!F${index + 2}`,
+      values: [[cleaned.join(TAG_SEPARATOR)]],
+    });
+  });
+  if (!updates.length) return;
+  await googleFetch(
+    token,
+    `${SHEETS}/${spreadsheetId}/values:batchUpdate`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        valueInputOption: "USER_ENTERED",
+        data: updates,
+      }),
+    },
+  );
 }
