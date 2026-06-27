@@ -506,7 +506,11 @@ function AppContent() {
     } catch (error) {
       if (isAuthError(error)) {
         setAuthError(getErrorMessage(error));
-        if (!hadCache) await disconnectGoogle();
+        if (hadCache) {
+          await clearStaleSession();
+        } else {
+          await disconnectGoogle();
+        }
       } else if (shouldRescanForSheetError(error)) {
         await connectGoogleWorkspace(activeToken, "", true);
       } else if (!hadCache) {
@@ -768,6 +772,23 @@ function AppContent() {
     }
   }
 
+  async function clearStaleSession() {
+    await Promise.all([
+      deleteItemAsync(TOKEN_KEY),
+      deleteItemAsync(SHEET_KEY),
+      deleteFinancialCache(),
+    ]).catch(() => undefined);
+    setAccessToken("");
+    setSpreadsheetId("");
+    setAccountInfo(null);
+    setSyncError("");
+    setAuthError("");
+    setPendingSync(false);
+    setIsSyncing(false);
+    pendingSyncRef.current = false;
+    fin.didSetInitialPeriodRef.current = false;
+  }
+
   async function disconnectGoogle() {
     try {
       await GoogleSignin.signOut();
@@ -879,21 +900,29 @@ function AppContent() {
     requestAnimationFrame(() => setSelectedRows([]));
   }, [setSelectedRows]);
 
-  function syncGoogleInBackground(task: () => Promise<void>, title: string) {
-    pendingSyncRef.current = true;
+  function syncGoogleInBackground(task: (freshToken: string) => Promise<void>, title: string) {
+    pendingSyncRef.current = false;
+    setPendingSync(false);
     setIsSyncing(true);
-    setPendingSync(true);
     setSyncError("");
     syncQueueRef.current = syncQueueRef.current
       .catch(() => undefined)
-      .then(() => task())
+      .then(async () => {
+        const tokens = await GoogleSignin.getTokens();
+        const fresh = tokens.accessToken || "";
+        if (!fresh) throw new Error("Sesión expirada. Vuelve a iniciar sesión.");
+        setAccessToken(fresh);
+        await setItemAsync(TOKEN_KEY, fresh).catch(() => undefined);
+        return fresh;
+      })
+      .then((freshToken) => task(freshToken))
       .then(() => {
         pendingSyncRef.current = false;
         setPendingSync(false);
       })
       .catch((error) => {
-        pendingSyncRef.current = true;
-        setPendingSync(true);
+        pendingSyncRef.current = false;
+        setPendingSync(false);
         setSyncError(getErrorMessage(error) || title);
       })
       .finally(() => setIsSyncing(false));
@@ -966,18 +995,18 @@ function AppContent() {
 
       if (token && sheetId) {
         syncGoogleInBackground(
-          async () => {
+          async (freshToken) => {
             if (currentEdit) {
               await updateGoogleTransaction(
-                token,
+                freshToken,
                 sheetId,
                 currentEdit.rowId,
                 currentDraft,
               );
             } else {
-              await saveTransaction(token, sheetId, currentDraft);
+              await saveTransaction(freshToken, sheetId, currentDraft);
             }
-            await reloadFromGoogle(token, sheetId, false, true);
+            await reloadFromGoogle(freshToken, sheetId, false, true);
           },
           currentEdit ? copy.editRecord : copy.newRecord,
         );
@@ -1026,9 +1055,9 @@ function AppContent() {
       })
       .catch(() => undefined);
     if (accessToken && spreadsheetId) {
-      syncGoogleInBackground(async () => {
-        await deleteGoogleTransaction(accessToken, spreadsheetId, tx.rowId);
-        await reloadFromGoogle(accessToken, spreadsheetId, false, true);
+      syncGoogleInBackground(async (freshToken) => {
+        await deleteGoogleTransaction(freshToken, spreadsheetId, tx.rowId);
+        await reloadFromGoogle(freshToken, spreadsheetId, false, true);
       }, copy.deleteRecord);
     }
   }
@@ -1061,10 +1090,10 @@ function AppContent() {
         .catch(() => undefined);
     }
     if (accessToken && spreadsheetId) {
-      syncGoogleInBackground(async () => {
+      syncGoogleInBackground(async (freshToken) => {
         for (const tx of selected)
-          await deleteGoogleTransaction(accessToken, spreadsheetId, tx.rowId);
-        await reloadFromGoogle(accessToken, spreadsheetId, false, true);
+          await deleteGoogleTransaction(freshToken, spreadsheetId, tx.rowId);
+        await reloadFromGoogle(freshToken, spreadsheetId, false, true);
       }, "Eliminar seleccion");
     }
   }
@@ -1084,14 +1113,14 @@ function AppContent() {
     async (tx: Transaction, direction: "up" | "down") => {
       try {
         if (accessToken && spreadsheetId) {
-          syncGoogleInBackground(async () => {
+          syncGoogleInBackground(async (freshToken) => {
             await moveGoogleTransaction(
-              accessToken,
+              freshToken,
               spreadsheetId,
               tx.rowId,
               direction,
             );
-            await reloadFromGoogle(accessToken, spreadsheetId, false, true);
+            await reloadFromGoogle(freshToken, spreadsheetId, false, true);
           }, "Mover registro");
           return;
         }
@@ -1184,14 +1213,14 @@ function AppContent() {
         createdAt: entry.transaction.createdAt,
         tags: entry.transaction.tags || [],
       };
-      syncGoogleInBackground(async () => {
+      syncGoogleInBackground(async (freshToken) => {
         await insertTransactionAtRow(
-          accessToken,
+          freshToken,
           spreadsheetId,
           draft,
           entry.transaction.rowId,
         );
-        await reloadFromGoogle(accessToken, spreadsheetId, false, true);
+        await reloadFromGoogle(freshToken, spreadsheetId, false, true);
       }, "Deshacer");
     }
   }
