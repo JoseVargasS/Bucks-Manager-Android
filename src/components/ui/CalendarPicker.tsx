@@ -13,6 +13,34 @@ const MONTH_NAMES_EN = ["January", "February", "March", "April", "May", "June", 
 const DAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 const DAY_LABELS_EN = ["M", "T", "W", "T", "F", "S", "S"];
 
+const s = StyleSheet.create({
+  overlay: { alignItems: "center", justifyContent: "center" },
+  backdrop: { backgroundColor: "rgba(0,0,0,0.5)" },
+  panel: { width: 300, borderRadius: 20, borderWidth: 1, overflow: "hidden", elevation: 20 },
+  header: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  monthNav: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  body: { padding: 12 },
+  monthGrid: { flexDirection: "row", flexWrap: "wrap" },
+  monthCell: { width: "25%", paddingVertical: 10, alignItems: "center" },
+  monthPill: { width: 52, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  dayLabels: { flexDirection: "row", marginBottom: 4 },
+  dayLabel: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700" },
+  dayGrid: { flexDirection: "row", flexWrap: "wrap", minHeight: 288 },
+  dayCell: { width: `${100 / 7}%`, paddingVertical: 6, alignItems: "center" },
+  dayPill: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  footer: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 14, paddingTop: 6, borderTopWidth: 1 },
+  footerBtn: { fontWeight: "700", fontSize: 14 },
+  sheetOverlay: { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
+  sheetCard: { borderRadius: 16, elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 },
+  sheetScroll: { paddingVertical: 8 },
+  yearLabel: { fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 12 },
+  yearMonthGrid: { flexDirection: "row", flexWrap: "wrap" },
+  pickerRow: { paddingVertical: 11, paddingHorizontal: 20, marginHorizontal: 12, marginVertical: 2, borderRadius: 10, alignItems: "center" },
+  chipCell: { width: "33.33%", paddingVertical: 8, alignItems: "center" },
+  chipInner: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12 },
+});
+
 export const CalendarPicker = memo(function CalendarPicker({ visible, value, onSelect, onClose, colors, copy = UI_COPY.es, mode = "date", minDate, maxDate }: { visible: boolean; value: string; onSelect: (v: string) => void; onClose: () => void; colors: Palette; copy?: UiCopy; mode?: "date" | "month"; minDate?: string; maxDate?: string }) {
   const parsed = value ? new Date(value + (value.length <= 7 ? "-15T12:00:00" : "T12:00:00")) : new Date();
   const [viewYear, setViewYear] = useState(parsed.getFullYear());
@@ -86,11 +114,11 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
 
   return (
     <Modal visible={transition.modalVisible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }, transition.containerStyle]}>
-        <TouchableOpacity style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[{ width: 300, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: "hidden", elevation: 20 }, transition.panelStyle]}>
-        <View style={{ paddingHorizontal: 18, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderColor: colors.border }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: mode === "date" ? 14 : 0 }}>
+      <Animated.View style={[StyleSheet.absoluteFill, s.overlay, transition.containerStyle]}>
+        <TouchableOpacity style={[StyleSheet.absoluteFill, s.backdrop]} activeOpacity={1} onPress={onClose} />
+        <Animated.View style={[s.panel, { backgroundColor: colors.card, borderColor: colors.border }, transition.panelStyle]}>
+        <View style={[s.header, { borderColor: colors.border }]}>
+          <View style={[s.headerRow, { marginBottom: mode === "date" ? 14 : 0 }]}>
             <TouchableOpacity onPress={() => canGoBackYear && setViewYear(viewYear - 1)} disabled={!canGoBackYear}>
               <MaterialCommunityIcons name="chevron-left" size={26} color={canGoBackYear ? colors.text : colors.disabled} />
             </TouchableOpacity>
@@ -102,7 +130,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
             </TouchableOpacity>
           </View>
           {mode === "date" && (
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <View style={s.monthNav}>
               <TouchableOpacity onPress={() => canGoBackMonth && setViewMonth(viewMonth - 1)} disabled={!canGoBackMonth}>
                 <MaterialCommunityIcons name="chevron-left" size={22} color={canGoBackMonth ? colors.muted : colors.disabled} />
               </TouchableOpacity>
@@ -115,9 +143,9 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
             </View>
           )}
         </View>
-        <View style={{ padding: 12 }}>
+        <View style={s.body}>
           {mode === "month" ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            <View style={s.monthGrid}>
               {monthAbbr.map((abbr, i) => {
                 const isSelected = i === viewMonth;
                 const disabled = isMonthDisabled(i);
@@ -126,9 +154,9 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
                     key={i}
                     onPress={() => !disabled && handleSelect(viewYear, i)}
                     disabled={disabled}
-                    style={{ width: "25%", paddingVertical: 10, alignItems: "center" }}
+                    style={s.monthCell}
                   >
-                    <View style={{ width: 52, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
+                    <View style={[s.monthPill, { backgroundColor: isSelected ? colors.primary : "transparent" }]}>
                       <Text style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: "700" }}>{abbr}</Text>
                     </View>
                   </TouchableOpacity>
@@ -137,12 +165,12 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
             </View>
           ) : (
             <>
-              <View style={{ flexDirection: "row", marginBottom: 4 }}>
+              <View style={s.dayLabels}>
                 {dayLabels.map((d, index) => (
-                  <Text key={`${d}-${index}`} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 11, fontWeight: "700" }}>{d}</Text>
+                  <Text key={`${d}-${index}`} style={[s.dayLabel, { color: colors.muted }]}>{d}</Text>
                 ))}
               </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", minHeight: 288 }}>
+              <View style={s.dayGrid}>
                 {Array.from({ length: firstDayOfWeek }).map((_, i) => <View key={`e-${i}`} style={{ width: `${100 / 7}%` }} />)}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
@@ -150,8 +178,8 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
                   const isSelected = day === selectedDay;
                   const disabled = isDayDisabled(day);
                   return (
-                    <TouchableOpacity key={day} onPress={() => { if (!disabled) { setSelectedDay(day); handleSelect(viewYear, viewMonth, day); } }} disabled={disabled} style={{ width: `${100 / 7}%`, paddingVertical: 6, alignItems: "center" }}>
-                      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : isToday ? colors.primarySoft : "transparent", alignItems: "center", justifyContent: "center", borderWidth: isToday && !isSelected ? 1 : 0, borderColor: colors.primary, opacity: disabled ? 0.3 : 1 }}>
+                    <TouchableOpacity key={day} onPress={() => { if (!disabled) { setSelectedDay(day); handleSelect(viewYear, viewMonth, day); } }} disabled={disabled} style={s.dayCell}>
+                      <View style={[s.dayPill, { backgroundColor: isSelected ? colors.primary : isToday ? colors.primarySoft : "transparent", borderWidth: isToday && !isSelected ? 1 : 0, borderColor: colors.primary, opacity: disabled ? 0.3 : 1 }]}>
                         <Text style={{ color: isSelected ? colors.onPrimary : isToday ? colors.primary : colors.text, fontSize: 13, fontWeight: isSelected ? "700" : "600" }}>{day}</Text>
                       </View>
                     </TouchableOpacity>
@@ -161,7 +189,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
             </>
           )}
         </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 14, paddingTop: 6, borderTopWidth: 1, borderColor: colors.border }}>
+        <View style={[s.footer, { borderColor: colors.border }]}>
           <TouchableOpacity onPress={() => {
             const nowDate = new Date();
             pendingSelection.current = mode === "month"
@@ -169,16 +197,16 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
               : formatDateToISO(nowDate);
             onClose();
           }}>
-            <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>{copy.thisMonth}</Text>
+            <Text style={[s.footerBtn, { color: colors.primary }]}>{copy.thisMonth}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { pendingSelection.current = ""; onClose(); }}>
-            <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 14 }}>{copy.erase}</Text>
+            <Text style={[s.footerBtn, { color: colors.muted }]}>{copy.erase}</Text>
           </TouchableOpacity>
         </View>
 
         {showYearPicker && (
           <PickerSheet onClose={() => setShowYearPicker(false)} colors={colors} width="72%" maxHeight={250}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetScroll}>
               {yearOptions.map((y) => (
                 <PickerRow
                   key={y}
@@ -195,8 +223,8 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
 
         {showMonthPicker && (
           <PickerSheet onClose={() => setShowMonthPicker(false)} colors={colors} width="94%" contentStyle={{ paddingVertical: 20, paddingHorizontal: 6 }}>
-            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600", textAlign: "center", marginBottom: 12 }}>{viewYear}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            <Text style={[s.yearLabel, { color: colors.muted }]}>{viewYear}</Text>
+            <View style={s.yearMonthGrid}>
               {(english ? MONTH_NAMES_EN : MONTH_NAMES).map((name, i) => (
                 <PickerChip
                   key={i}
@@ -226,9 +254,9 @@ function PickerSheet({ children, onClose, colors, width, maxHeight, contentStyle
   contentStyle?: ViewStyle;
 }) {
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" }]}>
+    <View style={[StyleSheet.absoluteFill, s.sheetOverlay]}>
       <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
-      <View style={[{ backgroundColor: colors.card, borderRadius: 16, width, elevation: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 }, maxHeight ? { maxHeight } : null, contentStyle]}>
+      <View style={[s.sheetCard, { backgroundColor: colors.card, width }, maxHeight ? { maxHeight } : null, contentStyle]}>
         {children}
       </View>
     </View>
@@ -239,7 +267,7 @@ function PickerRow({ label, selected, colors, fontSize = 14, onPress }: { label:
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={{ paddingVertical: 11, paddingHorizontal: 20, marginHorizontal: 12, marginVertical: 2, borderRadius: 10, backgroundColor: selected ? colors.primarySoft : "transparent", alignItems: "center" }}
+      style={[s.pickerRow, { backgroundColor: selected ? colors.primarySoft : "transparent" }]}
     >
       <Text style={{ color: selected ? colors.primary : colors.text, fontSize, fontWeight: selected ? "700" : "500" }}>{label}</Text>
     </TouchableOpacity>
@@ -251,9 +279,9 @@ function PickerChip({ label, selected, disabled, colors, onPress }: { label: str
     <TouchableOpacity
       onPress={() => { if (!disabled) onPress(); }}
       disabled={disabled}
-      style={{ width: "33.33%", paddingVertical: 8, alignItems: "center" }}
+      style={s.chipCell}
     >
-      <View style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: selected ? colors.primary : "transparent", opacity: disabled ? 0.3 : 1 }}>
+      <View style={[s.chipInner, { backgroundColor: selected ? colors.primary : "transparent", opacity: disabled ? 0.3 : 1 }]}>
         <Text numberOfLines={1} style={{ color: disabled ? colors.disabled : selected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: selected ? "700" : "500" }}>{label}</Text>
       </View>
     </TouchableOpacity>
