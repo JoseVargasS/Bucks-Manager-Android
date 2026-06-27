@@ -220,6 +220,7 @@ export function TagEditorModal({
                   <TagRow
                     tag={item}
                     colors={colors}
+                    copy={copy}
                     editing={editingId === item.id}
                     editingLabel={
                       editingId === item.id ? editingLabel : undefined
@@ -247,6 +248,7 @@ export function TagEditorModal({
 const TagRow = memo(function TagRow({
   tag,
   colors,
+  copy,
   editing,
   editingLabel,
   editingColor,
@@ -259,6 +261,7 @@ const TagRow = memo(function TagRow({
 }: {
   tag: Tag;
   colors: Palette;
+  copy: UiCopy;
   editing: boolean;
   editingLabel?: string;
   editingColor?: string;
@@ -348,6 +351,18 @@ const TagRow = memo(function TagRow({
           >
             {tag.label}
           </Text>
+          {tag.id.startsWith("custom-") && (
+            <Text
+              style={{
+                fontSize: 10,
+                color: colors.muted,
+                fontWeight: "400",
+                marginRight: 4,
+              }}
+            >
+              {copy.tagCustomBadge}
+            </Text>
+          )}
           <TouchableOpacity onPress={() => onStartEdit(tag)}>
             <MaterialCommunityIcons
               name="pencil"

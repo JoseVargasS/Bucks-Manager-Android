@@ -49,13 +49,13 @@ export const PeriodControls = memo(function PeriodControls({
           title={copy.selectMonth}
           style={{ flex: 1, minWidth: 0 }}
         />
-        <TouchableOpacity onPress={goPrevMonth} style={[styles.periodToday, { backgroundColor: colors.infoSoft }]}>
+        <TouchableOpacity onPress={goPrevMonth} style={[styles.periodToday, { backgroundColor: colors.periodBg }]}>
           <MaterialCommunityIcons name="chevron-left" size={20} color={colors.blue} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={goToday} style={[styles.periodToday, { backgroundColor: colors.infoSoft }]}>
+        <TouchableOpacity onPress={goToday} style={[styles.periodToday, { backgroundColor: colors.periodBg }]}>
           <MaterialCommunityIcons name="calendar-today" size={18} color={colors.blue} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={goNextMonth} style={[styles.periodToday, { backgroundColor: colors.infoSoft }]}>
+        <TouchableOpacity onPress={goNextMonth} style={[styles.periodToday, { backgroundColor: colors.periodBg }]}>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.blue} />
         </TouchableOpacity>
       </View>
