@@ -3,6 +3,8 @@ import { Animated, Modal, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { PIN_RESET_MS } from "../../theme/constants";
+import { UiCopy } from "../../i18n";
 import { PinScreen } from "../screens/PinScreen";
 import { useModalTransition } from "../ui/useModalTransition";
 import { Text } from "../ui/AppText";
@@ -10,7 +12,7 @@ import { Text } from "../ui/AppText";
 export function PinSetupModal({ visible, colors, copy, onClose, onSave }: {
   visible: boolean;
   colors: Palette;
-  copy: { pinSetupTitle: string; pinEnterNew: string; pinConfirm: string; cancel: string };
+  copy: UiCopy;
   onClose: () => void;
   onSave: (pin: string) => void;
 }) {
@@ -45,7 +47,7 @@ export function PinSetupModal({ visible, colors, copy, onClose, onSave }: {
       onClose();
     } else {
       setWrong(true);
-      resetTimer.current = setTimeout(resetForm, 1200);
+      resetTimer.current = setTimeout(resetForm, PIN_RESET_MS);
     }
   }
 
@@ -71,6 +73,7 @@ export function PinSetupModal({ visible, colors, copy, onClose, onSave }: {
             <PinScreen
               key={inFirstPhase ? "enter" : "confirm"}
               colors={colors}
+              copy={copy}
               subtitle={inFirstPhase ? copy.pinEnterNew : copy.pinConfirm}
               wrong={wrong}
               bgColor={colors.card}

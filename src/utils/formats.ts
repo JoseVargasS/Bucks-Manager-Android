@@ -2,11 +2,13 @@ import { formatDateToISO } from "../domain/bucksLogic";
 import { UI_COPY, type UiCopy } from "../i18n";
 import type { Palette } from "../theme/colors";
 
+const DEFAULT_LOCALE = "es-PE";
+
 export function formatCreatedTime(createdAt?: string): string {
   if (!createdAt) return "-";
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) return createdAt;
-  return date.toLocaleTimeString("es-PE", {
+  return date.toLocaleTimeString(DEFAULT_LOCALE, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -22,7 +24,7 @@ export function formatDateGroupLabel(
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  const locale = copy.languageCode === "en" ? "en-US" : "es-PE";
+  const locale = copy.languageCode === "en" ? "en-US" : DEFAULT_LOCALE;
   const shortDate = date
     .toLocaleDateString(locale, { month: "short", day: "2-digit" })
     .toUpperCase();

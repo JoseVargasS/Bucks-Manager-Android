@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { TRANSACTION_TYPES } from "../domain/bucksLogic";
 import type { SummaryRow, Transaction } from "../types";
+import { logError } from "../utils/errorHandler";
 
 const CACHE_VERSION = 2;
 const CACHE_FILE = `${FileSystem.documentDirectory || FileSystem.cacheDirectory}bucks-finance-cache.json`;
@@ -22,7 +23,8 @@ export async function loadFinancialCache(spreadsheetId: string) {
     const parsed = JSON.parse(await FileSystem.readAsStringAsync(CACHE_FILE)) as unknown;
     if (!isCacheShape(parsed) || parsed.spreadsheetId !== spreadsheetId) return null;
     return parsed;
-  } catch {
+  } catch (e) {
+    logError(e, "localCache:loadFinancialCache");
     return null;
   }
 }

@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import type { LanguageMode, Tag, Transaction } from "../types";
 import { dark } from "../theme/colors";
+import { logError } from "./errorHandler";
 
 const TAGS_KEY = "bucks_tags";
 
@@ -53,7 +54,8 @@ export async function loadTags(language: LanguageMode = "es"): Promise<Tag[]> {
     const tags = normalizeTags(raw ? JSON.parse(raw) : [], language);
     await saveTags(tags);
     return tags;
-  } catch {
+  } catch (e) {
+    logError(e, "tags:loadTags");
     return normalizeTags([], language);
   }
 }

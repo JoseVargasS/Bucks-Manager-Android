@@ -31,7 +31,8 @@ export function ExportModal({ visible, colors, copy, config, setConfig, minDate,
     pendingExport.current = null;
     if (pending) onExport(pending);
   });
-  const locale = copy.languageCode === "en" ? "en-US" : "es-PE";
+  const DEFAULT_LOCALE = "es-PE";
+  const locale = copy.languageCode === "en" ? "en-US" : DEFAULT_LOCALE;
   const rangeLabel = (val: string, isMonth?: boolean) => {
     if (!val) return copy.select;
     if (isMonth) {

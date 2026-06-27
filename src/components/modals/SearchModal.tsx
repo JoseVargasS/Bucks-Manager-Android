@@ -3,6 +3,7 @@ import { Animated, BackHandler, Keyboard, StyleSheet, TouchableOpacity, View } f
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { Z_INDEX_SEARCH } from "../../theme/constants";
 import { SearchFilters, Tag } from "../../types";
 import { SearchPage } from "../screens/SearchPage";
 import { UiCopy } from "../../i18n";
@@ -59,7 +60,7 @@ export const SearchModal = forwardRef<SearchModalHandle, {
         pointerEvents={transition.modalVisible ? "auto" : "none"}
         accessibilityViewIsModal={visible}
         importantForAccessibility={transition.modalVisible ? "yes" : "no-hide-descendants"}
-        style={[StyleSheet.absoluteFill, styles.searchOverlay, { backgroundColor: colors.overlay, zIndex: 1002, elevation: 1002 }, transition.containerStyle]}
+        style={[StyleSheet.absoluteFill, styles.searchOverlay, { backgroundColor: colors.overlay, zIndex: Z_INDEX_SEARCH, elevation: Z_INDEX_SEARCH }, transition.containerStyle]}
       >
         <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={close} />
         <Animated.View style={[styles.searchSheet, { backgroundColor: colors.card }, transition.panelStyle]}>

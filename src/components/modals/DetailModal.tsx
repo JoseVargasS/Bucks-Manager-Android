@@ -3,6 +3,7 @@ import { Animated, BackHandler, ScrollView, StyleSheet, TouchableOpacity, View }
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { Palette } from "../../theme/colors";
+import { Z_INDEX_DETAIL } from "../../theme/constants";
 import { MaterialIconName, Tag, Transaction } from "../../types";
 import { formatMoney } from "../../domain/bucksLogic";
 import { formatCreatedTime, typeColor, typeFill, typeLabelFull } from "../../utils/formats";
@@ -52,7 +53,7 @@ export const DetailModal = forwardRef<DetailModalHandle, { colors: Palette; curr
         pointerEvents={transition.modalVisible ? "auto" : "none"}
         accessibilityViewIsModal={visible}
         importantForAccessibility={transition.modalVisible ? "yes" : "no-hide-descendants"}
-        style={[StyleSheet.absoluteFill, styles.modalOverlay, { backgroundColor: colors.overlay, zIndex: 1001, elevation: 1001 }, transition.containerStyle]}
+        style={[StyleSheet.absoluteFill, styles.modalOverlay, { backgroundColor: colors.overlay, zIndex: Z_INDEX_DETAIL, elevation: Z_INDEX_DETAIL }, transition.containerStyle]}
       >
         <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={close} />
         <Animated.View style={[styles.detailModal, { backgroundColor: colors.card }, transition.panelStyle]}>

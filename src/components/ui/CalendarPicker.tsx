@@ -95,7 +95,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
               <MaterialCommunityIcons name="chevron-left" size={26} color={canGoBackYear ? colors.text : colors.disabled} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setShowYearPicker(true); setShowMonthPicker(false); }}>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>{viewYear}</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{viewYear}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => canGoForwardYear && setViewYear(viewYear + 1)} disabled={!canGoForwardYear}>
               <MaterialCommunityIcons name="chevron-right" size={26} color={canGoForwardYear ? colors.text : colors.disabled} />
@@ -107,7 +107,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
                 <MaterialCommunityIcons name="chevron-left" size={22} color={canGoBackMonth ? colors.muted : colors.disabled} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setShowMonthPicker(true); setShowYearPicker(false); }}>
-                <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "900" }}>{monthName}</Text>
+                <Text style={{ color: colors.primary, fontSize: 15, fontWeight: "700" }}>{monthName}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => canGoForwardMonth && setViewMonth(viewMonth + 1)} disabled={!canGoForwardMonth}>
                 <MaterialCommunityIcons name="chevron-right" size={22} color={canGoForwardMonth ? colors.muted : colors.disabled} />
@@ -129,7 +129,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
                     style={{ width: "25%", paddingVertical: 10, alignItems: "center" }}
                   >
                     <View style={{ width: 52, height: 36, borderRadius: 18, backgroundColor: isSelected ? colors.primary : "transparent", alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: "900" }}>{abbr}</Text>
+                      <Text style={{ color: disabled ? colors.disabled : isSelected ? colors.onPrimary : colors.text, fontSize: 13, fontWeight: "700" }}>{abbr}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -139,7 +139,7 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
             <>
               <View style={{ flexDirection: "row", marginBottom: 4 }}>
                 {dayLabels.map((d, index) => (
-                  <Text key={`${d}-${index}`} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 11, fontWeight: "900" }}>{d}</Text>
+                  <Text key={`${d}-${index}`} style={{ flex: 1, textAlign: "center", color: colors.muted, fontSize: 11, fontWeight: "700" }}>{d}</Text>
                 ))}
               </View>
               <View style={{ flexDirection: "row", flexWrap: "wrap", minHeight: 288 }}>
@@ -169,10 +169,10 @@ export const CalendarPicker = memo(function CalendarPicker({ visible, value, onS
               : formatDateToISO(nowDate);
             onClose();
           }}>
-            <Text style={{ color: colors.primary, fontWeight: "900", fontSize: 14 }}>{copy.thisMonth}</Text>
+            <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>{copy.thisMonth}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => { pendingSelection.current = ""; onClose(); }}>
-            <Text style={{ color: colors.muted, fontWeight: "900", fontSize: 14 }}>{copy.erase}</Text>
+            <Text style={{ color: colors.muted, fontWeight: "700", fontSize: 14 }}>{copy.erase}</Text>
           </TouchableOpacity>
         </View>
 

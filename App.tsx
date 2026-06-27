@@ -1,10 +1,23 @@
 import Constants from "expo-constants";
 import { BlurView } from "expo-blur";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Print from "expo-print";
-import * as SecureStore from "expo-secure-store";
-import * as Sharing from "expo-sharing";
-import * as SplashScreen from "expo-splash-screen";
+import {
+  cacheDirectory,
+  writeAsStringAsync,
+  deleteAsync,
+  copyAsync,
+} from "expo-file-system/legacy";
+import { printToFileAsync } from "expo-print";
+import {
+  getItemAsync,
+  setItemAsync,
+  deleteItemAsync,
+} from "expo-secure-store";
+import { shareAsync } from "expo-sharing";
+import {
+  preventAutoHideAsync,
+  setOptions as setSplashOptions,
+  hideAsync,
+} from "expo-splash-screen";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -123,9 +136,19 @@ import {
   detectDeviceLanguage,
 } from "./src/utils/helpers";
 import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
+import {
+  ANIM_SPLASH_DURATION,
+  ANIM_TAB_PAGER,
+  ANIM_HEADER_BTN_IN,
+  ANIM_HEADER_BTN_OUT,
+  PIN_DELAY_MS,
+  SPLASH_BG,
+  SPLASH_SPINNER,
+  SPLASH_INDICATOR_OFFSET,
+} from "./src/theme/constants";
 
-SplashScreen.preventAutoHideAsync().catch(() => undefined);
-SplashScreen.setOptions({ duration: 220, fade: true });
+preventAutoHideAsync().catch(() => undefined);
+setSplashOptions({ duration: ANIM_SPLASH_DURATION, fade: true });
 
 const GOOGLE_ANDROID_CLIENT_ID =
   Constants.expoConfig?.extra?.googleAndroidClientId || "";
@@ -360,7 +383,7 @@ function AppContent() {
       pagerTranslateX.stopAnimation();
       Animated.timing(pagerTranslateX, {
         toValue: -TAB_ORDER.indexOf(next) * tabWidth,
-        duration: 210,
+        duration: ANIM_TAB_PAGER,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(({ finished }) => {
@@ -406,7 +429,7 @@ function AppContent() {
   }, [language]);
 
   useEffect(() => {
-    if (!bootstrapping) SplashScreen.hideAsync().catch(() => undefined);
+    if (!bootstrapping) hideAsync().catch(() => undefined);
   }, [bootstrapping]);
 
   // ponytail: only realign the pager when the window width changes; never on tab
@@ -529,8 +552,8 @@ function AppContent() {
   // --- Session management ---
   async function restoreSession() {
     const [token, sheetId] = await Promise.all([
-      SecureStore.getItemAsync(TOKEN_KEY),
-      SecureStore.getItemAsync(SHEET_KEY),
+      getItemAsync(TOKEN_KEY),
+      getItemAsync(SHEET_KEY),
     ]);
     if (token && sheetId) {
       setAccessToken(token);
@@ -576,7 +599,7 @@ function AppContent() {
       setAuthError("");
       setAccessToken(activeToken);
       syncAccountInfo();
-      await SecureStore.setItemAsync(TOKEN_KEY, activeToken);
+      await setItemAsync(TOKEN_KEY, activeToken);
       await reloadFromGoogle(activeToken, sheetId, false);
     } catch (error) {
       if (isAuthError(error)) {
@@ -595,17 +618,17 @@ function AppContent() {
   async function restorePreferences() {
     const [storedLanguage, storedCurrency, storedFont, storedColorScheme] =
       await Promise.all([
-        SecureStore.getItemAsync(LANGUAGE_KEY),
-        SecureStore.getItemAsync(CURRENCY_SYMBOL_KEY),
-        SecureStore.getItemAsync(FONT_KEY),
-        SecureStore.getItemAsync(COLOR_SCHEME_KEY),
+        getItemAsync(LANGUAGE_KEY),
+        getItemAsync(CURRENCY_SYMBOL_KEY),
+        getItemAsync(FONT_KEY),
+        getItemAsync(COLOR_SCHEME_KEY),
       ]);
     if (storedLanguage === "es" || storedLanguage === "en") {
       setLanguage(storedLanguage);
     } else {
       const detectedLanguage = detectDeviceLanguage();
       setLanguage(detectedLanguage);
-      await SecureStore.setItemAsync(LANGUAGE_KEY, detectedLanguage);
+      await setItemAsync(LANGUAGE_KEY, detectedLanguage);
     }
     if (
       storedCurrency &&
@@ -615,7 +638,7 @@ function AppContent() {
     } else {
       const detectedCurrency = detectDeviceCurrencySymbol();
       setCurrencySymbol(detectedCurrency);
-      await SecureStore.setItemAsync(CURRENCY_SYMBOL_KEY, detectedCurrency);
+      await setItemAsync(CURRENCY_SYMBOL_KEY, detectedCurrency);
     }
     if (
       storedFont === "system" ||
@@ -626,7 +649,7 @@ function AppContent() {
       setFontPreference(preference);
       setAppFontPreference(preference);
       if (storedFont === "system")
-        await SecureStore.setItemAsync(FONT_KEY, preference);
+        await setItemAsync(FONT_KEY, preference);
     }
     if (
       COLOR_SCHEME_PREFERENCES.includes(
@@ -640,12 +663,12 @@ function AppContent() {
   const saveLanguage = useCallback((next: string) => {
     const value = next === "en" ? "en" : "es";
     setLanguage(value);
-    SecureStore.setItemAsync(LANGUAGE_KEY, value).catch(() => undefined);
+    setItemAsync(LANGUAGE_KEY, value).catch(() => undefined);
   }, []);
 
   const saveCurrencySymbol = useCallback((next: string) => {
     setCurrencySymbol(next);
-    SecureStore.setItemAsync(CURRENCY_SYMBOL_KEY, next).catch(() => undefined);
+    setItemAsync(CURRENCY_SYMBOL_KEY, next).catch(() => undefined);
   }, []);
 
   const saveFontPreference = useCallback((next: string) => {
@@ -654,7 +677,7 @@ function AppContent() {
       : "dmsans";
     setAppFontPreference(value);
     setFontPreference(value);
-    SecureStore.setItemAsync(FONT_KEY, value).catch(() => undefined);
+    setItemAsync(FONT_KEY, value).catch(() => undefined);
   }, []);
 
   const saveColorScheme = useCallback((next: string) => {
@@ -664,7 +687,7 @@ function AppContent() {
       ? (next as ColorSchemePreference)
       : "lime";
     setColorScheme(value);
-    SecureStore.setItemAsync(COLOR_SCHEME_KEY, value).catch(() => undefined);
+    setItemAsync(COLOR_SCHEME_KEY, value).catch(() => undefined);
   }, []);
 
   const openLanguagePicker = useCallback(() => {
@@ -848,8 +871,8 @@ function AppContent() {
   ) {
     setLoading(true);
     try {
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
-      await SecureStore.setItemAsync(SHEET_KEY, sheetId);
+      await setItemAsync(TOKEN_KEY, token);
+      await setItemAsync(SHEET_KEY, sheetId);
       setAccessToken(token);
       setSpreadsheetId(sheetId);
       await reloadFromGoogle(token, sheetId, showLoader);
@@ -860,7 +883,7 @@ function AppContent() {
 
   async function runGoogleSignIn(switchingAccount: boolean) {
     if (!GOOGLE_ANDROID_CLIENT_ID && !GOOGLE_WEB_CLIENT_ID) {
-      Alert.alert("Google OAuth", "Faltan las credenciales en .env.");
+      Alert.alert(copy.googleOAuth, copy.missingEnvCredentials);
       return;
     }
     setLoading(true);
@@ -877,12 +900,12 @@ function AppContent() {
       if (switchingAccount) {
         setAccountTransition(true);
         await Promise.all([
-          SecureStore.deleteItemAsync(SHEET_KEY),
+          deleteItemAsync(SHEET_KEY),
           deleteFinancialCache(),
         ]);
         resetFinancialState();
       }
-      await SecureStore.setItemAsync(TOKEN_KEY, tokens.accessToken);
+      await setItemAsync(TOKEN_KEY, tokens.accessToken);
       setAccessToken(tokens.accessToken);
       setIsFirstRemoteLoad(true);
       setSyncError("");
@@ -892,13 +915,13 @@ function AppContent() {
       const message =
         error instanceof Error
           ? error.message
-          : "No se pudo iniciar sesión con Google.";
+          : copy.googleSignInError;
       const isDeveloperError =
         message.includes("DEVELOPER_ERROR") || message.includes("code: 10");
       Alert.alert(
         "Google",
         isDeveloperError
-          ? "Google rechazó la configuración OAuth. En Google Cloud revisa que el cliente Android use package com.josev.bucksmanager y el SHA-1 debug actual. También confirma que GOOGLE_WEB_CLIENT_ID sea tipo Web application."
+          ? copy.oauthConfigRejected
           : message,
       );
     } finally {
@@ -1035,8 +1058,8 @@ function AppContent() {
   async function clearGoogleSession() {
     try {
       await Promise.all([
-        SecureStore.deleteItemAsync(TOKEN_KEY),
-        SecureStore.deleteItemAsync(SHEET_KEY),
+        deleteItemAsync(TOKEN_KEY),
+        deleteItemAsync(SHEET_KEY),
         deleteFinancialCache(),
       ]);
     } finally {
@@ -1433,10 +1456,10 @@ function AppContent() {
         persistFinancialState(moved, nextSummaries, freqIncome);
       } catch (error) {
         Alert.alert(
-          "Mover registro",
+          copy.moveRecord,
           error instanceof Error
             ? error.message
-            : "No se pudo mover el registro.",
+            : copy.moveRecordError,
         );
       }
     },
@@ -1446,17 +1469,17 @@ function AppContent() {
   const openMoveMenu = useCallback(
     (tx: Transaction) => {
       optionSheetRef.current?.open({
-        title: "Mover registro",
+        title: copy.moveRecord,
         selectedValue: "",
         options: [
           {
-            label: "Subir una posición",
+            label: copy.moveUpOnePosition,
             value: "up",
             icon: "arrow-up",
             tone: colors.blue,
           },
           {
-            label: "Bajar una posición",
+            label: copy.moveDownOnePosition,
             value: "down",
             icon: "arrow-down",
             tone: colors.yellow,
@@ -1542,7 +1565,7 @@ function AppContent() {
         setPinWrong(false);
       } else {
         setPinWrong(true);
-        setTimeout(() => setPinWrong(false), 1500);
+        setTimeout(() => setPinWrong(false), PIN_DELAY_MS);
       }
     });
   }
@@ -1575,24 +1598,24 @@ function AppContent() {
       });
     }
     if (!rows.length) {
-      Alert.alert("Exportar", "No hay datos para exportar.");
+      Alert.alert(copy.exportMovements, copy.noDataToExport);
       return;
     }
     const baseFileName = buildExportFileName(cfg);
     if (cfg.format === "xlsx") {
-      const csv = ["Fecha,Monto,Detalle,Tipo,Hora de creacion"]
-        .concat(
-          rows.map(
-            (tx) =>
-              `${tx.date},${tx.amount},"${tx.detail.replace(/"/g, '""')}",${tx.type},${formatCreatedTime(tx.createdAt)}`,
+      const csvLines: string[] = [copy.csvHeader as string];
+      rows.forEach(
+        (tx) =>
+          csvLines.push(
+            `${tx.date},${tx.amount},"${tx.detail.replace(/"/g, '""')}",${tx.type},${formatCreatedTime(tx.createdAt)}`,
           ),
-        )
-        .join("\n");
-      const uri = `${FileSystem.cacheDirectory}${baseFileName}.csv`;
-      await FileSystem.writeAsStringAsync(uri, csv);
-      await Sharing.shareAsync(uri, {
+      );
+      const csv = csvLines.join("\n");
+      const uri = `${cacheDirectory}${baseFileName}.csv`;
+      await writeAsStringAsync(uri, csv);
+      await shareAsync(uri, {
         mimeType: "text/csv",
-        dialogTitle: "Exportar movimientos",
+        dialogTitle: copy.exportMovements,
       });
     } else {
       const html = `<html><body><h1>Bucks Manager</h1><table border="1" cellspacing="0" cellpadding="6">${rows
@@ -1601,13 +1624,13 @@ function AppContent() {
             `<tr><td>${tx.date}</td><td>${formatMoney(tx.amount, currencySymbol)}</td><td>${tx.detail}</td><td>${tx.type}</td><td>${formatCreatedTime(tx.createdAt)}</td></tr>`,
         )
         .join("")}</table></body></html>`;
-      const pdf = await Print.printToFileAsync({ html });
-      const uri = `${FileSystem.cacheDirectory}${baseFileName}.pdf`;
-      await FileSystem.deleteAsync(uri, { idempotent: true });
-      await FileSystem.copyAsync({ from: pdf.uri, to: uri });
-      await Sharing.shareAsync(uri, {
+      const pdf = await printToFileAsync({ html });
+      const uri = `${cacheDirectory}${baseFileName}.pdf`;
+      await deleteAsync(uri, { idempotent: true });
+      await copyAsync({ from: pdf.uri, to: uri });
+      await shareAsync(uri, {
         mimeType: "application/pdf",
-        dialogTitle: "Exportar PDF",
+        dialogTitle: copy.exportPdf,
       });
     }
   }
@@ -1841,6 +1864,7 @@ function AppContent() {
         />
         <PinScreen
           colors={colors}
+          copy={copy}
           title={copy.pinRequired}
           subtitle={copy.pinForgot}
           wrong={pinWrong}
@@ -1991,16 +2015,16 @@ function AppContent() {
 
 function StartupSplash() {
   return (
-    <View style={{ flex: 1, backgroundColor: "#050E0B" }}>
-      <NativeStatusBar barStyle="light-content" backgroundColor="#050E0B" />
+    <View style={{ flex: 1, backgroundColor: SPLASH_BG }}>
+      <NativeStatusBar barStyle="light-content" backgroundColor={SPLASH_BG} />
       <Image
         source={require("./assets/splash-bucks.png")}
         resizeMode="cover"
         style={{ width: "100%", height: "100%" }}
       />
       <ActivityIndicator
-        color="#C8FF00"
-        style={{ position: "absolute", bottom: 72, alignSelf: "center" }}
+        color={SPLASH_SPINNER}
+        style={{ position: "absolute", bottom: SPLASH_INDICATOR_OFFSET, alignSelf: "center" }}
       />
     </View>
   );
@@ -2046,10 +2070,10 @@ const HeaderActionButton = memo(function HeaderActionButton({
     >
       <Pressable
         onPressIn={() => {
-          animate(1, 60);
+          animate(1, ANIM_HEADER_BTN_IN);
           onPress();
         }}
-        onPressOut={() => animate(0, 60)}
+        onPressOut={() => animate(0, ANIM_HEADER_BTN_OUT)}
         accessibilityRole="button"
         hitSlop={6}
         style={{

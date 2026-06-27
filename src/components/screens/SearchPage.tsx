@@ -89,7 +89,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
               value={filters.startDate}
               onChangeText={(startDate: string) => setFilters((current) => ({ ...current, startDate }))}
               colors={colors}
-              placeholder="YYYY-MM-DD"
+              placeholder={copy.datePlaceholder}
               rightIcon="calendar-start"
             />
             <Field
@@ -97,7 +97,7 @@ export function SearchPage({ colors, copy, currencySymbol, tags, filters, setFil
               value={filters.endDate}
               onChangeText={(endDate: string) => setFilters((current) => ({ ...current, endDate }))}
               colors={colors}
-              placeholder="YYYY-MM-DD"
+              placeholder={copy.datePlaceholder}
               rightIcon="calendar-end"
             />
           </View>

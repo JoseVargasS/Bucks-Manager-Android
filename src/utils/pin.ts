@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { logError } from "./errorHandler";
 
 const PIN_ENABLED_KEY = "bucks_pin_enabled";
 const PIN_KEY = "bucks_pin";
@@ -10,7 +11,7 @@ export async function isPinEnabled(): Promise<boolean> {
 
 async function setPinEnabled(enabled: boolean): Promise<void> {
   if (!enabled) {
-    await SecureStore.deleteItemAsync(PIN_KEY).catch(() => undefined);
+    await SecureStore.deleteItemAsync(PIN_KEY).catch((e) => logError(e, "pin:clearKey"));
   }
   await SecureStore.setItemAsync(PIN_ENABLED_KEY, enabled ? "1" : "0");
 }
@@ -26,6 +27,6 @@ export async function verifyPin(pin: string): Promise<boolean> {
 }
 
 export async function clearPin(): Promise<void> {
-  await SecureStore.deleteItemAsync(PIN_KEY).catch(() => undefined);
+  await SecureStore.deleteItemAsync(PIN_KEY).catch((e) => logError(e, "pin:clearPin"));
   await setPinEnabled(false);
 }

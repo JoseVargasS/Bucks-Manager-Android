@@ -3,6 +3,7 @@ import { Alert, Animated, BackHandler, Keyboard, ScrollView, StyleSheet, Touchab
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { calculateExpression, isValidTransactionDraft, normalizeAmountExpression, TRANSACTION_TYPES } from "../../domain/bucksLogic";
 import { styles } from "../../styles/globalStyles";
+import { Z_INDEX_MODAL } from "../../theme/constants";
 import { Field } from "../ui/Field";
 import { Select } from "../ui/Select";
 import { CalendarPicker } from "../ui/CalendarPicker";
@@ -139,7 +140,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
         pointerEvents={transition.modalVisible ? "auto" : "none"}
         accessibilityViewIsModal={visible}
         importantForAccessibility={transition.modalVisible ? "yes" : "no-hide-descendants"}
-        style={[StyleSheet.absoluteFill, styles.modalOverlay, { backgroundColor: colors.overlay, zIndex: 1000, elevation: 1000 }, transition.containerStyle]}
+        style={[StyleSheet.absoluteFill, styles.modalOverlay, { backgroundColor: colors.overlay, zIndex: Z_INDEX_MODAL, elevation: Z_INDEX_MODAL }, transition.containerStyle]}
       >
         <TouchableOpacity style={styles.optionBackdrop} activeOpacity={1} onPress={close} />
         <Animated.View ref={modalRef} collapsable={false} style={[styles.recordModal, { backgroundColor: colors.card }, transition.panelStyle]}>
@@ -207,7 +208,7 @@ export const TransactionModal = forwardRef<TransactionModalHandle, {
                   setValidationError("");
                   setFormDraft((current) => ({ ...current, amount }));
                 }}
-                placeholder="Ej: (100+50)*25-10/2"
+                placeholder={copy.amountPlaceholder}
                 placeholderTextColor={colors.muted}
                 keyboardType="decimal-pad"
                 inputMode="decimal"

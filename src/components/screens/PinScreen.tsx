@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Palette } from "../../theme/colors";
+import { PIN_LENGTH } from "../../theme/constants";
+import { UiCopy } from "../../i18n";
 import { Text } from "../ui/AppText";
 
 const KEY_W = 68;
@@ -9,8 +11,9 @@ const KEY_H = 52;
 const DOT_SIZE = 18;
 const DOT_GAP = 14;
 
-export function PinScreen({ colors, title, subtitle, wrong, bgColor, onFill }: {
+export function PinScreen({ colors, copy, title, subtitle, wrong, bgColor, onFill }: {
   colors: Palette;
+  copy: UiCopy;
   title?: string;
   subtitle?: string;
   wrong: boolean;
@@ -20,7 +23,7 @@ export function PinScreen({ colors, title, subtitle, wrong, bgColor, onFill }: {
   const [digits, setDigits] = useState<string[]>([]);
   const [showingError, setShowingError] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
-  const filled = digits.length === 4;
+  const filled = digits.length === PIN_LENGTH;
 
   useEffect(() => {
     if (filled) onFill(digits.join(""));
@@ -64,7 +67,7 @@ export function PinScreen({ colors, title, subtitle, wrong, bgColor, onFill }: {
       )}
 
       <Animated.View style={{ flexDirection: "row", gap: DOT_GAP, marginBottom: 36, transform: [{ translateX: shake }] }}>
-        {[0, 1, 2, 3].map((i) => {
+        {Array.from({ length: PIN_LENGTH }, (_, i) => i).map((i) => {
           const dot = digits.length > i;
           return (
             <View
@@ -81,7 +84,7 @@ export function PinScreen({ colors, title, subtitle, wrong, bgColor, onFill }: {
       </Animated.View>
 
       {showingError && (
-        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.red, marginBottom: 16 }}>PIN incorrecto</Text>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.red, marginBottom: 16 }}>{copy.pinIncorrect}</Text>
       )}
 
       <View style={{ gap: 10, alignItems: "center" }}>

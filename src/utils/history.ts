@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { TRANSACTION_TYPES } from "../domain/bucksLogic";
 import type { HistoryEntry, Transaction } from "../types";
+import { logError } from "./errorHandler";
 
 const HISTORY_KEY = "bucks_history";
 const MAX_DAYS = 30;
@@ -18,14 +19,15 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? pruneExpired(parsed) : [];
-  } catch {
+  } catch (e) {
+    logError(e, "history:loadHistory");
     return [];
   }
 }
 
 async function saveHistory(entries: HistoryEntry[]): Promise<void> {
   const trimmed = pruneExpired(entries);
-  await SecureStore.setItemAsync(HISTORY_KEY, JSON.stringify(trimmed)).catch(() => undefined);
+  await SecureStore.setItemAsync(HISTORY_KEY, JSON.stringify(trimmed)).catch((e) => logError(e, "history:saveHistory"));
 }
 
 export async function addHistoryEntry(entry: Omit<HistoryEntry, "id" | "timestamp">): Promise<HistoryEntry> {
