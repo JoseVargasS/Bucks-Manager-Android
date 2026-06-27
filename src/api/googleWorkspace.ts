@@ -12,6 +12,7 @@ import {
   formatDateForSheet,
   formatDateToISO,
   getMonthYear,
+  parseCreatedAtMs,
 } from "../domain/bucksLogic";
 import {
   findHeaderIndex,
@@ -619,7 +620,7 @@ export async function readTransactions(token: string, spreadsheetId: string) {
         date: formatDateForSheet(date),
         rawDate: date.toISOString(),
         rawDateMs: date.getTime(),
-        createdAtMs: Date.parse(createdAt) || 0,
+        createdAtMs: parseCreatedAtMs(createdAt),
         amount: parseNumber(row[1]),
         detail: String(row[2] || ""),
         formula: parseAmountFormula(formulaData.values?.[index]?.[1], type),

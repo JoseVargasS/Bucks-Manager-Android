@@ -1098,15 +1098,17 @@ function AppContent() {
     }
   }
 
+  const selectedRowsRef = useRef(selectedRows);
+  selectedRowsRef.current = selectedRows;
   const handleTransactionPress = useCallback(
     (tx: Transaction) => {
-      if (selectedRows.length) {
+      if (selectedRowsRef.current.length) {
         toggleSelection(tx);
         return;
       }
       detailModalRef.current?.open(tx);
     },
-    [selectedRows.length, toggleSelection],
+    [toggleSelection],
   );
 
   const moveTx = useCallback(

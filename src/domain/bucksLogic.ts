@@ -117,6 +117,19 @@ function isValidDraftDate(value: string): boolean {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
+/** Convierte createdAt en ms desde medianoche (para formato HH:MM:SS) o desde epoch (para ISO) */
+export function parseCreatedAtMs(createdAt?: string): number {
+  if (!createdAt) return 0;
+  const timeMatch = createdAt.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) {
+    const h = parseInt(timeMatch[1], 10);
+    const m = parseInt(timeMatch[2], 10);
+    const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+    return h * 3600000 + m * 60000 + s * 1000;
+  }
+  return Date.parse(createdAt) || 0;
+}
+
 /** Construye un Transaction completo a partir de un borrador y un rowId */
 export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number): Transaction {
   if (!isValidTransactionDraft(draft)) throw new Error("Invalid transaction draft");
@@ -128,7 +141,7 @@ export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number
     date: formatDateForSheet(date),
     rawDate: date.toISOString(),
     rawDateMs: date.getTime(),
-    createdAtMs: Date.parse(createdAt) || 0,
+    createdAtMs: parseCreatedAtMs(createdAt),
     amount,
     formula: isMathExpression(draft.amount) ? normalizeAmountExpression(draft.amount) : "",
     detail: draft.detail.trim(),
@@ -142,10 +155,18 @@ export function buildTransactionFromDraft(draft: TransactionDraft, rowId: number
 export function insertChronologically(transactions: Transaction[], tx: Transaction): Transaction[] {
   const next = [...transactions];
   const targetMs = tx.rawDateMs ?? Date.parse(tx.rawDate);
-  const target = targetMs - (targetMs % 86400000);
+  const targetDate = targetMs - (targetMs % 86400000);
+  const targetTime = tx.createdAtMs ?? 0;
   const index = next.findIndex((item) => {
     const itemMs = item.rawDateMs ?? Date.parse(item.rawDate);
-    return itemMs - (itemMs % 86400000) > target;
+    const itemDate = itemMs - (itemMs % 86400000);
+    if (itemDate > targetDate) return true;
+    if (itemDate === targetDate) {
+      const itemTime = item.createdAtMs ?? 0;
+      if (itemTime !== targetTime) return itemTime > targetTime;
+      return item.rowId > (tx.rowId || 0);
+    }
+    return false;
   });
   if (index === -1) next.push(tx);
   else next.splice(index, 0, tx);
@@ -179,7 +200,7 @@ export function applySearch(
       if (end && date > end) return false;
       return true;
     })
-    .sort((a, b) => (b.rawDateMs ?? Date.parse(b.rawDate)) - (a.rawDateMs ?? Date.parse(a.rawDate)) || b.rowId - a.rowId)
+    .sort((a, b) => (b.rawDateMs ?? Date.parse(b.rawDate)) - (a.rawDateMs ?? Date.parse(a.rawDate)) || (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0))
     .slice(0, 150);
 }
 
