@@ -12,6 +12,7 @@ import {
   Modal,
   Pressable,
   SectionList,
+  StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -28,11 +29,21 @@ import { groupTransactionsByDate } from "../../utils/transactions";
 import { styles } from "../../styles/globalStyles";
 import { StatCard } from "../ui/StatCard";
 import { HighlightedText } from "../ui/HighlightedText";
-import { Palette } from "../../theme/colors";
+import { dark, Palette } from "../../theme/colors";
 import { SummaryRow, Tag, Transaction, MaterialIconName } from "../../types";
 import { UiCopy } from "../../i18n";
 import { useModalTransition } from "../ui/useModalTransition";
 import { Text } from "../ui/AppText";
+
+function withAlpha(hex: string, alpha: number): string {
+  if (!hex.startsWith("#") || (hex.length !== 7 && hex.length !== 4)) return hex;
+  const expanded = hex.length === 4 ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}` : hex;
+  const value = Number.parseInt(expanded.slice(1), 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 type TransactionSection = {
   key: string;
@@ -424,52 +435,6 @@ export const ExpensesView = memo(function ExpensesView({
           </View>
         )}
 
-        {selectedCount > 0 && (
-          <View style={[styles.selectionBar, { backgroundColor: colors.card }]}>
-            <Text style={[styles.selectionText, { color: colors.text }]}>
-              {selectedCount === 1
-                ? copy.selectedOne
-                : `${selectedCount} ${copy.selectedMany}`}
-            </Text>
-            <View style={styles.selectionActions}>
-              {selectedCount === 1 && selectedTx && (
-                <TouchableOpacity
-                  style={[
-                    styles.selectionBtn,
-                    {
-                      backgroundColor: colors.editBg,
-                      borderColor: colors.editBorder,
-                    },
-                  ]}
-                  onPress={() => onEdit(selectedTx)}
-                >
-                  <MaterialCommunityIcons
-                    name="pencil"
-                    size={18}
-                    color={colors.blue}
-                  />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[
-                  styles.selectionBtn,
-                  {
-                    backgroundColor: colors.expenseSoft,
-                    borderColor: colors.red,
-                  },
-                ]}
-                onPress={onDeleteSelected}
-              >
-                <MaterialCommunityIcons
-                  name="trash-can"
-                  size={18}
-                  color={colors.red}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         <Text
           style={{
             paddingHorizontal: 18,
@@ -487,12 +452,8 @@ export const ExpensesView = memo(function ExpensesView({
       colors,
       copy,
       currencySymbol,
-      onDeleteSelected,
-      onEdit,
       onExitSearch,
       searchActive,
-      selectedCount,
-      selectedTx,
       summary,
     ],
   );
@@ -597,7 +558,7 @@ export const ExpensesView = memo(function ExpensesView({
   ]);
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <SectionList<Transaction, TransactionSection>
         style={{ flex: 1 }}
         sections={sections}
@@ -610,6 +571,7 @@ export const ExpensesView = memo(function ExpensesView({
         contentContainerStyle={[
           styles.pageScroll,
           topInset !== undefined && { paddingTop: topInset },
+          selectedCount > 0 && { paddingBottom: 100 },
         ]}
         extraData={selectedRowSet}
         initialNumToRender={12}
@@ -621,6 +583,78 @@ export const ExpensesView = memo(function ExpensesView({
         onScrollBeginDrag={closeTagBubble}
         onMomentumScrollBegin={closeTagBubble}
       />
+
+      {selectedCount > 0 && (
+        <View
+          style={[
+            styles.selectionBar,
+            {
+              position: "absolute",
+              left: 14,
+              right: 14,
+              bottom: 92,
+              overflow: "hidden",
+              borderWidth: 0.5,
+              borderColor: withAlpha(colors.borderStrong, colors.bg === dark.bg ? 0.26 : 0.54),
+              shadowColor: colors.shadow,
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: -3 },
+              elevation: 10,
+            },
+          ]}
+        >
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: withAlpha(colors.card, colors.bg === dark.bg ? 0.85 : 0.82),
+              },
+            ]}
+          />
+          <Text style={[styles.selectionText, { color: colors.text, zIndex: 1 }]}>
+            {selectedCount === 1
+              ? copy.selectedOne
+              : `${selectedCount} ${copy.selectedMany}`}
+          </Text>
+          <View style={[styles.selectionActions, { zIndex: 1 }]}>
+            {selectedCount === 1 && selectedTx && (
+              <TouchableOpacity
+                style={[
+                  styles.selectionBtn,
+                  {
+                    backgroundColor: withAlpha(colors.editBg, 0.85),
+                    borderColor: colors.editBorder,
+                  },
+                ]}
+                onPress={() => onEdit(selectedTx)}
+              >
+                <MaterialCommunityIcons
+                  name="pencil"
+                  size={18}
+                  color={colors.blue}
+                />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.selectionBtn,
+                {
+                  backgroundColor: withAlpha(colors.expenseSoft, 0.85),
+                  borderColor: colors.red,
+                },
+              ]}
+              onPress={onDeleteSelected}
+            >
+              <MaterialCommunityIcons
+                name="trash-can"
+                size={18}
+                color={colors.red}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {currentTagBubble && tagBubbleTransition.modalVisible && (
         <Modal
@@ -693,6 +727,6 @@ export const ExpensesView = memo(function ExpensesView({
           </Animated.View>
         </Modal>
       )}
-    </>
+    </View>
   );
 });
