@@ -48,6 +48,7 @@ import {
   insertTransactionAtRow,
   updateTransaction as updateGoogleTransaction,
   deleteTransaction as deleteGoogleTransaction,
+  removeTagFromAllRows,
 } from "./src/api/googleWorkspace";
 import { ColorSchemePreference, getPalette, Palette } from "./src/theme/colors";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
@@ -134,6 +135,7 @@ import {
 } from "./src/theme/constants";
 import { usePreferences, CURRENCY_OPTIONS } from "./src/hooks/usePreferences";
 import { useExport } from "./src/hooks/useExport";
+import { useErrorHelpers } from "./src/hooks/useErrorHelpers";
 
 preventAutoHideAsync().catch(() => undefined);
 setSplashOptions({ duration: ANIM_SPLASH_DURATION, fade: true });
@@ -186,6 +188,28 @@ const COLOR_SCHEME_OPTIONS: Array<{
 ];
 const TAB_ORDER: Tab[] = ["expenses", "summary", "settings"];
 
+function deriveSyncStatus(args: {
+  authError: string;
+  syncError: string;
+  pendingSync: boolean;
+  isSyncing: boolean;
+  hasLocalData: boolean;
+  isEn: boolean;
+  savedDataText: string;
+  syncingLabel: string;
+}): string {
+  const { authError, syncError, pendingSync, isSyncing, hasLocalData, isEn, savedDataText, syncingLabel } = args;
+  if (authError) return authError;
+  if (syncError) return hasLocalData ? (isEn ? "Showing saved data" : "Mostrando datos guardados") : syncError;
+  if (pendingSync) return isEn ? "Pending sync" : "Pendiente de sincronizar";
+  if (isSyncing) return hasLocalData ? `${savedDataText} · ${syncingLabel.toLowerCase()}` : syncingLabel;
+  return "";
+}
+
+function renumberTransactions(items: Transaction[]) {
+  return items.map((item, idx) => ({ ...item, rowId: idx + 2 }));
+}
+
 function AppContent() {
   const { colors, theme, colorScheme, toggleTheme } =
     useTheme();
@@ -228,6 +252,8 @@ function AppContent() {
     saveColorScheme,
     restorePreferences,
   } = usePreferences();
+  const { getErrorMessage, isAuthError, shouldRescanForSheetError } =
+    useErrorHelpers(copy.syncError);
   const [tab, setTab] = useState<Tab>("expenses");
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
@@ -340,11 +366,46 @@ function AppContent() {
     loadTags(language)
       .then((loaded) => {
         setTagsList(loaded);
-        setTransactions((current) => migrateTransactionTags(current, loaded));
+        const validIds = new Set(loaded.map((t) => t.id));
+        setTransactions((current) => {
+          const migrated = migrateTransactionTags(current, loaded);
+          return migrated.map((tx) => {
+            if (!tx.tags?.length) return tx;
+            const cleaned = tx.tags.filter((t) => validIds.has(t));
+            return cleaned.length === tx.tags.length ? tx : { ...tx, tags: cleaned };
+          });
+        });
         setSummaries((current) => current);
       })
       .catch(() => undefined);
   }, [language]);
+
+  const prevTagsListRef = useRef<Tag[]>([]);
+  useEffect(() => {
+    if (!tagsList.length) return;
+    const validIds = new Set(tagsList.map((t) => t.id));
+    const prevIds = new Set(prevTagsListRef.current.map((t) => t.id));
+    const removedIds = [...prevIds].filter((id) => !validIds.has(id));
+    prevTagsListRef.current = tagsList;
+    setTransactions((current) => {
+      let changed = false;
+      const next = current.map((tx) => {
+        if (!tx.tags?.length) return tx;
+        const cleaned = tx.tags.filter((t) => validIds.has(t));
+        if (cleaned.length === tx.tags.length) return tx;
+        changed = true;
+        return { ...tx, tags: cleaned };
+      });
+      return changed ? next : current;
+    });
+    if (removedIds.length && accessToken && spreadsheetId) {
+      for (const tagId of removedIds) {
+        removeTagFromAllRows(accessToken, spreadsheetId, tagId).catch(
+          () => undefined,
+        );
+      }
+    }
+  }, [tagsList, accessToken, spreadsheetId]);
 
   useEffect(() => {
     if (!bootstrapping) hideAsync().catch(() => undefined);
@@ -439,19 +500,16 @@ function AppContent() {
   const savedDataText =
     copy.languageCode === "en" ? "Saved data" : "Datos guardados";
   const isEn = copy.languageCode === "en";
-  const syncStatusText = authError
-    ? authError
-    : syncError
-      ? hasLocalData
-        ? isEn ? "Showing saved data" : "Mostrando datos guardados"
-        : syncError
-      : pendingSync
-        ? isEn ? "Pending sync" : "Pendiente de sincronizar"
-        : isSyncing
-          ? hasLocalData
-            ? `${savedDataText} · ${copy.syncing.toLowerCase()}`
-            : copy.syncing
-          : "";
+  const syncStatusText = deriveSyncStatus({
+    authError,
+    syncError,
+    pendingSync,
+    isSyncing,
+    hasLocalData,
+    isEn,
+    savedDataText,
+    syncingLabel: copy.syncing,
+  });
   // --- Session management ---
   async function restoreSession() {
     const [token, sheetId] = await Promise.all([
@@ -841,30 +899,6 @@ function AppContent() {
     didSetInitialPeriodRef.current = true;
   }
 
-  function getErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : copy.syncError;
-  }
-
-  function isAuthError(error: unknown) {
-    const message = getErrorMessage(error);
-    return (
-      message.includes("401") ||
-      message.includes("403") ||
-      message.toLowerCase().includes("permiso")
-    );
-  }
-
-  function shouldRescanForSheetError(error: unknown) {
-    const message = getErrorMessage(error).toLowerCase();
-    return (
-      message.includes("404") ||
-      message.includes("not found") ||
-      message.includes("unable to parse range") ||
-      message.includes("no se encontro") ||
-      message.includes("no se encontró")
-    );
-  }
-
   function resetFinancialState() {
     setSpreadsheetId("");
     setTransactions([]);
@@ -1037,10 +1071,6 @@ function AppContent() {
     );
     requestAnimationFrame(() => setSelectedRows([]));
   }, []);
-
-  function renumberTransactions(items: Transaction[]) {
-    return items.map((item, idx) => ({ ...item, rowId: idx + 2 }));
-  }
 
   function syncGoogleInBackground(task: () => Promise<void>, title: string) {
     pendingSyncRef.current = true;

@@ -85,13 +85,13 @@ export const DetailModal = forwardRef<DetailModalHandle, { colors: Palette; curr
                 <View style={[styles.detailDescription, { backgroundColor: colors.input }]}>
                   <Text style={[styles.detailSectionLabel, { color: colors.muted }]}>{copy.tagsTitle}</Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                    {current.tags.map((id) => {
+                    {current.tags.filter((id) => findTagById(id, tags)).map((id) => {
                       const tag = findTagById(id, tags);
                       const tagColor = tag?.color || colors.muted;
                       const tagLabel = tag?.label || id;
                       return (
                         <View key={id} style={{ maxWidth: "100%", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, backgroundColor: tagColor }}>
-                          <Text numberOfLines={1} style={{ color: tagTextColor(tagColor), fontSize: 12, fontWeight: "700" }}>{tagLabel}</Text>
+                          <Text numberOfLines={1} style={{ color: tagTextColor(tagColor, colors), fontSize: 12, fontWeight: "700" }}>{tagLabel}</Text>
                         </View>
                       );
                     })}

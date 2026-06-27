@@ -93,7 +93,7 @@ const TransactionRow = memo(function TransactionRow({
         : "basket-outline";
   const isFreqExpense = tx.type === "GASTO FRECUENTE";
   const showPill = tx.type !== "GASTO NO FRECUENTE";
-  const tags = tx.tags || [];
+  const tags = (tx.tags || []).filter((t) => tagColorMap[t] || tagLabelMap[t]);
   const visibleTags = tags.slice(0, 2);
   const hiddenTagCount = Math.max(0, tags.length - visibleTags.length);
 
@@ -110,7 +110,8 @@ const TransactionRow = memo(function TransactionRow({
     [tagButtonRefs, tx.rowId],
   );
   const handleHiddenTagsPress = useCallback(() => {
-    const hiddenTags = (tx.tags || []).slice(2);
+    const allTags = (tx.tags || []).filter((t) => tagColorMap[t] || tagLabelMap[t]);
+    const hiddenTags = allTags.slice(2);
     if (!hiddenTags.length) return;
     tagButtonRefs.current[tx.rowId]?.measureInWindow?.((x, y) => {
       const screen = Dimensions.get("window");
@@ -120,7 +121,7 @@ const TransactionRow = memo(function TransactionRow({
         tags: hiddenTags,
       });
     });
-  }, [setTagBubble, tagButtonRefs, tx.rowId, tx.tags]);
+  }, [setTagBubble, tagButtonRefs, tagColorMap, tagLabelMap, tx.rowId, tx.tags]);
 
   return (
     <Pressable
@@ -212,7 +213,7 @@ const TransactionRow = memo(function TransactionRow({
                   style={{
                     fontSize: 10,
                     fontWeight: "700",
-                    color: tagTextColor(tagColor),
+                    color: tagTextColor(tagColor, colors),
                   }}
                 >
                   {abbreviateTag(tagLabel)}
@@ -660,7 +661,7 @@ export const ExpensesView = memo(function ExpensesView({
                 >
                   {currentTagBubble.tags.map((tag) => {
                     const tc = tagColorMap[tag] || colors.muted;
-                    const textColor = tagTextColor(tc);
+                    const textColor = tagTextColor(tc, colors);
                     const tagLabel = tagLabelMap[tag] || tag;
                     return (
                       <View
