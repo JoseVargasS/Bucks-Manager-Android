@@ -3,7 +3,7 @@ import { extname, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const extensions = new Set([".cjs", ".js", ".json", ".md", ".mjs", ".ps1", ".ts", ".tsx", ".yaml", ".yml"]);
-const ignored = new Set([".agents", ".codex", ".git", ".expo", "android", "dist", "ios", "node_modules", "web-build"]);
+const ignored = new Set([".agents", ".codex", ".git", ".expo", "android", "dist", "graphify-out", "ios", "node_modules", "web-build"]);
 const errors = [];
 
 async function checkDirectory(directory) {

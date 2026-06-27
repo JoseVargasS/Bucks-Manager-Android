@@ -41,6 +41,9 @@ DESIGN.md
 .env
 .env*.local
 
+# graphify knowledge graph (regenerable)
+graphify-out/
+
 # typescript
 *.tsbuildinfo
 
