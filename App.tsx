@@ -1,18 +1,10 @@
 import Constants from "expo-constants";
 import { BlurView } from "expo-blur";
 import {
-  cacheDirectory,
-  writeAsStringAsync,
-  deleteAsync,
-  copyAsync,
-} from "expo-file-system/legacy";
-import { printToFileAsync } from "expo-print";
-import {
   getItemAsync,
   setItemAsync,
   deleteItemAsync,
 } from "expo-secure-store";
-import { shareAsync } from "expo-sharing";
 import {
   preventAutoHideAsync,
   setOptions as setSplashOptions,
@@ -64,8 +56,6 @@ import {
   sortTransactionsDesc,
   filterTransactionsByRollingPeriod,
 } from "./src/utils/transactions";
-import { formatMoney } from "./src/domain/bucksLogic";
-import { formatCreatedTime } from "./src/utils/formats";
 import {
   loadHistory,
   addHistoryEntry,
@@ -94,7 +84,7 @@ import {
   DetailModal,
   DetailModalHandle,
 } from "./src/components/modals/DetailModal";
-import { ExportModal, ExportConfig } from "./src/components/modals/ExportModal";
+import { ExportModal } from "./src/components/modals/ExportModal";
 import {
   ConfirmModal,
   ConfirmConfig,
@@ -113,7 +103,6 @@ import {
 } from "./src/components/modals/OptionSheet";
 import {
   getAppFontFamily,
-  setAppFontPreference,
   Text,
 } from "./src/components/ui/AppText";
 import {
@@ -129,13 +118,10 @@ import {
   TransactionDraft,
 } from "./src/types";
 import {
-  buildExportFileName,
   getPeriodRange,
   getAvailableMonthsForYear,
-  detectDeviceCurrencySymbol,
-  detectDeviceLanguage,
 } from "./src/utils/helpers";
-import { UI_COPY, UI_MONTH_NAMES, UiCopy } from "./src/i18n";
+import { UiCopy } from "./src/i18n";
 import {
   ANIM_SPLASH_DURATION,
   ANIM_TAB_PAGER,
@@ -146,6 +132,8 @@ import {
   SPLASH_SPINNER,
   SPLASH_INDICATOR_OFFSET,
 } from "./src/theme/constants";
+import { usePreferences, CURRENCY_OPTIONS } from "./src/hooks/usePreferences";
+import { useExport } from "./src/hooks/useExport";
 
 preventAutoHideAsync().catch(() => undefined);
 setSplashOptions({ duration: ANIM_SPLASH_DURATION, fade: true });
@@ -164,27 +152,6 @@ const GOOGLE_WORKSPACE_SCOPES = [
 // fast edit cannot race with the reconcile read of an earlier edit. The chain
 // holds the in-flight task only; UI state lives in pendingSyncRef/setPendingSync.
 let syncQueue: Promise<void> = Promise.resolve();
-const LANGUAGE_KEY = "bucks_language";
-const CURRENCY_SYMBOL_KEY = "bucks_currency_symbol";
-const FONT_KEY = "bucks_font";
-const COLOR_SCHEME_KEY = "bucks_color_scheme";
-const FONT_PREFERENCES: FontPreference[] = [
-  "dmsans",
-  "serif",
-  "mono",
-  "condensed",
-  "light",
-  "casual",
-  "cursive",
-  "smallcaps",
-];
-const COLOR_SCHEME_PREFERENCES: ColorSchemePreference[] = [
-  "lime",
-  "ocean",
-  "violet",
-  "amber",
-  "graphite",
-];
 const COLOR_SCHEME_OPTIONS: Array<{
   value: ColorSchemePreference;
   labelEs: string;
@@ -217,66 +184,10 @@ const COLOR_SCHEME_OPTIONS: Array<{
     icon: "circle-half-full",
   },
 ];
-const CURRENCY_OPTIONS = [
-  {
-    labelEs: "Soles peruanos (S/)",
-    labelEn: "Peruvian soles (S/)",
-    value: "S/",
-    icon: "cash" as const,
-  },
-  {
-    labelEs: "Dólares ($)",
-    labelEn: "US dollars ($)",
-    value: "$",
-    icon: "currency-usd" as const,
-  },
-  {
-    labelEs: "Euros (€)",
-    labelEn: "Euros (€)",
-    value: "€",
-    icon: "currency-eur" as const,
-  },
-  {
-    labelEs: "Libras (£)",
-    labelEn: "Pounds (£)",
-    value: "£",
-    icon: "currency-gbp" as const,
-  },
-  {
-    labelEs: "Yenes (¥)",
-    labelEn: "Yen (¥)",
-    value: "¥",
-    icon: "currency-jpy" as const,
-  },
-  {
-    labelEs: "Reales (R$)",
-    labelEn: "Brazilian reais (R$)",
-    value: "R$",
-    icon: "currency-brl" as const,
-  },
-  {
-    labelEs: "Pesos mexicanos (MX$)",
-    labelEn: "Mexican pesos (MX$)",
-    value: "MX$",
-    icon: "cash" as const,
-  },
-  {
-    labelEs: "Pesos colombianos (COP$)",
-    labelEn: "Colombian pesos (COP$)",
-    value: "COP$",
-    icon: "cash" as const,
-  },
-  {
-    labelEs: "Pesos chilenos (CLP$)",
-    labelEn: "Chilean pesos (CLP$)",
-    value: "CLP$",
-    icon: "cash" as const,
-  },
-];
 const TAB_ORDER: Tab[] = ["expenses", "summary", "settings"];
 
 function AppContent() {
-  const { colors, theme, colorScheme, toggleTheme, setColorScheme } =
+  const { colors, theme, colorScheme, toggleTheme } =
     useTheme();
   const themeProgress = useRef(
     new Animated.Value(theme === "dark" ? 1 : 0),
@@ -305,13 +216,18 @@ function AppContent() {
     themeAnimRef.current.start();
     toggleTheme();
   }, [theme, themeProgress, toggleTheme]);
-  const [language, setLanguage] = useState<LanguageMode>(detectDeviceLanguage);
-  const copy = UI_COPY[language];
-  const [currencySymbol, setCurrencySymbol] = useState(
-    detectDeviceCurrencySymbol,
-  );
-  const [fontPreference, setFontPreference] =
-    useState<FontPreference>("dmsans");
+  const {
+    language,
+    currencySymbol,
+    fontPreference,
+    copy,
+    uiMonthNames,
+    saveLanguage,
+    saveCurrencySymbol,
+    saveFontPreference,
+    saveColorScheme,
+    restorePreferences,
+  } = usePreferences();
   const [tab, setTab] = useState<Tab>("expenses");
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
@@ -341,13 +257,15 @@ function AppContent() {
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [historyVisible, setHistoryVisible] = useState(false);
-  const [exportVisible, setExportVisible] = useState(false);
-  const [exportConfig, setExportConfig] = useState<ExportConfig>({
-    format: "xlsx",
-    rangeMode: "dates",
-    startDate: "",
-    endDate: "",
-  });
+  const {
+    exportVisible,
+    exportConfig,
+    exportMinDate,
+    setExportConfig,
+    openExport,
+    closeExport,
+    startExport,
+  } = useExport(transactions, currencySymbol, copy, getErrorMessage);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(
     null,
   );
@@ -511,21 +429,6 @@ function AppContent() {
     () => getAvailableMonthsForYear(year, periodRange),
     [year, periodRange],
   );
-  const exportMinDate = useMemo(
-    () =>
-      transactions.length
-        ? transactions
-            .reduce(
-              (earliest, tx) => (tx.rawDate < earliest ? tx.rawDate : earliest),
-              transactions[0].rawDate,
-            )
-            .slice(0, 10)
-        : "",
-    [transactions],
-  );
-
-  const uiMonthNames =
-    copy.languageCode === "en" ? UI_MONTH_NAMES.en : UI_MONTH_NAMES.es;
   const selectedColorScheme =
     COLOR_SCHEME_OPTIONS.find((option) => option.value === colorScheme) ||
     COLOR_SCHEME_OPTIONS[0];
@@ -614,81 +517,6 @@ function AppContent() {
       setIsFirstRemoteLoad(false);
     }
   }
-
-  async function restorePreferences() {
-    const [storedLanguage, storedCurrency, storedFont, storedColorScheme] =
-      await Promise.all([
-        getItemAsync(LANGUAGE_KEY),
-        getItemAsync(CURRENCY_SYMBOL_KEY),
-        getItemAsync(FONT_KEY),
-        getItemAsync(COLOR_SCHEME_KEY),
-      ]);
-    if (storedLanguage === "es" || storedLanguage === "en") {
-      setLanguage(storedLanguage);
-    } else {
-      const detectedLanguage = detectDeviceLanguage();
-      setLanguage(detectedLanguage);
-      await setItemAsync(LANGUAGE_KEY, detectedLanguage);
-    }
-    if (
-      storedCurrency &&
-      CURRENCY_OPTIONS.some((option) => option.value === storedCurrency)
-    ) {
-      setCurrencySymbol(storedCurrency);
-    } else {
-      const detectedCurrency = detectDeviceCurrencySymbol();
-      setCurrencySymbol(detectedCurrency);
-      await setItemAsync(CURRENCY_SYMBOL_KEY, detectedCurrency);
-    }
-    if (
-      storedFont === "system" ||
-      FONT_PREFERENCES.includes(storedFont as FontPreference)
-    ) {
-      const preference: FontPreference =
-        storedFont === "system" ? "dmsans" : (storedFont as FontPreference);
-      setFontPreference(preference);
-      setAppFontPreference(preference);
-      if (storedFont === "system")
-        await setItemAsync(FONT_KEY, preference);
-    }
-    if (
-      COLOR_SCHEME_PREFERENCES.includes(
-        storedColorScheme as ColorSchemePreference,
-      )
-    ) {
-      setColorScheme(storedColorScheme as ColorSchemePreference);
-    }
-  }
-
-  const saveLanguage = useCallback((next: string) => {
-    const value = next === "en" ? "en" : "es";
-    setLanguage(value);
-    setItemAsync(LANGUAGE_KEY, value).catch(() => undefined);
-  }, []);
-
-  const saveCurrencySymbol = useCallback((next: string) => {
-    setCurrencySymbol(next);
-    setItemAsync(CURRENCY_SYMBOL_KEY, next).catch(() => undefined);
-  }, []);
-
-  const saveFontPreference = useCallback((next: string) => {
-    const value = FONT_PREFERENCES.includes(next as FontPreference)
-      ? (next as FontPreference)
-      : "dmsans";
-    setAppFontPreference(value);
-    setFontPreference(value);
-    setItemAsync(FONT_KEY, value).catch(() => undefined);
-  }, []);
-
-  const saveColorScheme = useCallback((next: string) => {
-    const value = COLOR_SCHEME_PREFERENCES.includes(
-      next as ColorSchemePreference,
-    )
-      ? (next as ColorSchemePreference)
-      : "lime";
-    setColorScheme(value);
-    setItemAsync(COLOR_SCHEME_KEY, value).catch(() => undefined);
-  }, []);
 
   const openLanguagePicker = useCallback(() => {
     optionSheetRef.current?.open({
@@ -1570,84 +1398,12 @@ function AppContent() {
     });
   }
 
-  async function exportRows(cfg: ExportConfig) {
-    const parseDay = (value: string, endOfDay: boolean) => {
-      const [y, m, d] = value.split("-").map(Number);
-      if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return Number.NaN;
-      const date = new Date(y, m - 1, d, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
-      return Number.isNaN(date.getTime()) ? Number.NaN : date.getTime();
-    };
-    const parseMonth = (value: string) => {
-      const [y, m] = value.split("-").map(Number);
-      return Number.isInteger(y) && Number.isInteger(m) && m >= 1 && m <= 12 ? y * 12 + (m - 1) : Number.NaN;
-    };
-    let rows: Transaction[];
-    if (cfg.rangeMode === "dates") {
-      const from = cfg.startDate ? parseDay(cfg.startDate, false) : 0;
-      const to = cfg.endDate ? parseDay(cfg.endDate, true) : Infinity;
-      rows = transactions.filter((tx) => {
-        const t = parseDay(formatDateToISO(tx.rawDate), false);
-        return t >= from && t <= to;
-      });
-    } else {
-      const fromYM = cfg.startDate ? parseMonth(cfg.startDate) : 0;
-      const toYM = cfg.endDate ? parseMonth(cfg.endDate) : Infinity;
-      rows = transactions.filter((tx) => {
-        const txYM = parseMonth(formatDateToISO(tx.rawDate).slice(0, 7));
-        return txYM >= fromYM && txYM <= toYM;
-      });
-    }
-    if (!rows.length) {
-      Alert.alert(copy.exportMovements, copy.noDataToExport);
-      return;
-    }
-    const baseFileName = buildExportFileName(cfg);
-    if (cfg.format === "xlsx") {
-      const csvLines: string[] = [copy.csvHeader as string];
-      rows.forEach(
-        (tx) =>
-          csvLines.push(
-            `${tx.date},${tx.amount},"${tx.detail.replace(/"/g, '""')}",${tx.type},${formatCreatedTime(tx.createdAt)}`,
-          ),
-      );
-      const csv = csvLines.join("\n");
-      const uri = `${cacheDirectory}${baseFileName}.csv`;
-      await writeAsStringAsync(uri, csv);
-      await shareAsync(uri, {
-        mimeType: "text/csv",
-        dialogTitle: copy.exportMovements,
-      });
-    } else {
-      const html = `<html><body><h1>Bucks Manager</h1><table border="1" cellspacing="0" cellpadding="6">${rows
-        .map(
-          (tx) =>
-            `<tr><td>${tx.date}</td><td>${formatMoney(tx.amount, currencySymbol)}</td><td>${tx.detail}</td><td>${tx.type}</td><td>${formatCreatedTime(tx.createdAt)}</td></tr>`,
-        )
-        .join("")}</table></body></html>`;
-      const pdf = await printToFileAsync({ html });
-      const uri = `${cacheDirectory}${baseFileName}.pdf`;
-      await deleteAsync(uri, { idempotent: true });
-      await copyAsync({ from: pdf.uri, to: uri });
-      await shareAsync(uri, {
-        mimeType: "application/pdf",
-        dialogTitle: copy.exportPdf,
-      });
-    }
-  }
-
-  function startExport(cfg: ExportConfig) {
-    void exportRows(cfg).catch((error) =>
-      Alert.alert(copy.exportMovements, getErrorMessage(error)),
-    );
-  }
-
   const exitSearch = useCallback(() => setSearchActive(false), []);
   const loadOlder = useCallback(
     () => setLoadedMonthCount((count) => count + 1),
     [],
   );
   const openTagEditor = useCallback(() => setTagEditorVisible(true), []);
-  const openExport = useCallback(() => setExportVisible(true), []);
   const openSearch = useCallback(
     () => searchModalRef.current?.open(searchFilters),
     [searchFilters],
@@ -1655,7 +1411,6 @@ function AppContent() {
   const closeConfirm = useCallback(() => setConfirmConfig(null), []);
   const closeHistory = useCallback(() => setHistoryVisible(false), []);
   const closePinSetup = useCallback(() => setPinSetupVisible(false), []);
-  const closeExport = useCallback(() => setExportVisible(false), []);
   const closeTagEditor = useCallback(() => setTagEditorVisible(false), []);
 
   const tabPageProps = useMemo(
