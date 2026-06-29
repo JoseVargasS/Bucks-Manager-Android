@@ -21,7 +21,7 @@ const FONT_PREFERENCES: FontPreference[] = [
   "dmsans", "serif", "mono", "condensed", "light", "casual", "cursive", "smallcaps",
 ];
 const COLOR_SCHEME_PREFERENCES: ColorSchemePreference[] = [
-  "lime", "ocean", "violet", "amber", "graphite",
+  "lime", "ocean", "violet", "amber", "graphite", "pink", "sports", "techy", "sky",
 ];
 
 export const CURRENCY_OPTIONS: Array<{

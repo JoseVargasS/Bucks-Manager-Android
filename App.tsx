@@ -159,6 +159,30 @@ const COLOR_SCHEME_OPTIONS: Array<{
     labelEn: "Graphite",
     icon: "circle-half-full",
   },
+  {
+    value: "pink",
+    labelEs: "Rosa",
+    labelEn: "Pink",
+    icon: "heart",
+  },
+  {
+    value: "sports",
+    labelEs: "Deportes",
+    labelEn: "Sports",
+    icon: "trophy",
+  },
+  {
+    value: "techy",
+    labelEs: "Techy",
+    labelEn: "Techy",
+    icon: "chip",
+  },
+  {
+    value: "sky",
+    labelEs: "Cielo",
+    labelEn: "Sky",
+    icon: "weather-night",
+  },
 ];
 
 function deriveSyncStatus(args: {
