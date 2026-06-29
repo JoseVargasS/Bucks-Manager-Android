@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Animated, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { styles } from "../../styles/globalStyles";
 import { ModalHeader } from "../ui/ModalHeader";
@@ -137,7 +137,7 @@ function RangeField({ label, value, onChange, pickerMode, pickerMin, colors, cop
   return (
     <>
       <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>{label}</Text>
-      <TouchableOpacity style={[rangeStyles.trigger, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={onOpen}>
+      <TouchableOpacity style={[styles.trigger, { backgroundColor: colors.input, borderColor: colors.border }]} onPress={onOpen}>
         <MaterialCommunityIcons name="calendar" size={20} color={colors.blue} />
         <Text style={{ color: value ? colors.text : colors.muted, fontWeight: "600", flex: 1 }}>{displayValue}</Text>
       </TouchableOpacity>
@@ -146,7 +146,4 @@ function RangeField({ label, value, onChange, pickerMode, pickerMin, colors, cop
   );
 }
 
-const rangeStyles = StyleSheet.create({
-  trigger: { borderRadius: 10, paddingHorizontal: 12, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1 },
-});
 
