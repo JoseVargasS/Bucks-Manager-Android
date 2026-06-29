@@ -1,4 +1,6 @@
 import type { ComponentProps } from "react";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- typeof requires value import
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 export type TransactionType =
   | "INGRESO FRECUENTE"
@@ -63,9 +65,7 @@ export type SheetCandidate = {
 };
 
 export type ExportFormat = "xlsx" | "pdf";
-export type MaterialIconName = ComponentProps<
-  typeof import("@expo/vector-icons/MaterialCommunityIcons").default
->["name"];
+export type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 
 export type HistoryEntry = {
   id: string;

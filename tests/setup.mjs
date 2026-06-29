@@ -30,7 +30,6 @@ export const fileSystemMock = {
   writeError: null,
   reset() {
     this.files.clear();
-    this.writeError = null;
   },
   async getInfoAsync(path) {
     return { exists: this.files.has(path) };
