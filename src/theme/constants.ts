@@ -1,7 +1,6 @@
 import type { Tab } from "../types";
 
 export const ANIM_SPLASH_DURATION = 220;
-export const ANIM_THEME_CROSSFADE = 180;
 export const ANIM_TAB_PAGER = 210;
 export const ANIM_HEADER_BTN_IN = 60;
 export const ANIM_HEADER_BTN_OUT = 60;

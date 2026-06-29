@@ -2,8 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { View, Text } from "react-native";
 import { SPLASH_BG, SPLASH_SPINNER } from "../theme/constants";
 import { UI_COPY } from "../i18n";
-
-const C = UI_COPY.es;
+import { detectDeviceLanguage } from "../utils/helpers";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -22,6 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const C = UI_COPY[detectDeviceLanguage()];
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24, backgroundColor: SPLASH_BG }}>
         <Text style={{ color: SPLASH_SPINNER, fontSize: 20, fontWeight: "700" }}>{C.errorTitle}</Text>

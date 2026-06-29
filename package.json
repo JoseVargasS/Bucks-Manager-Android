@@ -46,7 +46,7 @@
     "test": "node --no-warnings --test tests/*.test.mjs",
     "test:watch": "node --watch --no-warnings --test tests/*.test.mjs",
     "test:coverage": "node --experimental-test-coverage --test-coverage-lines=85 --test-coverage-branches=75 --test-coverage-functions=85 --test-coverage-include=src/api/*.ts --test-coverage-include=src/data/*.ts --test-coverage-include=src/domain/*.ts --test-coverage-include=src/utils/*.ts --no-warnings --test tests/*.test.mjs",
-    "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters && eslint \"src/**/*.{ts,tsx}\" --max-warnings 0",
+    "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters && eslint \"src/**/*.{ts,tsx}\" \"App.tsx\" \"index.ts\" --max-warnings 0",
     "eslint": "eslint .",
     "eslint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",

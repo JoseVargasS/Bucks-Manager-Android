@@ -15,7 +15,7 @@ import { Transaction } from "../types";
 import { UiCopy } from "../i18n";
 import { ExportConfig } from "../components/modals/ExportModal";
 
-export type ExportState = {
+type ExportState = {
   exportVisible: boolean;
   exportConfig: ExportConfig;
   exportMinDate: string;

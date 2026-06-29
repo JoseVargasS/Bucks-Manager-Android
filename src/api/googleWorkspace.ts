@@ -16,7 +16,7 @@ import {
 } from "../domain/bucksLogic";
 import {
   findHeaderIndex,
-  normalizeHeader,
+  isTagHeader,
   normalizeType,
   parseCreatedAt,
   parseNumber,
@@ -263,7 +263,7 @@ async function ensureTransactionTagsColumn(
     );
     header = data.values?.[0]?.[0];
   }
-  if (normalizeHeader(header) === TAG_HEADER) {
+  if (isTagHeader(header)) {
     tagsColumnReady.add(spreadsheetId);
     return;
   }

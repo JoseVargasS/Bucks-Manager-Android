@@ -1,7 +1,7 @@
 import { TRANSACTION_TYPES, parseSpanishDate as parseSpanishDateBs } from "../domain/bucksLogic";
 import type { Transaction } from "../types";
 
-export function normalizeHeader(value: unknown) {
+function normalizeHeader(value: unknown) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -10,7 +10,7 @@ export function normalizeHeader(value: unknown) {
     .toUpperCase();
 }
 
-export function compactHeader(value: unknown) {
+function compactHeader(value: unknown) {
   return normalizeHeader(value).replace(/[^A-Z0-9]/g, "");
 }
 
@@ -35,7 +35,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   ],
 };
 
-export function headerAliases(expected: string) {
+function headerAliases(expected: string) {
   const base = normalizeHeader(expected);
   const compactBase = compactHeader(base);
   if (compactBase.startsWith("HORADECREACI"))
@@ -43,13 +43,13 @@ export function headerAliases(expected: string) {
   return HEADER_ALIASES[base] || [base];
 }
 
-export function headerMatches(actual: string, expected: string) {
+function headerMatches(actual: string, expected: string) {
   const actualCompact = compactHeader(actual);
   const allowed = headerAliases(expected).map(compactHeader);
   return allowed.includes(actualCompact);
 }
 
-export function hasHeaders(actual: string[], expected: string[]) {
+function hasHeaders(actual: string[], expected: string[]) {
   const normalized = actual.map(normalizeHeader);
   return expected.every((header, index) =>
     headerMatches(normalized[index], header),
@@ -177,4 +177,8 @@ export function parseTags(value: unknown): string[] {
     .split(/[,\n]/)
     .map((t) => t.trim())
     .filter(Boolean);
+}
+
+export function isTagHeader(value: unknown): boolean {
+  return normalizeHeader(value) === "ETIQUETAS";
 }

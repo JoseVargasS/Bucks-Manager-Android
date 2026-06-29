@@ -1,4 +1,5 @@
 import type { SearchFilters, SummaryRow, Transaction, TransactionDraft, TransactionType } from "../types";
+import { MONTH_NAMES_ES } from "../i18n";
 
 export const SHEET_NAMES = {
   transactions: "INGRESOS Y GASTOS",
@@ -15,10 +16,7 @@ export const TRANSACTION_TYPES: TransactionType[] = [
   "GASTO NO FRECUENTE",
 ];
 
-export const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
+export const MONTH_NAMES = MONTH_NAMES_ES;
 
 const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -67,11 +65,67 @@ export function calculateExpression(expression: string): number {
   const clean = expression.replace(/[^0-9+\-*/().\s]/g, "");
   if (!clean.trim()) return 0;
   try {
-    const result = Function(`"use strict"; return (${clean})`)();
-    return Number.isFinite(Number(result)) ? Number(result) : 0;
+    return parseAddSub(clean, { pos: 0 });
   } catch {
     return 0;
   }
+}
+
+function parseAddSub(expr: string, ctx: { pos: number }): number {
+  let result = parseMulDiv(expr, ctx);
+  while (ctx.pos < expr.length) {
+    const ch = expr[ctx.pos];
+    if (ch === "+" || ch === "-") {
+      ctx.pos++;
+      const right = parseMulDiv(expr, ctx);
+      result = ch === "+" ? result + right : result - right;
+    } else break;
+  }
+  return result;
+}
+
+function parseMulDiv(expr: string, ctx: { pos: number }): number {
+  let result = parsePrimary(expr, ctx);
+  while (ctx.pos < expr.length) {
+    const ch = expr[ctx.pos];
+    if (ch === "*" || ch === "/") {
+      ctx.pos++;
+      const right = parsePrimary(expr, ctx);
+      const div = ch === "/" ? result / right : result * right;
+      result = Number.isFinite(div) ? div : 0;
+    } else break;
+  }
+  return result;
+}
+
+function parsePrimary(expr: string, ctx: { pos: number }): number {
+  skipSpaces(expr, ctx);
+  if (ctx.pos < expr.length && expr[ctx.pos] === "(") {
+    ctx.pos++;
+    const result = parseAddSub(expr, ctx);
+    skipSpaces(expr, ctx);
+    if (ctx.pos < expr.length && expr[ctx.pos] === ")") ctx.pos++;
+    return result;
+  }
+  let sign = 1;
+  if (ctx.pos < expr.length && expr[ctx.pos] === "+") { ctx.pos++; }
+  else if (ctx.pos < expr.length && expr[ctx.pos] === "-") { sign = -1; ctx.pos++; }
+  skipSpaces(expr, ctx);
+  if (ctx.pos < expr.length && expr[ctx.pos] === "(") {
+    ctx.pos++;
+    const result = parseAddSub(expr, ctx);
+    skipSpaces(expr, ctx);
+    if (ctx.pos < expr.length && expr[ctx.pos] === ")") ctx.pos++;
+    return sign * result;
+  }
+  const start = ctx.pos;
+  while (ctx.pos < expr.length && /[\d.]/.test(expr[ctx.pos])) ctx.pos++;
+  const num = Number(expr.slice(start, ctx.pos));
+  return Number.isFinite(num) ? sign * num : 0;
+}
+
+function skipSpaces(expr: string, ctx: { pos: number }) {
+  while (ctx.pos < expr.length && expr[ctx.pos] === " ") ctx.pos++;
 }
 
 /** Elimina el prefijo "=" de una expresión de monto */

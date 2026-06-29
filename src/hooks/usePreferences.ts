@@ -11,7 +11,7 @@ import {
   detectDeviceLanguage,
 } from "../utils/helpers";
 import { setAppFontPreference } from "../components/ui/AppText";
-import { UiCopy, UI_COPY, UI_MONTH_NAMES } from "../i18n";
+import { UiCopy, UI_COPY } from "../i18n";
 
 const LANGUAGE_KEY = "bucks_language";
 const CURRENCY_SYMBOL_KEY = "bucks_currency_symbol";
@@ -45,12 +45,11 @@ export const CURRENCY_OPTIONS: Array<{
   { labelEs: "Pesos chilenos (CLP$)", labelEn: "Chilean pesos (CLP$)", value: "CLP$", icon: "cash" },
 ];
 
-export type PreferencesState = {
+type PreferencesState = {
   language: LanguageMode;
   currencySymbol: string;
   fontPreference: FontPreference;
   copy: UiCopy;
-  uiMonthNames: readonly string[];
   saveLanguage: (next: string) => void;
   saveCurrencySymbol: (next: string) => void;
   saveFontPreference: (next: string) => void;
@@ -65,7 +64,6 @@ export function usePreferences(): PreferencesState {
   const [fontPreference, setFontPreference] = useState<FontPreference>("dmsans");
 
   const copy: UiCopy = UI_COPY[language];
-  const uiMonthNames: readonly string[] = copy.languageCode === "en" ? UI_MONTH_NAMES.en : UI_MONTH_NAMES.es;
 
   const restorePreferences = useCallback(async () => {
     const [storedLanguage, storedCurrency, storedFont, storedColorScheme] =
@@ -140,7 +138,6 @@ export function usePreferences(): PreferencesState {
     currencySymbol,
     fontPreference,
     copy,
-    uiMonthNames,
     saveLanguage,
     saveCurrencySymbol,
     saveFontPreference,

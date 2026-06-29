@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-
 export function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -22,11 +20,4 @@ export function shouldRescanForSheetError(error: unknown) {
     message.includes("no se encontro") ||
     message.includes("no se encontró")
   );
-}
-
-export function useErrorHelpers(fallback: string) {
-  const get = useCallback((error: unknown) => getErrorMessage(error, fallback), [fallback]);
-  const auth = useCallback((error: unknown) => isAuthError(error, fallback), [fallback]);
-  const rescan = useCallback((error: unknown) => shouldRescanForSheetError(error), []);
-  return { getErrorMessage: get, isAuthError: auth, shouldRescanForSheetError: rescan };
 }

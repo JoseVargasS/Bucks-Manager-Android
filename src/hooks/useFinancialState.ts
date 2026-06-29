@@ -16,7 +16,7 @@ import {
 } from "../components/modals/SearchModal";
 import type { SearchFilters, SummaryRow, Tag, Transaction } from "../types";
 
-export type FinancialState = {
+type FinancialState = {
   transactions: Transaction[];
   summaries: SummaryRow[];
   freqIncome: Record<string, number>;

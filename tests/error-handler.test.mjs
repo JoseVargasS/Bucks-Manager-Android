@@ -2,51 +2,44 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import "./setup.mjs";
 
-const { logError, setErrorLogger } = await import("../src/utils/errorHandler.ts");
+const { logError } = await import("../src/utils/errorHandler.ts");
 
-test("logError does nothing when no logger is set", () => {
-  setErrorLogger(null);
-  logError(new Error("boom"), "test:ctx");
-});
-
-test("logError formats Error instances with name and message", () => {
+test("logError calls console.error with formatted message", () => {
+  const original = console.error;
   const logs = [];
-  setErrorLogger((message, ctx) => logs.push({ message, ctx }));
-  logError(new TypeError("bad input"), "form:validate");
+  console.error = (...args) => logs.push(args);
+  logError(new Error("boom"), "test:ctx");
+  console.error = original;
   assert.equal(logs.length, 1);
-  assert.equal(logs[0].message, "TypeError: bad input");
-  assert.equal(logs[0].ctx, "form:validate");
+  assert.ok(logs[0][0].includes("test:ctx"));
+  assert.ok(logs[0][1].includes("Error: boom"));
 });
 
 test("logError stringifies non-Error values", () => {
+  const original = console.error;
   const logs = [];
-  setErrorLogger((message, ctx) => logs.push({ message, ctx }));
+  console.error = (...args) => logs.push(args);
   logError("raw string", "misc");
-  assert.equal(logs[0].message, "raw string");
+  console.error = original;
+  assert.equal(logs[0][1], "raw string");
 });
 
 test("logError handles null and undefined", () => {
+  const original = console.error;
   const logs = [];
-  setErrorLogger((message) => logs.push(message));
+  console.error = (...args) => logs.push(args);
   logError(null, "a");
   logError(undefined, "b");
-  assert.equal(logs[0], "null");
-  assert.equal(logs[1], "undefined");
+  console.error = original;
+  assert.equal(logs[0][1], "null");
+  assert.equal(logs[1][1], "undefined");
 });
 
 test("logError handles objects", () => {
+  const original = console.error;
   const logs = [];
-  setErrorLogger((message) => logs.push(message));
+  console.error = (...args) => logs.push(args);
   logError({ code: 42 }, "obj");
-  assert.ok(typeof logs[0] === "string" && logs[0].length > 0);
-});
-
-test("setErrorLogger(null) clears the logger", () => {
-  const logs = [];
-  setErrorLogger((m) => logs.push(m));
-  logError("first", "x");
-  setErrorLogger(null);
-  logError("second", "y");
-  assert.equal(logs.length, 1);
-  assert.equal(logs[0], "first");
+  console.error = original;
+  assert.ok(typeof logs[0][1] === "string" && logs[0][1].length > 0);
 });

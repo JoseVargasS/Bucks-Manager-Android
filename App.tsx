@@ -108,7 +108,7 @@ import {
 import { useFinancialState } from "./src/hooks/useFinancialState";
 import { usePreferences, CURRENCY_OPTIONS } from "./src/hooks/usePreferences";
 import { useExport } from "./src/hooks/useExport";
-import { useErrorHelpers } from "./src/hooks/useErrorHelpers";
+import { getErrorMessage, isAuthError, shouldRescanForSheetError } from "./src/hooks/useErrorHelpers";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import {
   StartupSplash,
@@ -266,8 +266,8 @@ function AppContent() {
     saveColorScheme,
     restorePreferences,
   } = usePreferences();
-  const { getErrorMessage, isAuthError, shouldRescanForSheetError } =
-    useErrorHelpers(copy.syncError);
+  const errMsg = useCallback((error: unknown) => getErrorMessage(error, copy.syncError), [copy.syncError]);
+  const authErr = useCallback((error: unknown) => isAuthError(error, copy.syncError), [copy.syncError]);
   const [tagsList, setTagsList] = useState<Tag[]>([]);
   const [tagEditorVisible, setTagEditorVisible] = useState(false);
   const fin = useFinancialState(tagsList);
@@ -327,7 +327,7 @@ function AppContent() {
     openExport,
     closeExport,
     startExport,
-  } = useExport(transactions, currencySymbol, copy, getErrorMessage);
+  } = useExport(transactions, currencySymbol, copy, errMsg);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(
     null,
   );
@@ -526,8 +526,8 @@ function AppContent() {
       await setItemAsync(TOKEN_KEY, activeToken);
       await reloadFromGoogle(activeToken, sheetId, false);
     } catch (error) {
-      if (isAuthError(error)) {
-        setAuthError(getErrorMessage(error));
+      if (authErr(error)) {
+        setAuthError(errMsg(error));
         if (hadCache) {
           await clearStaleSession();
         } else {
@@ -536,7 +536,7 @@ function AppContent() {
       } else if (shouldRescanForSheetError(error)) {
         await connectGoogleWorkspace(activeToken, "", true);
       } else if (!hadCache) {
-        setSyncError(getErrorMessage(error));
+        setSyncError(errMsg(error));
       }
     } finally {
       setIsFirstRemoteLoad(false);
@@ -794,9 +794,9 @@ function AppContent() {
       const sheetId = await createBucksSpreadsheet(token);
       await selectSpreadsheet(token, sheetId);
     } catch (error) {
-      setSyncError(getErrorMessage(error));
+      setSyncError(errMsg(error));
       if (!hasLocalDataRef.current)
-        Alert.alert("Google Sheets", getErrorMessage(error));
+        Alert.alert("Google Sheets", errMsg(error));
     } finally {
       setLoading(false);
       setIsSyncing(false);
@@ -933,7 +933,7 @@ function AppContent() {
       await GoogleSignin.revokeAccess();
       await clearGoogleSession();
     } catch (error) {
-      Alert.alert("Google", getErrorMessage(error));
+      Alert.alert("Google", errMsg(error));
     } finally {
       setLoading(false);
       setAccountTransition(false);
@@ -993,7 +993,7 @@ function AppContent() {
       setIsFirstRemoteLoad(false);
       reloadPromiseRef.current = null;
     })().catch((error) => {
-      setSyncError(getErrorMessage(error));
+      setSyncError(errMsg(error));
       if (showLoader) setLoading(false);
       setIsSyncing(false);
       setIsFirstRemoteLoad(false);
@@ -1047,7 +1047,7 @@ function AppContent() {
       .catch((error) => {
         pendingSyncRef.current = false;
         setPendingSync(false);
-        setSyncError(getErrorMessage(error) || title);
+        setSyncError(errMsg(error) || title);
       })
       .finally(() => setIsSyncing(false));
   }
@@ -1358,12 +1358,12 @@ function AppContent() {
       setPinVerified(true);
       void clearPin().catch((error) => {
         setPinEnabledState(true);
-        Alert.alert(copy.pinApp, getErrorMessage(error));
+        Alert.alert(copy.pinApp, errMsg(error));
       });
     } else {
       setPinSetupVisible(true);
     }
-  }, [copy.pinApp, getErrorMessage, pinEnabled]);
+  }, [copy.pinApp, errMsg, pinEnabled]);
 
   function handlePinSave(value: string) {
     pinLockedRef.current = false;
@@ -1371,7 +1371,7 @@ function AppContent() {
     setPinVerified(true);
     void savePin(value).catch((error) => {
       setPinEnabledState(false);
-      Alert.alert(copy.pinApp, getErrorMessage(error));
+      Alert.alert(copy.pinApp, errMsg(error));
     });
   }
 

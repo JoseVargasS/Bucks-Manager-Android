@@ -56,70 +56,57 @@ export function detectDeviceLanguage(): "es" | "en" {
 }
 
 export function detectDeviceCurrencySymbol() {
-  const rawLocale = Intl.DateTimeFormat().resolvedOptions().locale || "";
-  const parts = rawLocale.split("-");
-  const region = parts.find((p) => /^[A-Z]{2}$/.test(p))?.toUpperCase();
-  const lang = parts[0]?.toLowerCase();
-  if (region) {
-    const regionMap: Record<string, string> = {
-      PE: "S/",
-      US: "$",
-      EC: "$",
-      PA: "$",
-      SV: "$",
-      ES: "\u20ac",
-      FR: "\u20ac",
-      DE: "\u20ac",
-      IT: "\u20ac",
-      PT: "\u20ac",
-      GB: "\u00a3",
-      JP: "\u00a5",
-      BR: "R$",
-      MX: "MX$",
-      CO: "COP$",
-      CL: "CLP$",
-      AR: "ARS$",
-      UY: "UYU$",
-      BO: "BOB",
-      PY: "Gs.",
-      CR: "\u20a1",
-      DO: "RD$",
-      GT: "GTQ",
-      HN: "HNL",
-      NI: "NIO",
-      CA: "CA$",
-      AU: "A$",
-      NZ: "NZ$",
-      CN: "\u00a5",
-      KR: "\u20a9",
-      IN: "\u20b9",
-      RU: "\u20bd",
-      ZA: "R",
-      TR: "\u20ba",
-      CH: "CHF",
-      VE: "VES",
-      CU: "CUP",
-    };
-    if (regionMap[region]) return regionMap[region];
-  }
-  if (lang) {
-    const langMap: Record<string, string> = {
-      es: "S/",
-      en: "$",
-      pt: "R$",
-      fr: "\u20ac",
-      de: "\u20ac",
-      it: "\u20ac",
-      nl: "\u20ac",
-      ja: "\u00a5",
-      ko: "\u20a9",
-      zh: "\u00a5",
-      ru: "\u20bd",
-      ar: "\ufdfc",
-      hi: "\u20b9",
-    };
-    if (langMap[lang]) return langMap[lang];
-  }
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale || "en-US";
+    const parts = locale.split("-");
+    const region = parts.find((p) => /^[A-Z]{2}$/.test(p));
+    if (region) {
+      const fmt = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currencyForRegion(region),
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+      const symParts = fmt.formatToParts(0);
+      const sym = symParts.find((p) => p.type === "currency")?.value;
+      if (sym) return sym;
+    }
+    // ponytail: language-level fallback when locale has no region
+    const lang = parts[0]?.toLowerCase();
+    if (lang) {
+      const fallbackRegion = langFallbackRegion(lang);
+      if (fallbackRegion) {
+        const fmt = new Intl.NumberFormat(`${lang}-${fallbackRegion}`, {
+          style: "currency",
+          currency: currencyForRegion(fallbackRegion),
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        });
+        const symParts = fmt.formatToParts(0);
+        const sym = symParts.find((p) => p.type === "currency")?.value;
+        if (sym) return sym;
+      }
+    }
+  } catch { /* fallback */ }
   return "$";
+}
+
+function langFallbackRegion(lang: string): string | undefined {
+  const map: Record<string, string> = { es: "PE", en: "US", pt: "BR", fr: "FR", de: "DE", it: "IT", ja: "JP", ko: "KR", zh: "CN", ru: "RU", hi: "IN", ar: "SA" };
+  return map[lang];
+}
+
+function currencyForRegion(region: string): string {
+  const map: Record<string, string> = {
+    PE: "PEN", US: "USD", EC: "USD", PA: "USD", SV: "USD",
+    ES: "EUR", FR: "EUR", DE: "EUR", IT: "EUR", PT: "EUR",
+    GB: "GBP", JP: "JPY", BR: "BRL", MX: "MXN", CO: "COP",
+    CL: "CLP", AR: "ARS", UY: "UYU", BO: "BOB", PY: "PYG",
+    CR: "CRC", DO: "DOP", GT: "GTQ", HN: "HNL", NI: "NIO",
+    CA: "CAD", AU: "AUD", NZ: "NZD", CN: "CNY", KR: "KRW",
+    IN: "INR", RU: "RUB", ZA: "ZAR", TR: "TRY", CH: "CHF",
+    VE: "VES", CU: "CUP",
+  };
+  return map[region] || "USD";
 }
 

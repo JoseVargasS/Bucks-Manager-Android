@@ -14,18 +14,13 @@ export function getBlankDraft(
 export function sortTransactionsDesc(
   transactions: Transaction[],
 ): Transaction[] {
-  return transactions
-    .map((tx, index) => ({
-      tx,
-      index,
-      date: tx.rawDateMs ?? Date.parse(tx.rawDate),
-      createdAt: tx.createdAtMs ?? (tx.createdAt ? Date.parse(tx.createdAt) : 0),
-    }))
-    .sort(
-      (a, b) =>
-        b.date - a.date || b.createdAt - a.createdAt || a.index - b.index,
-    )
-    .map(({ tx }) => tx);
+  return [...transactions].sort((a, b) => {
+    const da = a.rawDateMs ?? Date.parse(a.rawDate);
+    const db = b.rawDateMs ?? Date.parse(b.rawDate);
+    const ca = a.createdAtMs ?? (a.createdAt ? Date.parse(a.createdAt) : 0);
+    const cb = b.createdAtMs ?? (b.createdAt ? Date.parse(b.createdAt) : 0);
+    return db - da || cb - ca || a.rowId - b.rowId;
+  });
 }
 
 /** Filtra transacciones dentro de una ventana de N meses hacia atrás desde el mes/año dados */
