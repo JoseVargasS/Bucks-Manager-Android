@@ -19,9 +19,10 @@ const FONT_KEY = "bucks_font";
 const COLOR_SCHEME_KEY = "bucks_color_scheme";
 const FONT_PREFERENCES: FontPreference[] = [
   "dmsans", "serif", "mono", "condensed", "light", "casual", "cursive", "smallcaps",
-  "okxsans", "ourfont", "studiofeixen", "twkeverett", "suisseintl",
-  "inter", "comicsans", "fredoka", "jetbrainsmono", "spacemono",
+  "inter", "fredoka", "jetbrainsmono", "spacemono",
   "orbitron", "playfair", "bebasneue",
+  "comicneue", "sora", "patrickhand", "plusjakartasans", "intervariable",
+  "comicsansms", "proggysquare", "redstarbold", "sansi", "sfscribbledsans",
 ];
 const COLOR_SCHEME_PREFERENCES: ColorSchemePreference[] = [
   "lime", "ocean", "violet", "amber", "graphite", "pink", "sports", "techy", "sky",

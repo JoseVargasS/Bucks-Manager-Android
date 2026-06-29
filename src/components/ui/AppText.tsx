@@ -1,5 +1,6 @@
 import { memo, useSyncExternalStore } from "react";
 import {
+  StyleSheet,
   Text as NativeText,
   TextInput as NativeTextInput,
   TextInputProps,
@@ -8,7 +9,15 @@ import {
 import { FontPreference } from "../../types";
 
 let fontFamily = "DMSans";
+let fontPreference: FontPreference = "dmsans";
 const listeners = new Set<() => void>();
+
+const FONT_SIZE_SCALE: Partial<Record<FontPreference, number>> = {
+  sansi: 1.35,
+  sfscribbledsans: 1.3,
+  proggysquare: 1.4,
+  comicsansms: 1.2,
+};
 const FONT_FAMILIES: Record<FontPreference, string> = {
   dmsans: "DMSans",
   serif: "serif",
@@ -18,25 +27,30 @@ const FONT_FAMILIES: Record<FontPreference, string> = {
   casual: "casual",
   cursive: "cursive",
   smallcaps: "sans-serif-smallcaps",
-  okxsans: "OKXSans",
-  ourfont: "OurFont",
-  studiofeixen: "StudioFeixenSans",
-  twkeverett: "TWKEverett",
-  suisseintl: "SuisseIntl",
   inter: "Inter",
-  comicsans: "ComicSansMS",
   fredoka: "Fredoka",
   jetbrainsmono: "JetBrainsMono",
   spacemono: "SpaceMono",
   orbitron: "Orbitron",
   playfair: "PlayfairDisplay",
   bebasneue: "BebasNeue",
+  comicneue: "ComicNeue",
+  sora: "Sora",
+  patrickhand: "PatrickHand",
+  plusjakartasans: "PlusJakartaSans",
+  intervariable: "InterVariable",
+  comicsansms: "ComicSansMS",
+  proggysquare: "ProggySquare",
+  redstarbold: "RedstarBold",
+  sansi: "SANSI",
+  sfscribbledsans: "SFScribbledSans",
 };
 
 export function setAppFontPreference(preference: FontPreference) {
   const next = getAppFontFamily(preference);
-  if (next === fontFamily) return;
+  if (next === fontFamily && preference === fontPreference) return;
   fontFamily = next;
+  fontPreference = preference;
   listeners.forEach((listener) => listener());
 }
 
@@ -57,13 +71,47 @@ export function useAppFontFamily() {
   );
 }
 
+function useAppFontPreference() {
+  return useSyncExternalStore(
+    subscribe,
+    () => fontPreference,
+    () => fontPreference,
+  );
+}
+
 function TextImpl({ style, ...props }: TextProps) {
   const family = useAppFontFamily();
+  const preference = useAppFontPreference();
+  const scale = FONT_SIZE_SCALE[preference] || 1;
+  if (scale !== 1) {
+    const flat = StyleSheet.flatten(style);
+    const baseSize = typeof flat?.fontSize === "number" ? flat.fontSize : 16;
+    const adjustedSize = Math.round(baseSize * scale);
+    return (
+      <NativeText
+        {...props}
+        style={[{ fontFamily: family }, style, { fontSize: adjustedSize }]}
+      />
+    );
+  }
   return <NativeText {...props} style={[{ fontFamily: family }, style]} />;
 }
 
 function TextInputImpl({ style, ...props }: TextInputProps) {
   const family = useAppFontFamily();
+  const preference = useAppFontPreference();
+  const scale = FONT_SIZE_SCALE[preference] || 1;
+  if (scale !== 1) {
+    const flat = StyleSheet.flatten(style);
+    const baseSize = typeof flat?.fontSize === "number" ? flat.fontSize : 16;
+    const adjustedSize = Math.round(baseSize * scale);
+    return (
+      <NativeTextInput
+        {...props}
+        style={[{ fontFamily: family }, style, { fontSize: adjustedSize }]}
+      />
+    );
+  }
   return <NativeTextInput {...props} style={[{ fontFamily: family }, style]} />;
 }
 
