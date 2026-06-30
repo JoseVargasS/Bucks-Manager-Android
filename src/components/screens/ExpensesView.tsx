@@ -321,6 +321,8 @@ export const ExpensesView = memo(function ExpensesView({
   goPrevMonth: () => void;
   goNextMonth: () => void;
 }) {
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [scrolled, setScrolled] = useState(false);
   const groups = useMemo(
     () => groupTransactionsByDate(transactions, copy),
     [transactions, copy],
@@ -379,20 +381,22 @@ export const ExpensesView = memo(function ExpensesView({
   const renderListHeader = useCallback(
     () => (
       <>
-        <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
-          <PeriodControls
-            colors={colors}
-            copy={copy}
-            year={year}
-            month={month}
-            availableYears={availableYears}
-            availableMonths={availableMonths}
-            onSelectPeriod={onSelectPeriod}
-            goToday={goToday}
-            goPrevMonth={goPrevMonth}
-            goNextMonth={goNextMonth}
-          />
-        </View>
+        <Animated.View style={{ opacity: scrollY.interpolate({ inputRange: [0, 5], outputRange: [1, 0], extrapolate: "clamp" }) }}>
+          <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
+            <PeriodControls
+              colors={colors}
+              copy={copy}
+              year={year}
+              month={month}
+              availableYears={availableYears}
+              availableMonths={availableMonths}
+              onSelectPeriod={onSelectPeriod}
+              goToday={goToday}
+              goPrevMonth={goPrevMonth}
+              goNextMonth={goNextMonth}
+            />
+          </View>
+        </Animated.View>
 
         {searchActive && (
           <View
@@ -431,6 +435,7 @@ export const ExpensesView = memo(function ExpensesView({
       copy,
       searchActive,
       onExitSearch,
+      scrollY,
       year,
       month,
       availableYears,
@@ -543,7 +548,7 @@ export const ExpensesView = memo(function ExpensesView({
 
   return (
     <View style={{ flex: 1 }}>
-      <SectionList<Transaction, TransactionSection>
+      <SectionList
         style={{ flex: 1 }}
         sections={sections}
         keyExtractor={keyExtractor}
@@ -566,7 +571,44 @@ export const ExpensesView = memo(function ExpensesView({
         stickySectionHeadersEnabled={false}
         onScrollBeginDrag={closeTagBubble}
         onMomentumScrollBegin={closeTagBubble}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false, listener: (e) => setScrolled(e.nativeEvent.contentOffset.y > 2) },
+        )}
       />
+
+      {topInset !== undefined && (
+        <Animated.View
+          pointerEvents={scrolled ? "box-none" : "none"}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            paddingTop: topInset,
+            opacity: scrollY.interpolate({
+              inputRange: [0, 5],
+              outputRange: [0, 1],
+              extrapolate: "clamp",
+            }),
+          }}
+        >
+          <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
+            <PeriodControls
+              colors={colors}
+              copy={copy}
+              year={year}
+              month={month}
+              availableYears={availableYears}
+              availableMonths={availableMonths}
+              onSelectPeriod={onSelectPeriod}
+              goToday={goToday}
+              goPrevMonth={goPrevMonth}
+              goNextMonth={goNextMonth}
+            />
+          </View>
+        </Animated.View>
+      )}
 
       {selectedCount > 0 && (
         <View

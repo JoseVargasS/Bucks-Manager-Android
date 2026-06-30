@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, ScrollView, View } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 import { calculateSummaries, formatMoney, MONTH_NAMES } from "@/domain/bucksLogic";
@@ -19,6 +19,8 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
   colors: Palette; copy: UiCopy; summaries: SummaryRow[]; transactions: Transaction[]; freqIncome: Record<string, number>;
   availableYears: number[]; topInset?: number; currencySymbol: string;
 }) {
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [scrolled, setScrolled] = useState(false);
   const initialYear = availableYears[0] || new Date().getFullYear();
   const [filterYear, setFilterYear] = useState(initialYear);
   const computed = useMemo(
@@ -60,24 +62,28 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
   const fm = (value: number) => formatMoney(value, currencySymbol, 0).replace("+ ", "");
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={[styles.pageScroll, styles.pageScrollMobile, { gap: 12 }, topInset !== undefined && { paddingTop: topInset }]}
-    >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{copy.annualOverview}</Text>
-          <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500", marginTop: 2 }}>{filtered.length} {copy.monthsAnalyzed}</Text>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.pageScroll, styles.pageScrollMobile, { gap: 12 }, topInset !== undefined && { paddingTop: topInset }]}
+        onScroll={(e) => { const y = e.nativeEvent.contentOffset.y; scrollY.setValue(y); setScrolled(y > 2); }}
+      >
+      <Animated.View style={{ opacity: scrollY.interpolate({ inputRange: [0, 5], outputRange: [1, 0], extrapolate: "clamp" }) }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{copy.annualOverview}</Text>
+            <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500", marginTop: 2 }}>{filtered.length} {copy.monthsAnalyzed}</Text>
+          </View>
+          <Select
+            value={String(filterYear)}
+            options={availableYears.map((year) => ({ label: String(year), value: String(year) }))}
+            onSelect={(value) => setFilterYear(Number(value))}
+            colors={colors}
+            title={copy.selectYear}
+            style={{ width: 124 }}
+          />
         </View>
-        <Select
-          value={String(filterYear)}
-          options={availableYears.map((year) => ({ label: String(year), value: String(year) }))}
-          onSelect={(value) => setFilterYear(Number(value))}
-          colors={colors}
-          title={copy.selectYear}
-          style={{ width: 124 }}
-        />
-      </View>
+      </Animated.View>
 
       <View style={{ backgroundColor: colors.card, borderRadius: 18, padding: 18, overflow: "hidden" }}>
         <View style={{ position: "absolute", width: 150, height: 150, borderRadius: 75, right: -48, top: -68, backgroundColor: colors.primarySoft }} />
@@ -151,7 +157,42 @@ export const SummaryView = memo(function SummaryView({ colors, copy, summaries, 
         )}
       </View>
     </ScrollView>
-  );
+    {topInset !== undefined && (
+      <Animated.View
+        pointerEvents={scrolled ? "box-none" : "none"}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          paddingTop: topInset,
+          paddingHorizontal: 14,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          paddingBottom: 4,
+          opacity: scrollY.interpolate({
+            inputRange: [0, 5],
+            outputRange: [0, 1],
+            extrapolate: "clamp",
+          }),
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>{copy.annualOverview}</Text>
+          <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "500", marginTop: 2 }}>{filtered.length} {copy.monthsAnalyzed}</Text>
+        </View>
+        <Select
+          value={String(filterYear)}
+          options={availableYears.map((year) => ({ label: String(year), value: String(year) }))}
+          onSelect={(value) => setFilterYear(Number(value))}
+          colors={colors}
+          title={copy.selectYear}
+          style={{ width: 124 }}
+        />
+      </Animated.View>
+    )}
+  </View>);
 });
 
 function Insight({ label, value, icon, color, colors }: { label: string; value: string; icon: MaterialIconName; color: string; colors: Palette }) {
