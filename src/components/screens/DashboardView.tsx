@@ -249,7 +249,6 @@ export const DashboardView = memo(function DashboardView({
             style={{
               backgroundColor: colors.card,
               borderRadius: 14,
-              overflow: "hidden",
             }}
           >
             {recentTransactions.map((tx, index) => (
