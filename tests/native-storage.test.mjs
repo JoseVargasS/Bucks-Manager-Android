@@ -14,7 +14,7 @@ beforeEach(() => {
 
 const transaction = {
   rowId: 2,
-  date: "15-ene-26",
+  date: "15-jan-26",
   rawDate: "2026-01-15T05:00:00.000Z",
   amount: -25,
   detail: "Comida",
@@ -24,7 +24,7 @@ const transaction = {
 };
 
 const summary = {
-  monthYear: "Enero 2026",
+  monthYear: "January 2026",
   freqIncome: 100,
   nonFreqIncome: 0,
   totalIncome: 100,
@@ -112,7 +112,7 @@ test("financial cache round-trips valid data and respects spreadsheet ownership"
     lastSyncedAt: "2026-01-15T12:00:00.000Z",
     transactions: [transaction],
     summaries: [summary],
-    freqIncome: { "Enero 2026": 100 },
+    freqIncome: { "January 2026": 100 },
   };
   await saveFinancialCache(cache);
   assert.deepEqual(await loadFinancialCache("sheet-1"), { ...cache, schemaVersion: 2 });

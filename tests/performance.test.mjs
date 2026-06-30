@@ -48,11 +48,11 @@ test("an existing tags header skips migration and formatting requests", async ()
   globalThis.fetch = async (input, init = {}) => {
     const url = decodeURIComponent(String(input));
     requests.push({ url, method: init.method || "GET" });
-    if (url.includes("valueRenderOption=FORMULA")) return json({ values: [["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACION", "Etiquetas"], ["", "-10"]] });
+    if (url.includes("valueRenderOption=FORMULA")) return json({ values: [["Date", "Amount", "Detail", "Type", "CREATION TIME", "Tags"], ["", "-10"]] });
     return json({
       values: [
-        ["Fecha", "Monto", "Detalle", "Tipo", "HORA DE CREACION", "Etiquetas"],
-        ["01-ene-26", "-10", "Comida", "GASTO NO FRECUENTE", "12:00:00", "Comida"],
+        ["Date", "Amount", "Detail", "Type", "CREATION TIME", "Tags"],
+        ["01-jan-26", "-10", "Comida", "GASTO NO FRECUENTE", "12:00:00", "Comida"],
       ],
     });
   };
@@ -80,11 +80,11 @@ test("Drive compatibility scans use bounded parallel batches and preserve order"
     await new Promise((resolve) => setTimeout(resolve, 2));
     active -= 1;
     if (url.includes("fields=sheets.properties.title")) {
-      return json({ sheets: [{ properties: { title: "INGRESOS Y GASTOS" } }, { properties: { title: "RESUMEN POR MES" } }] });
+      return json({ sheets: [{ properties: { title: "INCOME AND EXPENSES" } }, { properties: { title: "MONTHLY SUMMARY" } }] });
     }
     return json({ valueRanges: [
-      { values: [["Fecha", "Monto", "Detalle", "Tipo"]] },
-      { values: [["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"]] },
+      { values: [["Date", "Amount", "Detail", "Type"]] },
+      { values: [["MONTH", "FREQUENT INCOME", "NON-FREQUENT INCOME", "TOTAL INCOME", "FREQUENT EXPENSE", "NON-FREQUENT EXPENSE", "TOTAL EXPENSES", "MONTHLY NET", "NET WITHOUT FREQUENT INCOME"]] },
     ] });
   };
 

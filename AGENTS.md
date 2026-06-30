@@ -26,17 +26,10 @@ The app is built to scale to thousands of transactions per user across many year
 
 The app uses one spreadsheet with two tabs:
 
-- `INGRESOS Y GASTOS`
-- `RESUMEN POR MES`
+- `INCOME AND EXPENSES`
+- `MONTHLY SUMMARY`
 
-The app must accept the legacy GAS headers used by existing sheets:
-
-- `TIPO` and `TIPO DE GASTO`
-- `MES` and `MES Y AÑO`
-- `NETO SIN ING FRECUENTE` and `TOTAL SIN INGRESO FRECUENTE`
-- Headers with accents, line breaks, and extra whitespace
-
-When no compatible spreadsheet exists, create a new spreadsheet named `INGRESOS Y GASTOS`, not `Bucks Manager`.
+When no compatible spreadsheet exists, create a new spreadsheet named `INCOME AND EXPENSES`, with sheet tabs `INCOME AND EXPENSES` and `MONTHLY SUMMARY`.
 
 ## OAuth Scope Flow
 

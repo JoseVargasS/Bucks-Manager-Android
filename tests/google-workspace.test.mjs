@@ -32,35 +32,35 @@ function sharedTxHandlers(requests) {
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({ values: [] });
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({ values: [] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [
         ["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"],
-        ["Enero 2026"],
+        ["January 2026"],
       ] });
     }
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({});
   };
 }
 
-test("transaction reads accept legacy headers and skip corrupt rows", async (t) => {
+  test("transaction reads accept legacy headers and skip corrupt rows", async (t) => {
   installFetch(t, async (input) => {
     const url = decodeURIComponent(String(input));
     if (url.includes("valueRenderOption=FORMULA")) {
       return json({ values: [
-        ["FECHA", "MONTO", "DETALLE", "TIPO DE GASTO", "HORA DE CREACION", "ETIQUETAS"],
-        ["31-ene-26", "=-ABS(1000+234.5)"],
+        ["Date", "Amount", "Detail", "Type", "CREATION TIME", "Tags"],
+        ["31-jan-26", "=-ABS(1000+234.5)"],
         ["31-feb-26", "=-10"],
         ["01-feb-26", "=-20"],
       ] });
     }
     return json({ values: [
-      [" FECHA ", "MONTO", "DETALLE", "TIPO DE\n GASTO", "HORA DE CREACIÓN", " ETIQUETAS "],
-      ["31-ene-26", "-1.234,50", "Mercado", "GASTO FRECUENTE", "12:34:56", "Comida,\n Salud"],
+      ["Date", "Amount", "Detail", "Type", "CREATION TIME", "Tags"],
+      ["31-jan-26", "-1.234,50", "Mercado", "GASTO FRECUENTE", "12:34:56", "Comida,\n Salud"],
       ["31-feb-26", "-10", "Fecha corrupta", "GASTO FRECUENTE", "", ""],
       ["01-feb-26", "-20", "Tipo corrupto", "DESCONOCIDO", "", ""],
     ] });
@@ -78,14 +78,14 @@ test("transaction reads accept legacy headers and skip corrupt rows", async (t) 
 test("summary reads accept legacy aliases and locale-formatted numbers", async (t) => {
   installFetch(t, async () => json({ values: [
     ["MES Y AÑO", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "TOTAL SIN INGRESO FRECUENTE"],
-    ["Enero 2026", "1.000,50", "20", "1.020,50", "-100", "-20", "-120", "900,50", "-100"],
+    ["January 2026", "1.000,50", "20", "1.020,50", "-100", "-20", "-120", "900,50", "-100"],
     ["Mes inválido", "500"],
   ] }));
 
   const rows = await readSummaries("token", "sheet");
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0], {
-    monthYear: "Enero 2026",
+    monthYear: "January 2026",
     freqIncome: 1000.5,
     nonFreqIncome: 20,
     totalIncome: 1020.5,
@@ -103,11 +103,11 @@ test("spreadsheet creation preserves the exact name, tabs, and locale formulas",
     const url = decodeURIComponent(String(input));
     requests.push({ url, method: init.method || "GET", body: init.body ? JSON.parse(init.body) : null });
     if (url.endsWith("/v4/spreadsheets") && init.method === "POST") return json({ spreadsheetId: "created-sheet" });
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
       return json({ sheets: [
-        { properties: { sheetId: 1, title: "INGRESOS Y GASTOS" } },
-        { properties: { sheetId: 2, title: "RESUMEN POR MES" } },
+        { properties: { sheetId: 1, title: "INCOME AND EXPENSES" } },
+        { properties: { sheetId: 2, title: "MONTHLY SUMMARY" } },
       ] });
     }
     return json({});
@@ -115,13 +115,13 @@ test("spreadsheet creation preserves the exact name, tabs, and locale formulas",
 
   assert.equal(await createBucksSpreadsheet("token"), "created-sheet");
   const createBody = requests.find(({ url, method }) => url.endsWith("/v4/spreadsheets") && method === "POST").body;
-  assert.equal(createBody.properties.title, "INGRESOS Y GASTOS");
-  assert.deepEqual(createBody.sheets.map(({ properties }) => properties.title), ["INGRESOS Y GASTOS", "RESUMEN POR MES"]);
+  assert.equal(createBody.properties.title, "INCOME AND EXPENSES");
+  assert.deepEqual(createBody.sheets.map(({ properties }) => properties.title), ["INCOME AND EXPENSES", "MONTHLY SUMMARY"]);
 
   const valuesBody = requests.find(({ url }) => url.includes("/values:batchUpdate")).body;
   assert.match(valuesBody.data[1].values[1][1], /INGRESO FRECUENTE/);
-  assert.match(valuesBody.data[1].values[1][2], /SUMAR\.SI\.CONJUNTO/);
-  assert.match(valuesBody.data[1].values[1][2], /FIN\.MES/);
+  assert.match(valuesBody.data[1].values[1][2], /SUMIFS/);
+  assert.match(valuesBody.data[1].values[1][2], /EOMONTH/);
 });
 
 test("saving a transaction inserts the row chronologically and refreshes its monthly formulas", async (t) => {
@@ -131,19 +131,19 @@ test("saving a transaction inserts the row chronologically and refreshes its mon
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) {
-      return json({ values: [["01-ene-26"], ["20-ene-26"]] });
+    if (url.includes("INCOME AND EXPENSES!A2:A")) {
+      return json({ values: [["01-jan-26"], ["20-jan-26"]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [
         ["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"],
-        ["Enero 2026"],
+        ["January 2026"],
       ] });
     }
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({});
   });
 
@@ -161,7 +161,7 @@ test("saving a transaction inserts the row chronologically and refreshes its mon
   assert.equal(saved.formula, "-(10+5)");
   const insert = requests.find(({ body }) => body?.requests?.[0]?.insertDimension);
   assert.equal(insert.body.requests[0].insertDimension.range.startIndex, 2);
-  const rowWrite = requests.find(({ url, method }) => url.includes("INGRESOS Y GASTOS!A3:F3") && method === "PUT");
+  const rowWrite = requests.find(({ url, method }) => url.includes("INCOME AND EXPENSES!A3:F3") && method === "PUT");
   assert.deepEqual(rowWrite.body.values[0], [
     "2026-01-15",
     "=-(10+5)",
@@ -170,10 +170,10 @@ test("saving a transaction inserts the row chronologically and refreshes its mon
     "11:22:33",
     "Casa, Comida",
   ]);
-  const formulaWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!C2:I2") && method === "PUT");
-  const dateWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2") && method === "PUT");
-  assert.deepEqual(dateWrite.body.values[0], ["2026-01-01"]);
-  assert.match(formulaWrite.body.values[0][0], /SUMAR\.SI\.CONJUNTO/);
+  const formulaWrite = requests.find(({ url, method }) => url.includes("MONTHLY SUMMARY!C2:I2") && method === "PUT");
+  const dateWrite = requests.find(({ url, method }) => url.includes("MONTHLY SUMMARY!A2") && method === "PUT");
+  assert.deepEqual(dateWrite.body.values[0], ["2026-01"]);
+  assert.match(formulaWrite.body.values[0][0], /SUMIFS/);
 });
 
 test("saving frequent income refreshes the frequent-income summary formula", async (t) => {
@@ -183,17 +183,17 @@ test("saving frequent income refreshes the frequent-income summary formula", asy
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({});
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({});
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [
         ["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"],
-        ["Enero 2026"],
+        ["January 2026"],
       ] });
     }
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({});
   });
 
@@ -206,9 +206,9 @@ test("saving frequent income refreshes the frequent-income summary formula", asy
     tags: [],
   });
 
-  const formulaWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!B2:I2") && method === "PUT");
-  const dateWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2") && method === "PUT");
-  assert.deepEqual(dateWrite.body.values[0], ["2026-01-01"]);
+  const formulaWrite = requests.find(({ url, method }) => url.includes("MONTHLY SUMMARY!B2:I2") && method === "PUT");
+  const dateWrite = requests.find(({ url, method }) => url.includes("MONTHLY SUMMARY!A2") && method === "PUT");
+  assert.deepEqual(dateWrite.body.values[0], ["2026-01"]);
   assert.match(formulaWrite.body.values[0][0], /INGRESO FRECUENTE/);
 });
 
@@ -219,11 +219,11 @@ test("saving a transaction creates a missing monthly summary row with default lo
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({});
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({});
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"]] });
     }
     if (url.includes("fields=properties.locale")) return json({ properties: {} });
@@ -239,10 +239,10 @@ test("saving a transaction creates a missing monthly summary row with default lo
     tags: [],
   });
 
-  const summaryWrite = requests.find(({ url, method }) => url.includes("RESUMEN POR MES!A2:I2") && method === "PUT");
-  assert.equal(summaryWrite.body.values[0][0], "2026-02-01");
-  assert.match(summaryWrite.body.values[0][1], /SUMAR\.SI\.CONJUNTO/);
-  assert.match(summaryWrite.body.values[0][1], /FIN\.MES/);
+  const summaryWrite = requests.find(({ url, method }) => url.includes("MONTHLY SUMMARY!A2:I2") && method === "PUT");
+  assert.equal(summaryWrite.body.values[0][0], "2026-02");
+  assert.match(summaryWrite.body.values[0][1], /SUMIFS/);
+  assert.match(summaryWrite.body.values[0][1], /EOMONTH/);
 });
 
 test("Google API failures expose status and response details", async (t) => {
@@ -296,20 +296,20 @@ test("updateTransaction rewrites same row when date unchanged", async (t) => {
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A5:F5") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A5:F5") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-15", "-10", "Old", "GASTO FRECUENTE", "10:00:00", ""]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({ values: [] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({ values: [] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [
         ["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"],
-        ["Enero 2026"],
+        ["January 2026"],
       ] });
     }
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({});
   });
 
@@ -323,7 +323,7 @@ test("updateTransaction rewrites same row when date unchanged", async (t) => {
   });
 
   assert.equal(result.rowId, 5);
-  const rowWrite = requests.find(({ url, method }) => url.includes("INGRESOS Y GASTOS!A5:F5") && method === "PUT");
+  const rowWrite = requests.find(({ url, method }) => url.includes("INCOME AND EXPENSES!A5:F5") && method === "PUT");
   assert.equal(rowWrite.body.values[0][2], "Updated");
 });
 
@@ -334,21 +334,21 @@ test("updateTransaction moves row when date changes", async (t) => {
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 7, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 7, title: "INCOME AND EXPENSES" } }] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A5:F5") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A5:F5") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-15", "-10", "Old", "GASTO FRECUENTE", "10:00:00", ""]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({ values: [["2026-03-01"]] });
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("RESUMEN POR MES!A1:I") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({ values: [["2026-03-01"]] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("MONTHLY SUMMARY!A1:I") && (init.method || "GET") === "GET") {
       return json({ values: [
         ["MES", "INGRESO FRECUENTE", "INGRESO NO FRECUENTE", "TOTAL INGRESOS", "GASTO FRECUENTE", "GASTO NO FRECUENTE", "TOTAL GASTOS", "NETO MENSUAL", "NETO SIN ING FRECUENTE"],
-        ["Enero 2026"],
-        ["Marzo 2026"],
+        ["January 2026"],
+        ["March 2026"],
       ] });
     }
-    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "es_PE" } });
+    if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({});
   });
 
@@ -373,7 +373,7 @@ test("deleteTransaction removes the row from the sheet", async (t) => {
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
     if (url.includes("fields=sheets.properties(sheetId,title)")) {
-      return json({ sheets: [{ properties: { sheetId: 3, title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { sheetId: 3, title: "INCOME AND EXPENSES" } }] });
     }
     return json({});
   });
@@ -392,19 +392,19 @@ test("moveTransaction swaps adjacent rows", async (t) => {
     const url = decodeURIComponent(String(input));
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
-    if (url.includes("INGRESOS Y GASTOS!A3:F3") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A3:F3") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-15", "-10", "Row3", "GASTO FRECUENTE", "", ""]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A4:F4") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A4:F4") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-20", "-20", "Row4", "GASTO NO FRECUENTE", "", ""]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
     return json({});
   });
 
   await moveTransaction("token", "sheet", 3, "down");
 
-  const writes = requests.filter(({ url, method }) => method === "PUT" && url.includes("INGRESOS Y GASTOS!A"));
+  const writes = requests.filter(({ url, method }) => method === "PUT" && url.includes("INCOME AND EXPENSES!A"));
   assert.equal(writes.length, 2);
   const write3 = writes.find(({ url }) => url.includes("!A3:F3"));
   const write4 = writes.find(({ url }) => url.includes("!A4:F4"));
@@ -418,7 +418,7 @@ test("moveTransaction does nothing when target row is below 2", async (t) => {
     const url = decodeURIComponent(String(input));
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
-    if (url.includes("INGRESOS Y GASTOS!A2:F2") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A2:F2") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-15", "-10", "Row2", "GASTO FRECUENTE", "", ""]] });
     }
     return json({});
@@ -436,10 +436,10 @@ test("moveTransaction does nothing when a row is empty", async (t) => {
     const url = decodeURIComponent(String(input));
     const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ url, method: init.method || "GET", body });
-    if (url.includes("INGRESOS Y GASTOS!A3:F3") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A3:F3") && (init.method || "GET") === "GET") {
       return json({ values: [["2026-01-15", "-10", "Row3", "GASTO FRECUENTE", "", ""]] });
     }
-    if (url.includes("INGRESOS Y GASTOS!A4:F4") && (init.method || "GET") === "GET") {
+    if (url.includes("INCOME AND EXPENSES!A4:F4") && (init.method || "GET") === "GET") {
       return json({ values: [] });
     }
     return json({});
@@ -459,7 +459,7 @@ test("readTransactions uses English SUMIFS formulas when locale is en_US", async
         ["Date", "Amount", "Detail", "Type", "Created at", "Tags"],
       ] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["Tags"]] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["Tags"]] });
     if (url.includes("fields=properties.locale")) return json({ properties: { locale: "en_US" } });
     return json({ values: [
       ["Date", "Amount", "Detail", "Type", "Created at", "Tags"],
@@ -480,8 +480,8 @@ test("readTransactions handles numeric Excel-style dates", async (t) => {
         ["Fecha", "Monto", "Detalle", "Tipo", "Hora", "Etiquetas"],
       ] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({ values: [] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({ values: [] });
     return json({ values: [
       ["Fecha", "Monto", "Detalle", "Tipo", "Hora de creación", "Etiquetas"],
       [46028, "100", "Numeric date", "GASTO FRECUENTE", "", ""],
@@ -501,11 +501,11 @@ test("readTransactions handles Month Year format dates", async (t) => {
         ["Fecha", "Monto", "Detalle", "Tipo", "Hora", "Etiquetas"],
       ] });
     }
-    if (url.includes("INGRESOS Y GASTOS!F1")) return json({ values: [["ETIQUETAS"]] });
-    if (url.includes("INGRESOS Y GASTOS!A2:A")) return json({ values: [] });
+    if (url.includes("INCOME AND EXPENSES!F1")) return json({ values: [["ETIQUETAS"]] });
+    if (url.includes("INCOME AND EXPENSES!A2:A")) return json({ values: [] });
     return json({ values: [
       ["Fecha", "Monto", "Detalle", "Tipo", "Hora de creación", "Etiquetas"],
-      ["Enero 2026", "200", "MonthYear date", "GASTO FRECUENTE", "", ""],
+      ["January 2026", "200", "MonthYear date", "GASTO FRECUENTE", "", ""],
     ] });
   });
 
@@ -539,7 +539,7 @@ test("findCompatibleSheets paginates through multiple pages", async (t) => {
       return json({ files: [{ id: "f2", name: "S2" }] });
     }
     if (url.includes("sheets.googleapis.com")) {
-      return json({ sheets: [{ properties: { title: "INGRESOS Y GASTOS" } }] });
+      return json({ sheets: [{ properties: { title: "INCOME AND EXPENSES" } }] });
     }
     return json({ values: [["Fecha", "Monto", "Detalle", "Tipo"]] });
   });
@@ -555,7 +555,7 @@ test("removeTagFromAllRows cleans tag from column F and batch writes", async (t)
     const url = decodeURIComponent(String(input));
     const method = init.method || "GET";
     requests.push({ url, method, body: init.body ? JSON.parse(init.body) : null });
-    if (url.includes("INGRESOS Y GASTOS!F2:F") && method === "GET") {
+    if (url.includes("INCOME AND EXPENSES!F2:F") && method === "GET") {
       return json({ values: [["default-comida, custom-vivienda"], ["default-salud"], ["custom-vivienda"]] });
     }
     if (url.includes("values:batchUpdate")) return json({});
@@ -577,7 +577,7 @@ test("removeTagFromAllRows does nothing when tag not found", async (t) => {
   let batchCalled = false;
   installFetch(t, async (input, init = {}) => {
     const url = decodeURIComponent(String(input));
-    if (url.includes("INGRESOS Y GASTOS!F2:F")) {
+    if (url.includes("INCOME AND EXPENSES!F2:F")) {
       return json({ values: [["default-comida"], ["default-salud"]] });
     }
     if (url.includes("values:batchUpdate")) {
@@ -605,7 +605,7 @@ test("saveTransaction with ISO createdAt formats time correctly", async (t) => {
     tags: [],
   });
 
-  const rowWrite = requests.find(({ url, method }) => method === "PUT" && url.includes("INGRESOS Y GASTOS!A"));
+  const rowWrite = requests.find(({ url, method }) => method === "PUT" && url.includes("INCOME AND EXPENSES!A"));
   assert.ok(rowWrite);
   const createdAt = rowWrite.body.values[0][4];
   assert.ok(createdAt.includes(":"), "createdAt should contain time separator");

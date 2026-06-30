@@ -2,7 +2,7 @@ import { formatDateToISO } from "@/domain/bucksLogic";
 import { UI_COPY, type UiCopy } from "@/i18n";
 import type { Palette } from "@/theme/colors";
 
-export const DEFAULT_LOCALE = "es-PE";
+export const DEFAULT_LOCALE = "en-US";
 
 export function formatCreatedTime(createdAt?: string): string {
   if (!createdAt) return "-";

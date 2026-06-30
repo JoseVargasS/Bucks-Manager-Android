@@ -383,3 +383,4 @@ export const UI_MONTH_NAMES = {
 } as const;
 
 export const MONTH_NAMES_ES = UI_MONTH_NAMES.es;
+export const MONTH_NAMES_EN = UI_MONTH_NAMES.en;

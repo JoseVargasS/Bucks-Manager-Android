@@ -1,13 +1,13 @@
 import type { SearchFilters, SummaryRow, Transaction, TransactionDraft, TransactionType } from "@/types";
-import { MONTH_NAMES_ES } from "@/i18n";
+import { MONTH_NAMES_EN } from "@/i18n";
 
 export const SHEET_NAMES = {
-  transactions: "INGRESOS Y GASTOS",
-  summary: "RESUMEN POR MES",
+  transactions: "INCOME AND EXPENSES",
+  summary: "MONTHLY SUMMARY",
 };
 
 // Sheets locale controls formula names/separators; app language and currency are device-detected separately.
-export const DEFAULT_SPREADSHEET_LOCALE = "es_PE";
+export const DEFAULT_SPREADSHEET_LOCALE = "en_US";
 
 export const TRANSACTION_TYPES: TransactionType[] = [
   "INGRESO FRECUENTE",
@@ -16,9 +16,9 @@ export const TRANSACTION_TYPES: TransactionType[] = [
   "GASTO NO FRECUENTE",
 ];
 
-export const MONTH_NAMES = MONTH_NAMES_ES;
+export const MONTH_NAMES = MONTH_NAMES_EN;
 
-const SHORT_MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const SHORT_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 /** Formatea un valor numérico como moneda con signo explícito: "+ S/ 100.00" o "- S/ 50.00" */
 export function formatMoney(value: number, symbol = "S/", decimals = 2): string {
@@ -34,17 +34,33 @@ export function formatDateToISO(date: Date | string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Convierte Date al formato usado en Sheets: DD-mes-AA (ej: 15-jun-26) */
+/** Convierte Date al formato usado en Sheets: DD-mmm-YY (ej: 15-jan-26) */
 export function formatDateForSheet(date: Date): string {
   return `${String(date.getDate()).padStart(2, "0")}-${SHORT_MONTHS[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
 }
 
-/** Parsea fecha en español "15-jun-26" → Date | null */
+// Accept both English and legacy Spanish short month abbreviations when parsing
+const MONTH_ABBR: Record<string, number> = {
+  jan: 0, ene: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3, abr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7, ago: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11, dic: 11,
+};
+
+/** Parsea fecha "15-jan-26" o "15-ene-26" → Date | null */
 export function parseSpanishDate(value: string): Date | null {
   const parts = value.split("-");
   if (parts.length !== 3) return null;
-  const month = SHORT_MONTHS.indexOf(parts[1].toLowerCase());
-  if (month < 0) return null;
+  const month = MONTH_ABBR[parts[1].toLowerCase()];
+  if (month === undefined) return null;
   const day = Number(parts[0]);
   let year = Number(parts[2]);
   if (!Number.isInteger(day) || !Number.isInteger(year) || day < 1) return null;

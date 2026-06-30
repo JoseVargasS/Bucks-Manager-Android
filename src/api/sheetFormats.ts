@@ -15,31 +15,12 @@ function compactHeader(value: unknown) {
 }
 
 const HEADER_ALIASES: Record<string, string[]> = {
-  FECHA: ["FECHA"],
-  MONTO: ["MONTO"],
-  DETALLE: ["DETALLE"],
-  TIPO: ["TIPO", "TIPO DE GASTO"],
-  "HORA DE CREACION": ["HORA DE CREACION", "HORA CREACION"],
-  MES: ["MES", "MES Y ANO", "MES Y AÑO"],
-  "INGRESO FRECUENTE": ["INGRESO FRECUENTE"],
-  "INGRESO NO FRECUENTE": ["INGRESO NO FRECUENTE"],
-  "TOTAL INGRESOS": ["TOTAL INGRESOS"],
-  "GASTO FRECUENTE": ["GASTO FRECUENTE"],
-  "GASTO NO FRECUENTE": ["GASTO NO FRECUENTE"],
-  "TOTAL GASTOS": ["TOTAL GASTOS"],
-  "NETO MENSUAL": ["NETO MENSUAL"],
-  "NETO SIN ING FRECUENTE": [
-    "NETO SIN ING FRECUENTE",
-    "TOTAL SIN INGRESO FRECUENTE",
-    "TOTAL SIN ING FRECUENTE",
-  ],
+  "CREATION TIME": ["CREATION TIME"],
+  "NET WITHOUT FREQUENT INCOME": ["NET WITHOUT FREQUENT INCOME"],
 };
 
 function headerAliases(expected: string) {
   const base = normalizeHeader(expected);
-  const compactBase = compactHeader(base);
-  if (compactBase.startsWith("HORADECREACI"))
-    return ["HORA DE CREACION", "HORA CREACION"];
   return HEADER_ALIASES[base] || [base];
 }
 
@@ -75,6 +56,8 @@ export function parseSheetDate(value: unknown): Date | null {
   if (numeric) return numeric;
   const monthYear = parseMonthYear(asString);
   if (monthYear) return monthYear;
+  const yearMonth = parseYearMonth(asString);
+  if (yearMonth) return yearMonth;
   const date = new Date(`${asString}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -109,19 +92,19 @@ function parseNumericDate(value: string) {
 
 function parseMonthYear(value: string) {
   const clean = normalizeHeader(value);
-  const months = [
-    ["ENERO", "ENE"],
-    ["FEBRERO", "FEB"],
-    ["MARZO", "MAR"],
-    ["ABRIL", "ABR"],
-    ["MAYO", "MAY"],
-    ["JUNIO", "JUN"],
-    ["JULIO", "JUL"],
-    ["AGOSTO", "AGO"],
-    ["SEPTIEMBRE", "SEP", "SET"],
-    ["OCTUBRE", "OCT"],
-    ["NOVIEMBRE", "NOV"],
-    ["DICIEMBRE", "DIC"],
+  const months: string[][] = [
+    ["JANUARY", "JAN", "ENERO", "ENE"],
+    ["FEBRUARY", "FEB", "FEBRERO"],
+    ["MARCH", "MAR", "MARZO"],
+    ["APRIL", "APR", "ABRIL", "ABR"],
+    ["MAY", "MAYO"],
+    ["JUNE", "JUN", "JUNIO"],
+    ["JULY", "JUL", "JULIO"],
+    ["AUGUST", "AUG", "AGOSTO", "AGO"],
+    ["SEPTEMBER", "SEP", "SEPTIEMBRE", "SET"],
+    ["OCTOBER", "OCT", "OCTUBRE"],
+    ["NOVEMBER", "NOV", "NOVIEMBRE"],
+    ["DECEMBER", "DEC", "DICIEMBRE", "DIC"],
   ];
   const month = months.findIndex((names) =>
     names.some((name) => clean.startsWith(name)),
@@ -129,6 +112,15 @@ function parseMonthYear(value: string) {
   const yearMatch = clean.match(/\b(20\d{2}|19\d{2})\b/);
   if (month < 0 || !yearMatch) return null;
   return new Date(Number(yearMatch[1]), month, 1);
+}
+
+function parseYearMonth(value: string) {
+  const match = value.trim().match(/^(\d{4})-(\d{1,2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  if (month < 0 || month > 11 || year < 1900 || year > 2100) return null;
+  return new Date(year, month, 1);
 }
 
 export function parseNumber(value: unknown): number {
@@ -180,5 +172,5 @@ export function parseTags(value: unknown): string[] {
 }
 
 export function isTagHeader(value: unknown): boolean {
-  return normalizeHeader(value) === "ETIQUETAS";
+  return normalizeHeader(value) === "TAGS";
 }

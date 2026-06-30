@@ -30,28 +30,28 @@ const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
 const HEADER_SCAN_ROWS = 12;
 const SHEET_SCAN_BATCH_SIZE = 5;
 const TAG_SEPARATOR = ", ";
-const TAG_HEADER = "ETIQUETAS";
+const TAG_HEADER = "Tags";
 const tagsColumnReady = new Set<string>();
 
 const SUMMARY_HEADERS = [
-  "MES",
-  "INGRESO FRECUENTE",
-  "INGRESO NO FRECUENTE",
-  "TOTAL INGRESOS",
-  "GASTO FRECUENTE",
-  "GASTO NO FRECUENTE",
-  "TOTAL GASTOS",
-  "NETO MENSUAL",
-  "NETO SIN ING FRECUENTE",
+  "MONTH",
+  "FREQUENT INCOME",
+  "NON-FREQUENT INCOME",
+  "TOTAL INCOME",
+  "FREQUENT EXPENSE",
+  "NON-FREQUENT EXPENSE",
+  "TOTAL EXPENSES",
+  "MONTHLY NET",
+  "NET WITHOUT FREQUENT INCOME",
 ];
 
 const TRANSACTION_HEADERS = [
-  "Fecha",
-  "Monto",
-  "Detalle",
-  "Tipo",
-  "HORA DE CREACIÓN",
-  "Etiquetas",
+  "Date",
+  "Amount",
+  "Detail",
+  "Type",
+  "CREATION TIME",
+  "Tags",
 ];
 
 type FormulaDialect = { sumifs: string; eomonth: string; sep: string };
@@ -565,7 +565,7 @@ export async function createBucksSpreadsheet(token: string) {
 
 async function initializeSpreadsheet(token: string, spreadsheetId: string) {
   const currentMonth = new Date();
-  const firstDay = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}-01`;
+  const firstDay = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
   const locale = await getSpreadsheetLocale(token, spreadsheetId);
   await googleFetch(token, `${SHEETS}/${spreadsheetId}/values:batchUpdate`, {
     method: "POST",
@@ -855,7 +855,7 @@ async function ensureMonthlySummaryRowByDate(
     const rowDate = parseSheetDate(rows[i]?.[0]);
     if (rowDate && getMonthYear(rowDate) === monthYear) {
       const rowNumber = i + 1;
-      const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+      const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       const startColumn = refreshFrequentIncome ? "B" : "C";
       const formulas = buildSummaryRowFormulas(
         rowNumber,
@@ -882,7 +882,7 @@ async function ensureMonthlySummaryRowByDate(
     }
   }
   const rowNumber = Math.max(rows.length + 1, headerIndex + 2);
-  const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+  const firstDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   await googleFetch(
     token,
     `${valuesUrl(spreadsheetId, `${SHEET_NAMES.summary}!A${rowNumber}:I${rowNumber}`)}?valueInputOption=USER_ENTERED`,

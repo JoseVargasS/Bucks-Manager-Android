@@ -28,7 +28,7 @@ test("buildExportFileName generates filename for month range", () => {
     startDate: "2026-01",
     endDate: "2026-03",
   };
-  assert.equal(buildExportFileName(cfg), "bucks-manager_enero-2026_a_marzo-2026");
+  assert.equal(buildExportFileName(cfg), "bucks-manager_january-2026_a_march-2026");
 });
 
 test("buildExportFileName handles partial ranges", () => {
