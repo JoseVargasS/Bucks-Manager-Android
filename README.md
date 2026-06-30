@@ -12,7 +12,7 @@ The app has no custom backend. Each user signs in with Google and uses a private
 4. Restore the last spreadsheet and its local financial cache when available.
 5. Paint cached transactions immediately and revalidate Google Sheets in the background.
 6. Scan Google Drive only when there is no usable saved spreadsheet, validating candidates in bounded parallel batches.
-7. Prefer an existing spreadsheet named `INGRESOS Y GASTOS`; if none exists, create it with that exact name.
+7. Prefer an existing spreadsheet named `INCOME AND EXPENSES`; if none exists, create it with that exact name.
 
 No demo finance data is shown during startup. The native splash remains visible until a cached session or the first Google Sheets load is ready, so the app opens directly with real data instead of showing a skeleton.
 
@@ -20,37 +20,52 @@ Add, edit, delete, reorder, and frequent-income changes update the local UI firs
 
 Frequent income is added through the normal transaction form using `INGRESO FRECUENTE`. Existing monthly values remain readable for legacy sheets, but the app no longer edits them through a separate modal.
 
+If the stored spreadsheet was trashed (moved to Google Drive trash), the session clears the local cache and starts fresh.
+
 ## Google Sheet Contract
 
-The spreadsheet must contain these tabs:
+The spreadsheet must contain two tabs:
 
-- `INGRESOS Y GASTOS`
-- `RESUMEN POR MES`
+- `INCOME AND EXPENSES`
+- `MONTHLY SUMMARY`
 
-`INGRESOS Y GASTOS` accepted headers:
+`INCOME AND EXPENSES` columns:
+
+| Column | Header | Content |
+| --- | --- | --- |
+| A | Date | Transaction date (DD-mmm-YY) |
+| B | Amount | Numeric value or formula |
+| C | Detail | Free-text description |
+| D | Type | Exact transaction type |
+| E | CREATION TIME | Time the transaction was created |
+| F | Tags | Comma-separated tag ids |
+
+Legacy GAS headers (Spanish) are still accepted on read: `Fecha`, `Monto`, `Detalle`,
+`Tipo` / `Tipo de gasto`, `HORA DE CREACION`, `Etiquetas`.
+
+`MONTHLY SUMMARY` columns:
 
 | Column | Header |
 | --- | --- |
-| A | Fecha |
-| B | Monto |
-| C | Detalle |
-| D | Tipo or Tipo de gasto |
-| E | HORA DE CREACION or HORA DE CREACIÓN |
-| F | ETIQUETAS |
+| A | MONTH |
+| B | FREQUENT INCOME |
+| C | NON-FREQUENT INCOME |
+| D | TOTAL INCOME |
+| E | FREQUENT EXPENSE |
+| F | NON-FREQUENT EXPENSE |
+| G | TOTAL EXPENSES |
+| H | MONTHLY NET |
+| I | NET WITHOUT FREQUENT INCOME |
 
-`RESUMEN POR MES` accepted headers:
+Legacy GAS aliases (`MES`, `MES Y AÑO`, `NETO SIN ING FRECUENTE`, etc.) are still
+accepted on read.
 
-| Column | Header |
+Additional cells (outside the summary table):
+
+| Cell | Content |
 | --- | --- |
-| A | MES or MES Y AÑO |
-| B | INGRESO FRECUENTE |
-| C | INGRESO NO FRECUENTE |
-| D | TOTAL INGRESOS |
-| E | GASTO FRECUENTE |
-| F | GASTO NO FRECUENTE |
-| G | TOTAL GASTOS |
-| H | NETO MENSUAL |
-| I | NETO SIN ING FRECUENTE or TOTAL SIN INGRESO FRECUENTE |
+| K1 | Header: `TAGS CATALOGUE` |
+| K2 | Full JSON array of tag objects `{id, label, color}` |
 
 Supported transaction types:
 
@@ -172,7 +187,7 @@ CONTEXT.md                      Runtime map and performance invariants
 - Never block cached startup or optimistic UI on Google Sheets.
 - Reuse a valid saved spreadsheet ID before scanning Drive.
 - Deduplicate in-flight reloads and do not overwrite optimistic state with an older remote response.
-- Treat an existing `ETIQUETAS` header as ready; do not repeat migration or formatting writes on every cold launch.
+- Treat an existing `Tags` header as ready; do not repeat migration or formatting writes on every cold launch.
 - Keep Drive compatibility scans bounded rather than sequential or unbounded.
 - Import `MaterialCommunityIcons` from its direct module so Metro does not bundle unused icon-font families.
 - Preserve the mounted pager and ref-driven primary modals unless device evidence justifies a different architecture.
@@ -180,6 +195,7 @@ CONTEXT.md                      Runtime map and performance invariants
 - The shell background and `HeaderShell` overlay animate from light to dark over 180ms when the theme toggles. The two SVG header fades snap because they accept a string colour prop.
 - `getPalette` memoizes the result for each `(theme, scheme)` pair in a small LRU. Do not remove that cache.
 - Transaction tags store stable ids, not labels. Custom tags keep the label the user typed; default tags are translated through the catalogue and keep their colour. `migrateTagReferences` rewrites legacy label refs to ids once when the tag catalogue finishes loading.
+- Tag catalogue (including colours) is persisted in sheet cell `MONTHLY SUMMARY!K2` so custom tag colours survive app data clear and device changes.
 - Every reusable UI primitive is `React.memo`-wrapped. New UI primitives must be memoized at creation time.
 
 ## Repository Hygiene

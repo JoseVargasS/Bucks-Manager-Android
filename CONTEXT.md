@@ -14,19 +14,21 @@ Deployment-specific Expo values, including `EAS_PROJECT_ID`, come from `.env` or
 2. If a cache exists for that spreadsheet, apply it immediately and release the splash.
 3. Refresh the Google token and read transactions/summaries in the background.
 4. If the stored spreadsheet is missing or incompatible, scan Drive in batches of five candidates.
-5. Create `INGRESOS Y GASTOS` only when no compatible named sheet is available.
+5. Create `INCOME AND EXPENSES` only when no compatible named sheet is available.
+6. If the stored spreadsheet was trashed in Drive, clear the local cache and start fresh.
 
-`reloadFromGoogle()` shares one in-flight promise. `pendingSyncRef` prevents an ordinary refresh from replacing optimistic state. Mutations update React state and the local cache first, then write to Sheets and force one reconciliation read.
+`reloadFromGoogle()` shares one in-flight promise. `pendingSyncRef` prevents an ordinary refresh from replacing optimistic state. Mutations update React state and the local cache first, then write to Sheets and force one reconciliation read. Each mutation sets `pendingSyncRef.current = true` before the sync call so the reconciliation does not overwrite the optimistic update.
 
-A module-level `syncQueue` serializes Sheets mutations so a fast edit cannot race the reconcile read of an earlier edit.
+A module-level `syncQueue` serializes Sheets mutations so a fast edit cannot race the reconcile read of an earlier edit. `syncGoogleInBackground` no longer clears `pendingSyncRef` — each mutation owns its guard.
 
 ## Data Contract
 
-- Tabs: `INGRESOS Y GASTOS`, `RESUMEN POR MES`.
+- Tabs: `INCOME AND EXPENSES`, `MONTHLY SUMMARY`.
 - Transaction columns: date, amount/formula, detail, exact transaction type, creation time, tags.
 - Exact types: `INGRESO FRECUENTE`, `INGRESO NO FRECUENTE`, `GASTO FRECUENTE`, `GASTO NO FRECUENTE`.
 - Frequent income is created through the transaction form. Legacy monthly summary values remain a read-only fallback when a month has no frequent-income transactions.
-- Legacy header aliases, accents, whitespace, and line breaks remain accepted.
+- Legacy Spanish headers are still accepted on read: `Fecha`, `Monto`, `Detalle`, `Tipo` / `Tipo de gasto`, `HORA DE CREACION`, `Etiquetas`, `MES`, `NETO SIN ING FRECUENTE`, etc.
+- Tag catalogue is persisted in `MONTHLY SUMMARY!K1:K2` (K1 header, K2 full JSON array). Custom tag colours survive app data clear and device changes.
 - User-entered descriptions are never translated or normalized.
 
 ## Tag Identity
@@ -37,6 +39,8 @@ Transaction tags store stable `tag.id` values, not free-form labels. The catalog
 - Custom user tags keep the label the user typed in the language they typed it. They are not translated.
 - `slugifyTagLabel(label)` produces a deterministic `custom-{slug}` id so recreating a deleted tag reattaches the same id.
 - `migrateTagReferences(refs, tagsList)` runs once in `App.tsx` when the tag catalogue finishes loading. It resolves ids first, then `DEFAULT_TAGS` labels in both Spanish and English, then creates a `custom-{slug}` orphan id for unknown legacy labels.
+- The tag catalogue is persisted in `MONTHLY SUMMARY!K2` as a JSON array and also mirrored to `SecureStore`. On reload, `readTagsCatalog` fetches the sheet version; `writeTagsCatalog` pushes local changes back with a 1.5s debounce.
+- In `reloadFromGoogle`: sheet tags are merged into the in-memory `tagsList`. Custom tags use the sheet as source of truth (label + colour); default tags keep the language-correct label but adopt the sheet colour. Orphan scan then assigns deterministic palette colours only to truly unknown `custom-*` ids.
 - Components resolve an id to its label and colour through `findTagById`, `labelForTagId`, and shared maps. The local cache uses `schemaVersion: 2` so legacy caches surface for the in-memory migration on first load.
 
 ## Theme and Palette
@@ -53,12 +57,13 @@ The toggle animates the shell and `HeaderShell` background through an `Animated.
 ## Hot Paths
 
 - `src/utils/transactions.ts`: rolling-period filter, decorated descending sort, and map-based date grouping.
-- `src/api/googleWorkspace.ts`: tag readiness inferred from the transaction read, bounded Drive validation, batched reads, and row mutations.
+- `src/api/googleWorkspace.ts`: tag readiness inferred from the transaction read, bounded Drive validation, batched reads, row mutations, and tag catalogue read/write to `MONTHLY SUMMARY!K1:K2`.
 - `src/data/localCache.ts`: stale-while-revalidate snapshot for transactions, summaries, frequent income, and last sync time. `CACHE_VERSION = 2`.
 - `src/components/screens/ExpensesView.tsx`: virtualized `SectionList`; clipping stays disabled because Android previously rendered blank rows after edits.
 - `src/components/modals/TransactionModal.tsx`, `DetailModal.tsx`, and `SearchModal.tsx`: ref-driven open path for immediate presentation.
 - UI files import the direct `MaterialCommunityIcons` entry so Android exports include only that icon font.
 - `src/theme/ThemeContext.tsx`: three contexts as described above. Do not re-merge them.
+- `App.tsx`: mutation pipeline with `pendingSyncRef.current = true` guards, `rehydratingCache` state for splash visibility during cache restore, `isSheetTrashed` check on cached sessions.
 
 ## Memoization Contract
 
